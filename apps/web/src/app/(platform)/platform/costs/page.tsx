@@ -7,12 +7,14 @@ import { PAGE_COPY } from '@/help/copy';
 import { requireOperatorContext } from '@/server/current-viewer';
 import { helpGuides } from '@/server/help';
 import { callTool } from '@/server/tools';
+import { viewerTimeZone } from '@/server/viewer-tz';
 import { AiByVerticalTable } from './_components/ai-by-vertical-table';
 import { CostItemDialog } from './_components/cost-item-dialog';
 import { CostItemsTable } from './_components/cost-items-table';
 import { MonthlyChart } from './_components/monthly-chart';
 import { RefreshButton } from './_components/refresh-button';
 import { ServicesTable } from './_components/services-table';
+import { AiDecisionMode, type AiDecisionModeData } from './_components/ai-decision-mode';
 import { type GuardSettings, SpendGuardSettings } from './_components/spend-guard-settings';
 import { SummaryStrip } from './_components/summary-cards';
 import type { CostsData } from './_components/types';
@@ -27,9 +29,11 @@ const COPY = PAGE_COPY['platform.costs'];
 /** Owners only: the tool's `permission_denied` becomes a 404 in `callTool`. */
 export default async function PlatformCostsPage() {
   const { ctx } = await requireOperatorContext();
-  const [data, guard, guides] = await Promise.all([
+  const [data, guard, aiMode, tz, guides] = await Promise.all([
     callTool<CostsData>(ctx, 'list_platform_costs', {}),
     callTool<{ settings: GuardSettings }>(ctx, 'get_spend_guard', {}),
+    callTool<AiDecisionModeData>(ctx, 'get_ai_decision_mode', {}),
+    viewerTimeZone(),
     helpGuides(ctx, 'platform'),
   ]);
   return (
@@ -65,6 +69,9 @@ export default async function PlatformCostsPage() {
       </Section>
       <Section title="Limits & spike guard" titleAside={<HelpTip tip="platform.costs.limits" />} ruled>
         <SpendGuardSettings settings={guard.settings} />
+      </Section>
+      <Section title="AI decisions" ruled>
+        <AiDecisionMode data={aiMode} tz={tz} />
       </Section>
       <Section title="Manual costs" titleAside={<HelpTip tip="platform.costs.manual" />} actions={<CostItemDialog />} ruled>
         <CostItemsTable items={data.items} />

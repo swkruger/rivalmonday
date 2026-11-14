@@ -9,6 +9,7 @@ import { platformConsoleTools } from './tools/platform-console';
 import { platformPlanMoveTools } from './tools/platform-plan-move';
 import { platformCostTools } from './tools/platform-costs';
 import { spendGuardPlatformTools } from './tools/spend-guard';
+import { aiDecisionModeTools } from './tools/platform-ai-mode';
 import { usagePlatformTools } from './tools/usage';
 import { platformSignupsTools } from './tools/platform-signups';
 import { platformWaitlistTools } from './tools/platform-waitlist';
@@ -34,7 +35,7 @@ export async function postCommitSeatSync(deps: ToolDeps, agencyId: string): Prom
 }
 
 /** Platform-operator tools act on the platform, not on a paying agency, so a paused home agency never blocks them. Derived from the module arrays, not guessed names. */
-const PLATFORM_TOOLS: readonly string[] = [...platformConsoleTools, ...platformBillingTools, ...platformPlanMoveTools, ...platformAgencyTools, ...platformSignupsTools, ...platformWaitlistTools, ...platformCostTools, ...usagePlatformTools, ...spendGuardPlatformTools, ...modelOpsTools, ...knowledgeAdminTools, ...supportTools, ...topicTools].map((t) => t.name);
+const PLATFORM_TOOLS: readonly string[] = [...platformConsoleTools, ...platformBillingTools, ...platformPlanMoveTools, ...platformAgencyTools, ...platformSignupsTools, ...platformWaitlistTools, ...platformCostTools, ...usagePlatformTools, ...spendGuardPlatformTools, ...aiDecisionModeTools, ...modelOpsTools, ...knowledgeAdminTools, ...supportTools, ...topicTools].map((t) => t.name);
 
 /**
  * Writes that stay open while the agency is `read_only`/`suspended`: paying to resume, managing who has access, and

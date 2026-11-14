@@ -7,7 +7,7 @@ import {
 } from '@cs/collectors';
 import { DEFAULT_SUPPORT_EMAIL, type AiGuard, type CallScope } from '@cs/core';
 import { createVendorLimiter } from '@cs/core/server';
-import { type AgencyBranding, competitor, type OpsAlert, catalogRows, createAiGuard, createDb, createDecisionSampleSink, createLedgerSink, type Db } from '@cs/db';
+import { type AgencyBranding, competitor, type OpsAlert, catalogRows, createAiGuard, createDb, createDecisionModeSource, createDecisionSampleSink, createLedgerSink, type Db } from '@cs/db';
 import { createCatalog } from '@cs/verticals';
 import type { DiscoveryResult } from '@cs/collectors';
 import {
@@ -364,9 +364,12 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv, opts: { aiGuard?: boole
   /** Phase 7b1: one guard (shared 30 s cache) for the daemon's AI calls; the `*-once` CLIs build `Ai` without one. */
   let guard: AiGuard | null = null;
   const aiGuard = (): AiGuard | undefined => (opts.aiGuard === false ? undefined : (guard ??= createAiGuard(getDb())));
+  /** 18e: Jev only / cascade / re-evaluation switch (30 s cache), read by the daemon's decision calls; the CLIs and evals keep the cascade. */
+  let decisionModeSource: ReturnType<typeof createDecisionModeSource> | null = null;
+  const decisionMode = () => (decisionModeSource ??= createDecisionModeSource(getDb(), { ttlMs: 30_000 }));
   /** Today's (prod) Ai: real OpenRouter/Jev through the limited fetches, behind the daemon's guard. */
   const liveAi = (cfg: AiConfig) =>
-    createAiFromEnv(env, cfg, createLedgerSink(getDb()), createDecisionSampleSink(getDb()), aiGuard(), { openrouter: vendors.limitedFetch('openrouter'), jev: vendors.limitedFetch('jev') });
+    createAiFromEnv(env, cfg, createLedgerSink(getDb()), createDecisionSampleSink(getDb()), aiGuard(), { openrouter: vendors.limitedFetch('openrouter'), jev: vendors.limitedFetch('jev') }, decisionMode());
   // 7c2 rehearsal (staging only, refused elsewhere above): AI_PROVIDER_MODE=rehearsal answers every client with the $0
   // rehearsal AI except REHEARSAL_LIVE_CLIENT_IDS, which keep the live Ai. Both sides share the one guard.
   const buildAi = async (cfg: AiConfig): Promise<Ai> =>

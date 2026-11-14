@@ -3,7 +3,7 @@ import { type Ai, createAiFromEnv, DEFAULT_AI_CONFIG_PATH, loadAiConfigFile } fr
 import { aiPauseOf, ASK_COPY, askPausedCopy, type AskDeps, type AskEvent, beginTurn, DEFAULT_ASSISTANT_NAME, runTurn } from '@cs/ask';
 import { createScriptedAskAi, type ScriptedChatRequest, type ScriptedReply, type ScriptedStep } from '@cs/ask/testing';
 import { type AccessContext, type AiGuard, canAccessClient, hasChannel, ToolError } from '@cs/core';
-import { agency, client, createAiGuard, createDecisionSampleSink, createLedgerSink, type Db, type EnvName, withTenant } from '@cs/db';
+import { agency, client, createAiGuard, createDecisionModeSource, createDecisionSampleSink, createLedgerSink, type Db, type EnvName, withTenant } from '@cs/db';
 import { assertAgencyServiceable } from '@cs/tools';
 import { eq } from 'drizzle-orm';
 import { cache } from 'react';
@@ -119,7 +119,7 @@ const realAi = perEnv((name: EnvName) => {
   let ai: Promise<Ai> | undefined;
   return () =>
     (ai ??= loadAiConfigFile(DEFAULT_AI_CONFIG_PATH)
-      .then((cfg) => createAiFromEnv(process.env, cfg, createLedgerSink(service), createDecisionSampleSink(service), guardFor(name)()))
+      .then((cfg) => createAiFromEnv(process.env, cfg, createLedgerSink(service), createDecisionSampleSink(service), guardFor(name)(), undefined, createDecisionModeSource(service, { ttlMs: 30_000 })))
       .catch((e: unknown) => {
         ai = undefined;
         throw e;

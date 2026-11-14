@@ -92,3 +92,16 @@ export async function updateSpendGuardSettingsAction(_p: FormResult, fd: FormDat
   revalidatePath(PATH);
   return { ok: true, message: 'Saved.' };
 }
+
+/** Staff only (the tool enforces it). `mode` and `reeval` are independent; at least one is sent. */
+export async function setAiDecisionModeAction(_p: FormResult, fd: FormData): Promise<FormResult> {
+  const { ctx } = await requireOperatorContext();
+  const mode = str(fd, 'mode');
+  const reeval = str(fd, 'reeval');
+  const input = { ...(mode ? { mode } : {}), ...(reeval ? { reeval } : {}) };
+  if (Object.keys(input).length === 0) return { ok: false, error: 'Nothing to change' };
+  const r = await runTool(ctx, 'set_ai_decision_mode', input);
+  if (!r.ok) return r;
+  revalidatePath(PATH);
+  return { ok: true, message: reeval === 'start' ? 'Re-evaluation started.' : reeval === 'stop' ? 'Re-evaluation stopped.' : 'Saved.' };
+}

@@ -181,6 +181,7 @@ export const ISOLATION_FIXTURES: Record<string, IsolationFixture> = {
   get_client_limits: platform((w) => ({ agencyId: w.ids.agencyA })),
   get_spend_guard: platform(),
   get_ai_guard_state: platform(),
+  get_ai_decision_mode: platform(),
   list_decision_reviews: platform(),
   list_topic_proposals: platform(),
   list_kb_articles: platform(),
@@ -404,6 +405,10 @@ export const ISOLATION_FIXTURES: Record<string, IsolationFixture> = {
   reset_ai_pause: {
     kind: 'platform', input: () => ({ note: 'Checked the spike' }),
     skipPositive: "needs a paused / warned platform AI guard: the world's guard is ok (a paused one would block every AI path); covered in spend-guard.test.ts",
+  },
+  set_ai_decision_mode: {
+    kind: 'platform', input: () => ({ mode: 'cascade' }),
+    skipPositive: "changes the platform-wide Jev decision mode for every tenant's AI work; covered in platform-ai-mode.test.ts",
   },
 
   // ── caller writes: own token / session, global catalogue ───────────────────────────────────────────

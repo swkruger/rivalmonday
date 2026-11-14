@@ -121,6 +121,15 @@ describe('vendor limiter (Phase 7c2)', () => {
     expect(http.openrouter).not.toBe(http.jev);
   });
 
+  it('18e: the live Ai gets the decision-mode source (read, reevalCallsToday, noteReevalCall)', async () => {
+    createAiFromEnv.mockClear();
+    await createWorkerDeps(env).collectModelBatches().catch(() => undefined);
+    const src = (createAiFromEnv.mock.calls[0] as unknown[])[6] as { read: unknown; reevalCallsToday: unknown; noteReevalCall: unknown };
+    expect(typeof src.read).toBe('function');
+    expect(typeof src.reevalCallsToday).toBe('function');
+    expect(typeof src.noteReevalCall).toBe('function');
+  });
+
   it('builds Ai once per deps and reuses its limited fetches', async () => {
     createAiFromEnv.mockClear();
     const a = createWorkerDeps(env);
