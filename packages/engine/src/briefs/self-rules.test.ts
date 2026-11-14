@@ -272,6 +272,12 @@ describe('social_gap (18e)', () => {
     expect(checkSentence(f.fact, { text: scorecardEvidenceText(input.scorecard, [f]), captureDates: [], zips: [], competitorNames: ['R2', 'R3', 'R4'] }, ctx).ok).toBe(true);
   });
 
+  it('a rival without citable evidence is not counted', async () => {
+    const f = find(evaluateSelfRules(await base({ scorecard: sc(0, [4, 9, 9]), socialEvidenceByCompetitor: { [ID(2)]: [ID(402)], [ID(3)]: [ID(403)] } })), 'social_gap')!;
+    expect(f.fact).toContain('2 rivals');
+    expect(find(evaluateSelfRules(await base({ scorecard: sc(0, [4, 9, 9]), socialEvidenceByCompetitor: { [ID(2)]: [ID(402)] } })), 'social_gap')).toBeUndefined();
+  });
+
   it("doesn't fire with 1 rival, rivals under 4 posts, you posting, no confirmed account, or no evidence", async () => {
     const run = async (scorecard: Scorecard, e: Record<string, string[]> | null = ev) => find(evaluateSelfRules(await base({ scorecard, socialEvidenceByCompetitor: e ?? undefined })), 'social_gap');
     expect(await run(sc(0, [9, 3, null]))).toBeUndefined();

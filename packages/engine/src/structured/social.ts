@@ -185,13 +185,18 @@ export async function socialPostCounts30d(db: Db, competitorIds: string[], now: 
 /** The evidence ids of each business's newest ok social capture per account (they list the counted posts; no evidence, no claim), keyed by competitor. */
 export async function socialEvidenceByCompetitor(db: Db, competitorIds: string[]): Promise<Record<string, string[]>> {
   if (competitorIds.length === 0) return {};
+  // Only a currently confirmed account's capture (url = `socialCaptureUrl`, as in `socialPostsOfConfirmedAccounts`) is ever cited.
+  const accounts = await db.select({ competitorId: socialAccount.competitorId, network: socialAccount.network, handle: socialAccount.handle, externalId: socialAccount.externalId })
+    .from(socialAccount).where(and(inArray(socialAccount.competitorId, competitorIds), eq(socialAccount.status, 'confirmed')));
+  const urls = new Set(accounts.map((a) => `${a.competitorId}|${socialCaptureUrl(a)}`));
+  if (urls.size === 0) return {};
   const rows = await db
-    .selectDistinctOn([capture.competitorId, capture.url], { competitorId: capture.competitorId, id: evidence.id })
+    .selectDistinctOn([capture.competitorId, capture.url], { competitorId: capture.competitorId, url: capture.url, id: evidence.id })
     .from(evidence)
     .innerJoin(capture, eq(capture.id, evidence.captureId))
     .where(and(inArray(capture.competitorId, competitorIds), eq(capture.source, 'social'), eq(capture.status, 'ok')))
     .orderBy(capture.competitorId, capture.url, desc(capture.capturedAt), asc(evidence.kind), asc(evidence.id));
   const out: Record<string, string[]> = {};
-  for (const r of rows) (out[r.competitorId] ??= []).push(r.id);
+  for (const r of rows) if (r.url !== null && urls.has(`${r.competitorId}|${r.url}`)) (out[r.competitorId] ??= []).push(r.id);
   return out;
 }

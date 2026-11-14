@@ -335,6 +335,17 @@ describe('Events listed and Tripadvisor rating (18d)', () => {
       expect(scorecardModel(sc, { clientName: 'A1 HVAC' }).table.headers).toContain('Social posts (30 days)');
     });
 
+    it('rejected account capture never cited', async () => {
+      const r = await addRival('Rival Social', 'top');
+      await account(r, 'rejected', 'wrong');
+      await account(r, 'confirmed', 'right');
+      const wrong = await posts(r, 2, 'wrong');
+      const right = await posts(r, 2, 'right');
+      const sc = await buildScorecard(deps(), IDS.clientA1, { now: NOW });
+      expect(sc.evidenceIds).toContain(right.evidenceId);
+      expect(sc.evidenceIds).not.toContain(wrong.evidenceId);
+    });
+
     it('no confirmed account → null, column dropped', async () => {
       await addRival('Rival Quiet', 'top');
       const sc = await buildScorecard(deps(), IDS.clientA1, { now: NOW });

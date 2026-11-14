@@ -216,10 +216,10 @@ export function evaluateSelfRules(input: SelfRuleInput): SelfFinding[] {
         break;
       }
       case 'social_gap': {
-        // You have a confirmed account (count not null) but no post in 30 days, while enough rivals post at least weekly.
+        // A rival counts only with citable evidence, so n matches the citations. You have a confirmed account (count not null) but no post in 30 days, while enough rivals post at least weekly.
         if (you('socialPosts30d') !== 0) break;
         const minPosts = param(rule, 'min_rival_posts', 4);
-        const posting = input.scorecard.rows.filter((r) => !r.self && r.competitorId && (r.values.socialPosts30d ?? 0) >= minPosts);
+        const posting = input.scorecard.rows.filter((r) => !r.self && r.competitorId && (r.values.socialPosts30d ?? 0) >= minPosts && (input.socialEvidenceByCompetitor?.[r.competitorId] ?? []).length > 0);
         const n = posting.length;
         if (n < param(rule, 'min_rivals', 2)) break;
         const evidenceIds = [...new Set(posting.flatMap((r) => input.socialEvidenceByCompetitor?.[r.competitorId!] ?? []))];

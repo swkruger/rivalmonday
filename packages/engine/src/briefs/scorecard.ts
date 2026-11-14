@@ -101,7 +101,10 @@ const count = (x: unknown): number | null => (typeof x === 'number' && Number.is
 export async function buildScorecard(
   deps: { db: Db; packs: PackLoader },
   clientId: string,
-  opts: { now?: Date; baseline?: Scorecard | null; openFirstMoves?: { recommendationId: string; title: string }[] } = {},
+  opts: { now?: Date; baseline?: Scorecard | null; openFirstMoves?: { recommendationId: string; title: string }[];
+    /** Receives the social evidence it computed (competitor id -> evidence ids) so a caller need not query it again. */
+    onSocialEvidence?: (byCompetitor: Record<string, string[]>) => void;
+  } = {},
 ): Promise<Scorecard> {
   const now = opts.now ?? new Date();
   const [c] = await deps.db.select().from(client).where(eq(client.id, clientId)).limit(1);
@@ -185,7 +188,9 @@ export async function buildScorecard(
   for (const b of trend.businesses) b.gbpEvidenceIds.forEach(add);
   (await postsEvidenceIds(deps.db, ids)).forEach(add);
   (await eventsEvidenceIds(deps.db, ids)).forEach(add);
-  Object.values(await socialEvidenceByCompetitor(deps.db, ids)).forEach((e) => e.forEach(add));
+  const socialEvidence = await socialEvidenceByCompetitor(deps.db, ids);
+  opts.onSocialEvidence?.(socialEvidence);
+  Object.values(socialEvidence).forEach((e) => e.forEach(add));
   const taCaptures = [...taRatings.values()].map((t) => t.captureId);
   if (taCaptures.length > 0) {
     const ev = await deps.db.select({ id: evidence.id, captureId: evidence.captureId }).from(evidence).where(inArray(evidence.captureId, taCaptures)).orderBy(asc(evidence.id));

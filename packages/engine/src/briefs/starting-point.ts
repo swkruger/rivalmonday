@@ -10,7 +10,6 @@ import { citationCatalogue, type Directory, type VerticalPack } from '@cs/vertic
 import type { PackLoader } from '../tag/tag-stage';
 import { localClock } from '../delivery/time';
 import { eventsEvidenceIds } from '../listed-events/counts';
-import { socialEvidenceByCompetitor } from '../structured/social';
 import { BRIEF_MAX_ATTEMPTS, BRIEF_STALE_MINUTES, briefErrorMessage, type BriefRunResult } from './generate';
 import { type BriefClient, loadBriefClient } from './gather';
 import { loadClientRunbook } from '../runbook/store';
@@ -247,7 +246,8 @@ export async function generateStartingPoint(deps: { db: Db; ai: Ai; packs: PackL
   try {
     const c = await loadBriefClient(deps, clientId);
     const pack = await deps.packs(c.verticalId);
-    const scorecard = await buildScorecard(deps, clientId, { now });
+    let socialEvidence: Record<string, string[]> = {};
+    const scorecard = await buildScorecard(deps, clientId, { now, onSocialEvidence: (e) => { socialEvidence = e; } });
     const trend = await ratingTrend(deps, clientId, { now });
     const topics = (await reviewBenchmark(deps, clientId, { now })).businesses;
     const rankEvidenceIds = await rankEvidence(deps.db, clientId);
@@ -256,7 +256,7 @@ export async function generateStartingPoint(deps: { db: Db; ai: Ai; packs: PackL
     const findings = evaluateSelfRules({
       citations: await loadSelfCitations(deps.db, clientId, row.selfCompetitorId, citationCatalogue(pack), audited.rivalIds),
       events: await selfEvents(deps.db, scorecard),
-      socialEvidenceByCompetitor: await socialEvidenceByCompetitor(deps.db, scorecard.rows.flatMap((r) => (r.competitorId && !r.self ? [r.competitorId] : []))),
+      socialEvidenceByCompetitor: socialEvidence,
       scorecard, topics, profile: await selfProfile(deps.db, row.selfCompetitorId), rules: runbook.selfRules, playbooks: runbook.plays,
       rankHasEvidence: rankEvidenceIds.length > 0, audienceNoun: pack.audience_noun, rankEvidenceIds,
       evidenceByCompetitor: Object.fromEntries(trend.businesses.map((b) => [b.competitorId, b.evidenceIds])),
