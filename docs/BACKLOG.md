@@ -198,7 +198,6 @@ Gate itself done (launch-gate, 2026-11-04: `profile-gate.sh --seed` exit 0, 71/7
 - [ ] Quarterly: re-run the rival fact check (`check:facts` blocks deploys past 90 days, all five rivals) — *phase-17c*
 - [ ] Re-run `pnpm --filter @cs/demo export:site-verticals` when verticals change (manual, P2) — *phase-17b*
 - [ ] 13a: when white-label (own domain, email) ships, update the site's white-label FAQ, partners page and RM compare cells — *phase-17c*
-- [ ] Social collection, if ever built: flip the compare row from "Not offered" — *phase-17c*
 - [ ] Bump a guide's `updated` date in `content/guides.ts` on every substantive edit (Article `dateModified`) — *site-showcase*
 - [ ] Testimonials: add real pilot quotes (with permission) to `content/testimonials.ts`; the section stays hidden while empty — *site-showcase*
 - [ ] Friday's live voice: add the drafted prompt line (`docs/brand/friday.md`) and re-record the Ask cassettes (~$1.60/run, stop at $5, owner's call first); the personality is site + brand doc only until then — *site-polish*
@@ -318,7 +317,7 @@ Gate itself done (launch-gate, 2026-11-04: `profile-gate.sh --seed` exit 0, 71/7
 - [ ] Polish → a manual listings check that throws before the worker adopts it stays `running` until the 3 h stale sweep (doesn't use the slot); vendors-unset reads as the same "not ready" text as a missing Google listing; 0108 rewrites generic `directory_groups` like 0107 (DB edits lost) — *18c-2 final review*
 - [ ] Phase 16 → no-self clients: "Link Google listing" prompt on the Listings page (only a note today) — *18c*
 - [ ] Later → Google Q&A, News, Trustpilot (Tripadvisor ratings shipped in 18d) — *18b brief*
-- [ ] 18e/later → Google Events SERP re-probe (DataForSEO events endpoint returned 50304 on 2026-11-11; coverage on real venues) — *18d probe*
+- [ ] later → Google Events SERP re-probe (DataForSEO events endpoint returned 50304 on 2026-11-11; coverage on real venues) — *18d probe*
 - [ ] Later → Tripadvisor review texts (ratings + counts only today) — *18d*
 - [ ] Later → add `events` to `PAGE_TYPES` (tracked-page type for event pages) — *18d*
 - [ ] Later → runbook sync for `event_gap` (platform runbook play for the new fact) — *18d*
@@ -326,6 +325,25 @@ Gate itself done (launch-gate, 2026-11-04: `profile-gate.sh --seed` exit 0, 71/7
 - [ ] Later → JSON-LD event status never restores after `EventScheduled` again (a re-opened event stays cancelled) — *18d final review*
 - [ ] Later → Events menu tool lists active clients only; copy says so loosely — *18d final review*
 - [ ] Later → venues pack claims Bar/Brewery/Distillery/Winery as related categories (no agency can create e.g. a Breweries type); revisit if agencies ask — *18d ruling*
+
+### 18e follow-ups
+- [ ] Later → social: social credits not counted toward client USD spend guards (vendor_call cost_usd null, like Meta via ScrapeCreators); price units if pilots need it — *18e final review M2*
+- [ ] Later → social: a page shared across two competitor rows loses posts to the global (network, post_id) unique on social_post; the second row counts 0 — *18e final review I2(d)*
+- [ ] Later → social: rollout credit burst (first discovery + pull for every tracked competitor in one week); stagger next_due_at on insert — *18e final review M6*
+- [ ] Polish → copy: tag/structured.ts brief summaries (social and older ones) are outside copy-review SOURCES — *18e final review M4*
+- [ ] Later → social: FB stop watermark is per competitor x network, not per account (a switched page's first pull may stop early) — *18e final review M5*
+- [ ] Polish → evals: pin the Ask turn deadline to the eval clock so a slow live record can't store a forced `toolChoice: 'none'` step (replay miss) — *18e Task 13*
+- [ ] Later → social: IG ScrapeCreators 200 with success:false throws; record as a failed pull instead — *18e Task 3 review*
+- [ ] Later → social: discovery has no equality-first pass; an IG-rejected handle also skips the FB candidate — *18e Task 4 review*
+- [ ] Later → social: "gated" flag persists only on a successful profile call, so a failed pull pays the gated retry again — *18e Task 5 review*
+- [ ] Later → social: concurrent confirm of two accounts hits the unique index (23505); map to a conflict refusal — *18e Task 9 review*
+- [ ] Later → social: unbounded follower history scan in the trend reader; cap by window — *18e Task 9 review*
+- [ ] Later → AI mode: re-eval counter bumps before the ledger write and has no in-flight dedupe or backoff — *18e Task 11 review*
+- [ ] Later → AI mode: a later window start overwrites an expired never-stopped window (lastWindow lost) — *18e Task 12 review*
+- [ ] Polish → social: skip rendering a non-http(s) account href; validate the form clientId; empty-state copy when social is off for the vertical — *18e Task 10 review*
+- [ ] Polish → social: "weekly" claim in copy needs a claim-check once the site is live; demo handles contain "demo" — *18e Task 10 review*
+- [ ] Polish → manual pause shows the spend-guard copy for a social source — *18e Task 9 review*
+- [ ] Later → social: add TikTok / other networks and engagement only if pilots ask (out of 18e) — *18e brief*
 
 ## Waiting on real data / external events
 - [ ] Verify the `local_services` parse on the first live Local Services block in a search snapshot (fixture is hand-made); an image-only Google post (no text, no url) parses to null and holds back post ending for that capture (fails safe) — check on staging data — *18b*
