@@ -9,7 +9,7 @@ afterAll(() => dbs.closeAll());
 
 const m = vi.hoisted(() => ({ host: null as unknown }));
 vi.mock('./db', () => ({ dbs: () => ({ app: dbs.app, service: dbs.service }) }));
-vi.mock('./env', () => ({ webEnv: () => ({ defaultAgencyId: null }) }));
+vi.mock('./env', () => ({ webEnv: () => ({ defaultAgencyId: null, hostEnv: { appUrl: 'https://app.example', neutralDomain: 'neutral.example', extraPlatformHosts: [] } }) }));
 vi.mock('./request-host', () => ({ requestHost: async () => m.host }));
 
 const { themeForViewer } = await import('./theme');
@@ -30,6 +30,15 @@ describe('themeForViewer without a viewer agency (13a1)', () => {
     expect(t.assistantName).toBe('Sunny');
     const memberLess = await themeForViewer({ kind: 'member-less' } as never);
     expect(memberLess.branding.displayName).toBe('Cool Comfort');
+  });
+
+  it('the agency logo is rehosted to the request origin on an agency host, kept on APP_URL on the platform', async () => {
+    await dbs.owner.update(agency).set({ branding: { displayName: 'Cool Comfort', logoUrl: 'https://app.example/files/logo/a/l.png' } }).where(eq(agency.id, IDS.agencyA));
+    const viewer = { kind: 'user', ctx: { agencyId: IDS.agencyA } } as never;
+    m.host = onAgency(IDS.agencyA);
+    expect((await themeForViewer(viewer)).branding.logoUrl).toBe(`${ACME}/files/logo/a/l.png`);
+    m.host = { origin: 'https://app.example', info: { kind: 'platform' } };
+    expect((await themeForViewer({ kind: 'user', ctx: { agencyId: IDS.agencyA } } as never)).branding.logoUrl).toBe('https://app.example/files/logo/a/l.png');
   });
 
   it('platform and mcp hosts keep the default branding', async () => {

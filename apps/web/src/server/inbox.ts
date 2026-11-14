@@ -3,11 +3,16 @@ import type { Viewer } from './viewer';
 
 export const inboxOwnerFor = (v: Exclude<Viewer, { kind: 'member-less' }>): InboxOwner => (v.kind === 'guest' ? { contactId: v.contactId } : { userId: v.userId });
 
-export function internalLink(link: string | null, appUrl: string): string {
+/**
+ * An inbox row's stored link as a path on the current host, when it is on one of `origins` (13a1 P8: client rows link to the
+ * agency's client origin, agency rows to APP_URL); anything else (foreign host, junk) → `/inbox`.
+ */
+export function internalLink(link: string | null, origins: readonly string[]): string {
   if (!link) return '/inbox';
   try {
     const u = new URL(link);
-    return u.origin === new URL(appUrl).origin ? `${u.pathname}${u.search}${u.hash}` : '/inbox';
+    const ours = origins.some((o) => { try { return new URL(o).origin === u.origin; } catch { return false; } });
+    return ours ? `${u.pathname}${u.search}${u.hash}` : '/inbox';
   } catch {
     return '/inbox';
   }

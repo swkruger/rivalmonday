@@ -15,10 +15,19 @@ describe('inboxOwnerFor', () => {
 
 describe('internalLink', () => {
   it('keeps our own links and drops foreign ones', () => {
-    expect(internalLink('https://rm.nofingers.ai/l/abc.def', 'https://rm.nofingers.ai')).toBe('/l/abc.def');
-    expect(internalLink('https://evil.example/l/abc', 'https://rm.nofingers.ai')).toBe('/inbox');
-    expect(internalLink(null, 'https://rm.nofingers.ai')).toBe('/inbox');
-    expect(internalLink('not a url', 'https://rm.nofingers.ai')).toBe('/inbox');
+    expect(internalLink('https://rm.nofingers.ai/l/abc.def', ['https://rm.nofingers.ai'])).toBe('/l/abc.def');
+    expect(internalLink('https://evil.example/l/abc', ['https://rm.nofingers.ai'])).toBe('/inbox');
+    expect(internalLink(null, ['https://rm.nofingers.ai'])).toBe('/inbox');
+    expect(internalLink('not a url', ['https://rm.nofingers.ai'])).toBe('/inbox');
+  });
+
+  it('internalLink accepts a client-origin link, rejects a foreign host', () => {
+    const origins = ['https://intel.agency-a.test', 'https://rm.nofingers.ai'];
+    expect(internalLink('https://intel.agency-a.test/l/abc.def?x=1', origins)).toBe('/l/abc.def?x=1');
+    expect(internalLink('https://rm.nofingers.ai/go/brief/1', origins)).toBe('/go/brief/1');
+    expect(internalLink('https://agency-b.neutral.test/l/abc', origins)).toBe('/inbox');
+    expect(internalLink('http://intel.agency-a.test/l/abc', origins)).toBe('/inbox'); // scheme is part of the origin
+    expect(internalLink('https://intel.agency-a.test/l/abc', [])).toBe('/inbox');
   });
 
   it('can still yield a protocol-relative path for a same-origin link with a doubled slash (m1, final review)', () => {
@@ -26,7 +35,7 @@ describe('internalLink', () => {
     // `//evil.example` pathname — a browser treats a redirect to that path as going to a different host. This is
     // why `inbox/actions.ts#openNotification` now wraps `internalLink(...)` in `safeNext`, not why this function
     // changed (it is correct for what it checks: same-origin).
-    const raw = internalLink('https://rm.nofingers.ai//evil.example', 'https://rm.nofingers.ai');
+    const raw = internalLink('https://rm.nofingers.ai//evil.example', ['https://rm.nofingers.ai']);
     expect(raw).toBe('//evil.example');
     expect(safeNext(raw)).toBe('/');
   });

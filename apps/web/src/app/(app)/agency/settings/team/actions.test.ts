@@ -4,7 +4,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const m = vi.hoisted(() => ({ runTool: vi.fn(), ctx: null as unknown }));
 vi.mock('@/server/current-viewer', () => ({ requireContext: async () => ({ viewer: {}, ctx: m.ctx }) }));
 vi.mock('@/server/run-tool', () => ({ runTool: (...a: unknown[]) => m.runTool(...a) }));
-vi.mock('@/server/env', () => ({ webEnv: () => ({ appUrl: 'https://app.example' }) }));
+vi.mock('@/server/env', () => ({ webEnv: () => ({ appUrl: 'https://app.example', hostEnv: { appUrl: 'https://app.example', neutralDomain: 'neutral.example', extraPlatformHosts: [] } }) }));
+vi.mock('@/server/db', () => ({ dbs: () => ({ service: 'service-db' }) }));
+const origin = vi.hoisted(() => vi.fn(async (..._a: unknown[]) => 'https://intel.agency-a.test'));
+vi.mock('@cs/db', () => ({ clientOriginFor: origin }));
 vi.mock('next/cache', () => ({ revalidatePath: () => {} }));
 vi.mock('next/navigation', () => ({ notFound: () => { throw new Error('NEXT_NOT_FOUND'); } }));
 const { inviteAction, resendInvitationAction } = await import('./actions');
@@ -33,6 +36,21 @@ describe('inviteAction (15c-2a T11)', () => {
     expect(await inviteAction({ ok: true }, fd({ email: 'pat@acme.co', role: 'agency_admin' }))).toEqual({
       ok: true, message: "Invitation created, but the email couldn't be sent. Ask them to sign in at https://app.example/sign-in with this email.",
     });
+  });
+});
+
+describe('inviteAction sign-in hint (13a1 P8)', () => {
+  beforeEach(() => { m.ctx = { role: 'agency_admin', agencyId: 'ag-1' }; origin.mockClear(); });
+
+  it('client-role invite hint names the client origin (service db), agency-role APP_URL', async () => {
+    m.runTool.mockResolvedValue({ ok: true, data: { invitationId: ID, expiresAt: '2026-11-06T00:00:00.000Z', emailSent: false } });
+    expect(await inviteAction({ ok: true }, fd({ email: 'o@smith.co', role: 'client_owner', clientId: CLIENT }))).toEqual({
+      ok: true, message: "Invitation created, but the email couldn't be sent. Ask them to sign in at https://intel.agency-a.test/sign-in with this email.",
+    });
+    expect(origin).toHaveBeenCalledWith('service-db', 'ag-1', expect.objectContaining({ neutralDomain: 'neutral.example' }));
+    origin.mockClear();
+    expect(await inviteAction({ ok: true }, fd({ email: 'pat@acme.co', role: 'account_manager' }))).toMatchObject({ message: expect.stringContaining('https://app.example/sign-in') });
+    expect(origin).not.toHaveBeenCalled();
   });
 });
 

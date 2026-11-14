@@ -1,4 +1,5 @@
 import 'server-only';
+import { clientOriginFor, rehostLogoUrl } from '@cs/db';
 import { loadBranding } from '@cs/engine';
 import { resolveBranding } from '@cs/email';
 import { resolveIntake } from '@cs/tools';
@@ -35,7 +36,13 @@ export const agencyIntake = cache(async (slug: string): Promise<IntakeBrand | nu
   const [target, host] = await Promise.all([resolveIntake(service, slug), requestHost()]);
   if (!target?.agencyId) return null;
   if (host.info.kind === 'agency' && host.info.agencyId !== target.agencyId) return null;
-  return agencyBrand(await loadBranding(service, target.agencyId));
+  // 13a1 P12: the logo is served from the agency's client origin (this host on an agency host), never a Rival Monday URL.
+  const hostEnv = webEnv().hostEnv;
+  const [b, origin] = await Promise.all([
+    loadBranding(service, target.agencyId),
+    host.info.kind === 'agency' ? host.origin : clientOriginFor(service, target.agencyId, hostEnv), // parallel: no extra DB stage
+  ]);
+  return agencyBrand({ ...b, logoUrl: rehostLogoUrl(b.logoUrl, hostEnv, origin) });
 });
 
 /** The Turnstile site key reaches the browser only in DEV (never DEMO/TEST), exactly as on `/sign-up`. */
