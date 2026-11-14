@@ -3,7 +3,7 @@ import { openTestDbs, truncateAll } from '@cs/db/test-helpers';
 import { createMemoryTransport, type EmailTransport } from '@cs/email';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { sendWaitlistEmail } from './emails';
-import { testSenderConfig } from '@cs/engine';
+import { testSenderConfig } from '@cs/engine/test-config';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());

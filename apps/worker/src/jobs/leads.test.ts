@@ -8,7 +8,7 @@ import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vites
 import type { LeadEmailDeps } from '@cs/tools';
 import type { WorkerDeps } from '../deps';
 import { createLeadJobs, runLeadPreview as runReal, runLeadsCleanup } from './leads';
-import { testSenderConfig } from '@cs/engine';
+import { testSenderConfig } from '@cs/engine/test-config';
 
 const runLeadPreview = (d: { db: Db; dfs: DataForSeoClient; ai: Ai; email: LeadEmailDeps | null }, id: string) => runReal({ db: d.db, email: d.email, clients: async () => ({ dfs: d.dfs, ai: d.ai }) }, id);
 

@@ -5,7 +5,7 @@ import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { seedUser, truncateAuth } from '../../test/fixtures';
 import { sendLeadEmail } from './emails';
-import { testSenderConfig } from '@cs/engine';
+import { testSenderConfig } from '@cs/engine/test-config';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -138,6 +138,14 @@ describe('sendLeadEmail', () => {
     const p = await mkLead({ agencyId: null, source: 'platform', email: 'pool@x.co' });
     await sendLeadEmail(deps(), p, 'declined');
     expect(transport.sent).toHaveLength(1);
+  });
+
+  it('pool_new is always From the platform sender, whatever sending domain an agency has', async () => {
+    await dbs.owner.insert(agencySendingDomain).values({ agencyId: IDS.agencyA, domain: 'agency-a.co', localPart: 'hello', status: 'verified' });
+    const id = await mkLead({ agencyId: null, source: 'platform', email: 'pool@x.co' });
+    await sendLeadEmail(deps(), id, 'pool_new');
+    expect(transport.sent.length).toBeGreaterThan(0);
+    for (const m of transport.sent) expect(m).toMatchObject({ from: '"Rival Monday" <briefs@app.test>', replyTo: null });
   });
 
   it('pool_new goes to env list + owner/staff rows with platform branding and the /platform/leads link; assigned leads skipped', async () => {

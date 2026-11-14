@@ -58,8 +58,8 @@ export async function sendLeadEmail(
   let sent = 0;
   try {
     const msgs = await build(deps, row, kind, extra);
-    // N1: the lead itself (verify/confirmation/declined) hears from its agency; staff (agency_new) and pool mail from the platform.
-    const s = row.agencyId && kind !== 'agency_new' ? await senderFor(deps.service, row.agencyId, 'client', deps.sender) : { from: platformSender(deps.sender) };
+    // N1: the lead itself (verify/confirmation/declined) hears from its agency; staff (agency_new) and pool mail (pool_new, operators) from the platform.
+    const s = row.agencyId && kind !== 'agency_new' && kind !== 'pool_new' ? await senderFor(deps.service, row.agencyId, 'client', deps.sender) : { from: platformSender(deps.sender) };
     for (const m of msgs) {
       try {
         const r = await renderEmail(m.payload);

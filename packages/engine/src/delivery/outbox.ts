@@ -1,6 +1,6 @@
 import { type LinkTarget, MIN_LINK_SECRET_LENGTH } from '@cs/core';
 import { signLink } from '@cs/core/server';
-import { AGENCY_KINDS, agencyProfile, agencyServiceable, agency, agencyWebhook, alert, changeEvent, type Channel, contact, type Db, type HostEnv, notification, type NotificationKind, parseHostEnv } from '@cs/db';
+import { agencyProfile, agencyServiceable, agency, agencyWebhook, alert, changeEvent, type Channel, contact, type Db, type HostEnv, notification, type NotificationKind, parseHostEnv } from '@cs/db';
 import { type AgencyContact, type Branding, cleanCc, type EmailPayload, type EmailTransport, type OutgoingAttachment, PermanentEmailError, renderEmail, resolveAgencyContact, resolveBranding } from '@cs/email';
 import { and, eq, isNull, lt, or, sql } from 'drizzle-orm';
 import { type Audience, type Conn, contactsByIds, type Recipient, recipientsFor, replyToFor } from './contacts';
@@ -91,7 +91,7 @@ export async function notify(conn: Conn, cfg: DeliveryConfig, input: NotifyInput
       } else if (draft.email) {
         values.push({
           ...base, contactId: r.contactId, channel, dedupeKey: key, title: draft.title, body: draft.body, link, address: r.email,
-          payload: { ...draft.email, replyTo, cc: cleanCc(input.cc, r.email) } as Record<string, unknown>, status: 'pending', notBefore: quietUntil(input.now, r.timezone, r.quietHours) ?? input.now,
+          payload: { ...draft.email, replyTo, cc: cleanCc(input.cc, r.email), audience: input.audience } as Record<string, unknown>, status: 'pending', notBefore: quietUntil(input.now, r.timezone, r.quietHours) ?? input.now,
         });
       }
     }
@@ -194,11 +194,22 @@ export async function dispatchDue(deps: { db: Db; senders: Partial<Record<Channe
   return out;
 }
 
-/** 13a1 (N1): From per recipient — `AGENCY_KINDS` go to agency staff (platform sender), every other kind to a client contact (`senderFor`). */
+/**
+ * 13a1 (N1): From per recipient, never per kind (`trend_report` goes to both audiences). `notify` stores the audience in the
+ * payload; a row written before 13a1 falls back to its contact (`client_id` set = client contact).
+ */
+async function audienceOf(db: Db, n: NotificationRow, stored: unknown): Promise<Audience> {
+  if (stored === 'client' || stored === 'agency') return stored;
+  if (!n.contactId) return 'agency';
+  const [c] = await db.select({ clientId: contact.clientId }).from(contact).where(eq(contact.id, n.contactId));
+  return c?.clientId ? 'client' : 'agency';
+}
+
+/** 13a1 (N1): client contacts get the agency's client sender (`senderFor`), agency staff the platform sender. */
 export function createEmailSender(opts: { transport: EmailTransport; db: Db; cfg: SenderConfig; attachment?: (n: NotificationRow) => Promise<OutgoingAttachment | null> }): ChannelSender {
   return {
     async send(n) {
-      const p = n.payload as (EmailPayload & { replyTo: string | null; cc?: string[] }) | null;
+      const p = n.payload as (EmailPayload & { replyTo: string | null; cc?: string[]; audience?: Audience }) | null;
       if (!p || !n.address) throw new PermanentSendError('email notification without payload or address');
       // A weekly brief asks for its PDF; the resolver never throws, and any miss falls back to the download link.
       let att: OutgoingAttachment | null = null;
@@ -207,8 +218,7 @@ export function createEmailSender(opts: { transport: EmailTransport; db: Db; cfg
       }
       if (p.template === 'brief') p.props.attached = !!att;
       const r = await renderEmail(p);
-      const audience = (AGENCY_KINDS as readonly string[]).includes(n.kind) ? 'agency' : 'client';
-      const s = await senderFor(opts.db, n.agencyId, audience, opts.cfg);
+      const s = await senderFor(opts.db, n.agencyId, await audienceOf(opts.db, n, p.audience), opts.cfg);
       try {
         const res = await opts.transport.send(
           { from: s.from, to: n.address, cc: cleanCc(p.cc, n.address), replyTo: s.replyTo ?? p.replyTo, subject: r.subject, html: r.html, text: r.text, tag: n.kind, metadata: { notification: n.id }, attachments: att ? [att] : undefined },

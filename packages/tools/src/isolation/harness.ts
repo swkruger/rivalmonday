@@ -24,7 +24,7 @@ import type { z } from 'zod';
 import type { EnqueueJob, ToolDeps } from '../deps';
 import { dbs } from '../tools/workspace-fixtures';
 import { type IsolationFixture, type IsolationTarget, VIEWER_WRITES } from './fixtures';
-import { testDeliveryConfig, testSenderConfig } from '@cs/engine';
+import { testDeliveryConfig, testSenderConfig } from '@cs/engine/test-config';
 
 /** What a write tool's cases observe besides the result: the DB (owner connection) and the deps' side-effect spies. */
 export interface WriteProbe { owner: Db; enqueued: unknown[]; gateway: FakeGateway; webhooks?: unknown[] }

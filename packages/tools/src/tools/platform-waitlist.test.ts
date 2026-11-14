@@ -13,7 +13,7 @@ import { ensureSampleAgency, SAMPLE_NO_CONTACTS } from '../waitlist/sample';
 import { resolveIntake } from '../intake/public';
 import { getSampleBrief } from '../waitlist/sample';
 import { SAMPLE_LINK_TTL_MS, verifySampleToken } from '../waitlist/sample-token';
-import { testSenderConfig } from '@cs/engine';
+import { testSenderConfig } from '@cs/engine/test-config';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());

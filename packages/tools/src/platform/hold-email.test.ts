@@ -7,7 +7,7 @@ import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { seedUser, truncateAuth } from '../../test/fixtures';
 import type { ToolDeps } from '../deps';
 import { sendAgencyHoldEmail } from './hold-email';
-import { testSenderConfig } from '@cs/engine';
+import { testSenderConfig } from '@cs/engine/test-config';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());

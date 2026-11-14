@@ -10,7 +10,7 @@ import { inviteMember, LAST_ADMIN_MESSAGE } from '../access/team';
 import type { ToolDeps } from '../deps';
 import { createToolRegistry } from '../registry';
 import { ARCHIVE_BILLING_MESSAGE } from './platform-agency';
-import { testSenderConfig } from '@cs/engine';
+import { testSenderConfig } from '@cs/engine/test-config';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());

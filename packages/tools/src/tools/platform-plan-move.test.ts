@@ -9,7 +9,7 @@ import { seedUser, truncateAuth } from '../../test/fixtures';
 import { planFeaturesFor } from '../access/plan-features';
 import { createToolRegistry } from '../registry';
 import { seatWarningFor } from './platform-plan-move';
-import { testSenderConfig } from '@cs/engine';
+import { testSenderConfig } from '@cs/engine/test-config';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());

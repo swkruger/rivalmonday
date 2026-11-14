@@ -6,7 +6,7 @@ import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { EnqueueJob } from '../deps';
 import { createToolRegistry } from '../registry';
-import { testDeliveryConfig } from '@cs/engine';
+import { testDeliveryConfig } from '@cs/engine/test-config';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());

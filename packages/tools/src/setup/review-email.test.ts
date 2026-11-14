@@ -1,6 +1,7 @@
 import { client, clientSetup, competitorSuggestion, contact, discoveryRun, invitation, notification } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
-import { addContact, type DeliveryConfig, testDeliveryConfig } from '@cs/engine';
+import { addContact, type DeliveryConfig } from '@cs/engine';
+import { testDeliveryConfig } from '@cs/engine/test-config';
 import type { EmailPayload } from '@cs/email';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';

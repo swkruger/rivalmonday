@@ -11,7 +11,7 @@ import { createToolRegistry } from '../registry';
 import { clientOwnerEmails } from '../tools/client-billing';
 import { inviteClientUser, sendClientInvite, upsertContact } from './client-invite';
 import { acceptInvitations } from './invitations';
-import { testDeliveryConfig } from '@cs/engine';
+import { testDeliveryConfig } from '@cs/engine/test-config';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());

@@ -10,7 +10,7 @@ import type { SetupState } from '../setup/state';
 import { createToolRegistry } from '../registry';
 import { catalogOf } from '../catalog/access';
 import { closedSetupRecheck, reportedSuggestions } from './setup';
-import { testDeliveryConfig } from '@cs/engine';
+import { testDeliveryConfig } from '@cs/engine/test-config';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());

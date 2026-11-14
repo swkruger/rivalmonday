@@ -10,7 +10,7 @@ import type { EnqueueJob, ToolDeps } from '../deps';
 import { sendLeadEmail } from '../intake/emails';
 import { createToolRegistry } from '../registry';
 import { slugBase, slugCandidate } from './leads';
-import { testDeliveryConfig, testSenderConfig } from '@cs/engine';
+import { testDeliveryConfig, testSenderConfig } from '@cs/engine/test-config';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());

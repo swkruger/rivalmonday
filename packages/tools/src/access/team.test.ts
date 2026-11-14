@@ -11,7 +11,7 @@ import type { ToolDeps } from '../deps';
 import { createToolRegistry } from '../registry';
 import { inviteClientUser, sendClientInvite } from './client-invite';
 import { changeMemberRole, inviteMember, LAST_ADMIN_MESSAGE, listTeam, RESEND_LIMIT, resendInvitation, revokeInvitation, revokeMembership, TEAM_INVITE_LIMIT } from './team';
-import { testDeliveryConfig, testSenderConfig } from '@cs/engine';
+import { testDeliveryConfig, testSenderConfig } from '@cs/engine/test-config';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());

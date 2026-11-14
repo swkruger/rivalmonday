@@ -1,5 +1,5 @@
 import { verifyLink } from '@cs/core/server';
-import { agency, AGENCY_KINDS, agencyBilling, agencySendingDomain, agencyWebhook, alert, changeEvent, client, contact, notification } from '@cs/db';
+import { agency, AGENCY_KINDS, agencyBilling, CLIENT_KINDS, agencySendingDomain, agencyWebhook, alert, changeEvent, client, contact, notification } from '@cs/db';
 import { IDS, openTestDbs, pauseAgency, pauseClient, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { createMemoryTransport, type EmailPayload, type EmailTransport, PermanentEmailError, resolveBranding } from '@cs/email';
 import { eq } from 'drizzle-orm';
@@ -228,21 +228,52 @@ describe('email sender', () => {
   it('client kinds get the client sender, AGENCY_KINDS the platform sender', async () => {
     const transport = createMemoryTransport();
     const s = mk(transport);
-    await s.send({ id: 'n1', agencyId: IDS.agencyA, clientId: IDS.clientA1, kind: 'alert', address: 'o@a1.example', payload: { ...payload('https://app.example/l/x'), replyTo: 'am@a.example' } } as never, NOW);
+    await s.send({ id: 'n1', agencyId: IDS.agencyA, clientId: IDS.clientA1, kind: 'alert', address: 'o@a1.example', payload: { ...payload('https://app.example/l/x'), replyTo: 'am@a.example', audience: 'client' } } as never, NOW);
     expect(transport.sent[0]).toMatchObject({ from: '"Agency A" <agency-a@mail.clients.example>', to: 'o@a1.example', replyTo: 'am@a.example', subject: 'H', tag: 'alert', metadata: { notification: 'n1' } });
     await dbs.owner.insert(agencySendingDomain).values({ agencyId: IDS.agencyA, domain: 'agency-a.example', localPart: 'briefs', status: 'verified' });
-    await s.send({ id: 'n2', agencyId: IDS.agencyA, clientId: IDS.clientA1, kind: 'brief', address: 'o@a1.example', payload: { ...payload('x'), replyTo: null } } as never, NOW);
+    await s.send({ id: 'n2', agencyId: IDS.agencyA, clientId: IDS.clientA1, kind: 'brief', address: 'o@a1.example', payload: { ...payload('x'), replyTo: null, audience: 'client' } } as never, NOW);
     expect(transport.sent[1]!.from).toBe('"Agency A" <briefs@agency-a.example>');
-    for (const [i, kind] of AGENCY_KINDS.entries()) {
-      await s.send({ id: `a${i}`, agencyId: IDS.agencyA, clientId: IDS.clientA1, kind, address: 'am@a.example', payload: { ...payload('x'), replyTo: null } } as never, NOW);
+    // trend_report is in both CLIENT_KINDS and AGENCY_KINDS: covered by the recipient test below.
+    for (const [i, kind] of AGENCY_KINDS.filter((k) => !(CLIENT_KINDS as readonly string[]).includes(k)).entries()) {
+      await s.send({ id: `a${i}`, agencyId: IDS.agencyA, clientId: IDS.clientA1, kind, address: 'am@a.example', payload: { ...payload('x'), replyTo: null, audience: 'agency' } } as never, NOW);
       expect(transport.sent.at(-1)).toMatchObject({ from: '"Rival Monday" <hello@rm.example>', replyTo: null });
     }
+  });
+
+  it('client trend_report row gets the client sender; agency-contact trend_report row gets the platform sender', async () => {
+    const owner = await addContact(dbs.service, { agencyId: IDS.agencyA, clientId: IDS.clientA1, role: 'client_owner', email: 'o@a1.example' });
+    const am = await addContact(dbs.service, { agencyId: IDS.agencyA, role: 'account_manager', email: 'am@a.example' });
+    const transport = createMemoryTransport();
+    const s = mk(transport);
+    const row = (id: string, contactId: string, audience?: 'client' | 'agency') => ({
+      id, agencyId: IDS.agencyA, clientId: IDS.clientA1, contactId, kind: 'trend_report', address: 'x@a.example', payload: { ...payload('x'), replyTo: null, ...(audience ? { audience } : {}) },
+    }) as never;
+    // as notify writes them (audience stored in the payload)
+    await s.send(row('t1', owner, 'client'), NOW);
+    await s.send(row('t2', am, 'agency'), NOW);
+    // rows written before 13a1 (no stored audience): the contact decides
+    await s.send(row('t3', owner), NOW);
+    await s.send(row('t4', am), NOW);
+    expect(transport.sent.map((m) => m.from)).toEqual([
+      '"Agency A" <agency-a@mail.clients.example>', '"Rival Monday" <hello@rm.example>',
+      '"Agency A" <agency-a@mail.clients.example>', '"Rival Monday" <hello@rm.example>',
+    ]);
+  });
+
+  it('notify stores the audience in the email payload', async () => {
+    await addContact(dbs.service, { agencyId: IDS.agencyA, clientId: IDS.clientA1, role: 'client_owner', email: 'o@a1.example' });
+    await addContact(dbs.service, { agencyId: IDS.agencyA, role: 'account_manager', email: 'am@a.example' });
+    const build = (_r: unknown, link: string) => ({ title: 'H', body: 'B', email: payload(link) });
+    await notify(dbs.service, cfg, input({ kind: 'trend_report', subjectType: 'trend_report', dedupe: 'tr:c', build }));
+    await notify(dbs.service, cfg, input({ kind: 'trend_report', subjectType: 'trend_report', dedupe: 'tr:a', audience: 'agency', build }));
+    const emails = (await rows()).filter((r) => r.channel === 'email').map((r) => [r.address, (r.payload as { audience: string }).audience]).sort();
+    expect(emails).toEqual([['am@a.example', 'agency'], ['o@a1.example', 'client']]);
   });
 
   it('client From uses the stored fromName and Reply-To is branding fromEmail over the payload reply-to', async () => {
     await dbs.owner.update(agency).set({ branding: { fromName: 'Team A', fromEmail: 'hello@agency-a.example' } }).where(eq(agency.id, IDS.agencyA));
     const transport = createMemoryTransport();
-    await mk(transport).send({ id: 'n1', agencyId: IDS.agencyA, clientId: IDS.clientA1, kind: 'alert', address: 'o@a1.example', payload: { ...payload('x'), replyTo: 'am@a.example' } } as never, NOW);
+    await mk(transport).send({ id: 'n1', agencyId: IDS.agencyA, clientId: IDS.clientA1, kind: 'alert', address: 'o@a1.example', payload: { ...payload('x'), replyTo: 'am@a.example', audience: 'client' } } as never, NOW);
     expect(transport.sent[0]).toMatchObject({ from: '"Team A" <agency-a@mail.clients.example>', replyTo: 'hello@agency-a.example' });
   });
 
@@ -250,7 +281,7 @@ describe('email sender', () => {
     const transport = createMemoryTransport();
     const s = mk(transport);
     const cc = ['AM@a.example', 'o@a1.example', 'not an email', 'am@a.example', '1@x.example', '2@x.example', '3@x.example', '4@x.example', '5@x.example'];
-    const row = { id: 'n1', agencyId: IDS.agencyA, clientId: IDS.clientA1, kind: 'client_invite', address: 'O@a1.example', payload: { ...payload('x'), replyTo: null, cc } } as never;
+    const row = { id: 'n1', agencyId: IDS.agencyA, clientId: IDS.clientA1, kind: 'client_invite', address: 'O@a1.example', payload: { ...payload('x'), replyTo: null, cc, audience: 'client' } } as never;
     await s.send(row, NOW);
     expect(transport.sent[0]!.cc).toEqual(['am@a.example', '1@x.example', '2@x.example', '3@x.example', '4@x.example']);
     await s.send({ id: 'n2', agencyId: IDS.agencyA, clientId: IDS.clientA1, kind: 'alert', address: 'o@a1.example', payload: { ...payload('x'), replyTo: null } } as never, NOW);

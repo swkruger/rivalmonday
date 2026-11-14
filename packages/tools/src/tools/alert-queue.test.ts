@@ -5,7 +5,7 @@ import type { DeliveryConfig } from '@cs/engine';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { createToolRegistry } from '../registry';
-import { testDeliveryConfig } from '@cs/engine';
+import { testDeliveryConfig } from '@cs/engine/test-config';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
