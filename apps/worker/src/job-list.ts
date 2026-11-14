@@ -115,9 +115,6 @@ export function createJobList(deps: WorkerDeps, boss: PgBoss, opts: { envName: E
     enqueueSocialPull: async (competitorId) => {
       await enqueue(boss, social.pull, { competitorId });
     },
-    enqueueSocialDiscover: async (competitorId) => {
-      await enqueue(boss, social.discover, { competitorId }, { singletonKey: `social-discover:${competitorId}` });
-    },
   });
   const social = createSocialJobs(deps);
   const rivals = createRivalJobs(deps, {

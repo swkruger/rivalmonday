@@ -1,4 +1,4 @@
-import { client, competitorSource, socialAccount } from '@cs/db';
+import { client, competitorSource } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
@@ -21,32 +21,22 @@ beforeEach(async () => {
 describe('syncSocialSources', () => {
   it('pack without social → no source', async () => {
     await dbs.owner.update(client).set({ verticalId: 'hvac' }).where(eq(client.id, IDS.clientA1));
-    expect(await syncSocialSources(dbs.service, packs)).toEqual({ active: 0, inactive: 0, discover: [] });
+    expect(await syncSocialSources(dbs.service, packs)).toEqual({ active: 0, inactive: 0 });
     expect(await rows()).toEqual([]);
   });
 
-  it('activates a row for an opted-in client rival and lists it for discovery', async () => {
+  it('activates a row for an opted-in client rival', async () => {
     const r = await syncSocialSources(dbs.service, packs);
-    expect(r).toMatchObject({ active: 1, inactive: 0, discover: [IDS.competitorX] });
+    expect(r).toMatchObject({ active: 1, inactive: 0 });
     expect((await rows()).map((x) => [x.competitorId, x.active])).toEqual([[IDS.competitorX, true]]);
   });
 
   it('paused client only → no pull', async () => {
     await syncSocialSources(dbs.service, packs);
     await dbs.owner.update(client).set({ pausedAt: new Date() }).where(eq(client.id, IDS.clientA1));
-    expect(await syncSocialSources(dbs.service, packs)).toMatchObject({ active: 0, inactive: 1, discover: [] });
+    expect(await syncSocialSources(dbs.service, packs)).toMatchObject({ active: 0, inactive: 1 });
     expect((await rows()).map((x) => x.active)).toEqual([false]);
     expect(await claimed()).toEqual([]);
-  });
-
-  it('discover lists a competitor once: not after a run is marked, nor when it has accounts', async () => {
-    expect((await syncSocialSources(dbs.service, packs)).discover).toEqual([IDS.competitorX]);
-    expect((await syncSocialSources(dbs.service, packs)).discover).toEqual([IDS.competitorX]);
-    await markSourceResult(dbs.service, IDS.competitorX, SOCIAL_KIND, 'ok');
-    expect((await syncSocialSources(dbs.service, packs)).discover).toEqual([]);
-    await dbs.owner.update(competitorSource).set({ lastRunAt: null }).where(eq(competitorSource.source, SOCIAL_KIND));
-    await dbs.owner.insert(socialAccount).values({ competitorId: IDS.competitorX, network: 'facebook', handle: 'x', url: 'https://www.facebook.com/x', status: 'rejected' } as never);
-    expect((await syncSocialSources(dbs.service, packs)).discover).toEqual([]);
   });
 
   it('a claim offers the social row of an opted-in rival', async () => {

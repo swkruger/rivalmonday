@@ -9,7 +9,7 @@ describe('vendor jobs', () => {
       vendorsConfigured: () => true,
       ensureSelfCompetitors: vi.fn(async () => 0),
       syncTripadvisorSources: vi.fn(async () => ({ active: 0, inactive: 0 })),
-      syncSocialSources: vi.fn(async () => ({ active: 0, inactive: 0, discover: [] as string[] })),
+      syncSocialSources: vi.fn(async () => ({ active: 0, inactive: 0 })),
       claimDueSources: vi.fn(async () => [
         { competitorId: 'c1', source: 'reviews' }, { competitorId: 'c2', source: 'jobs' }, { competitorId: 'c1', source: 'gbp' }, { competitorId: 'c1', source: 'ads_meta' },
       ]),
@@ -29,7 +29,7 @@ describe('vendor jobs', () => {
       vendorsConfigured: () => true,
       ensureSelfCompetitors: vi.fn(async () => 0),
       syncTripadvisorSources: vi.fn(async () => ({ active: 0, inactive: 0 })),
-      syncSocialSources: vi.fn(async () => ({ active: 0, inactive: 0, discover: [] as string[] })),
+      syncSocialSources: vi.fn(async () => ({ active: 0, inactive: 0 })),
       claimDueSources: vi.fn(async () => [{ competitorId: 'c1', source: 'gbp_posts' }, { competitorId: 'c1', source: 'gbp' }]),
       postBatchTasks: vi.fn(async () => ({ failed: 0 })),
     } as unknown as WorkerDeps;
@@ -46,7 +46,7 @@ describe('vendor jobs', () => {
       vendorsConfigured: () => true,
       ensureSelfCompetitors: vi.fn(async () => 0),
       syncTripadvisorSources: vi.fn(async () => { order.push('sync'); return { active: 1, inactive: 0 }; }),
-      syncSocialSources: vi.fn(async () => ({ active: 0, inactive: 0, discover: [] as string[] })),
+      syncSocialSources: vi.fn(async () => ({ active: 0, inactive: 0 })),
       claimDueSources: vi.fn(async () => { order.push('claim'); return [{ competitorId: 'c1', source: 'tripadvisor' }, { competitorId: 'c1', source: 'gbp' }]; }),
       postBatchTasks: vi.fn(async () => ({ failed: 0 })),
     } as unknown as WorkerDeps;
@@ -90,7 +90,7 @@ describe('vendor jobs', () => {
       vendorsConfigured: () => true,
       ensureSelfCompetitors: vi.fn(async () => 0),
       syncTripadvisorSources: vi.fn(async () => ({ active: 0, inactive: 0 })),
-      syncSocialSources: vi.fn(async () => ({ active: 0, inactive: 0, discover: [] as string[] })),
+      syncSocialSources: vi.fn(async () => ({ active: 0, inactive: 0 })),
       claimDueSources: vi.fn(async () => [{ competitorId: 'c1', source: 'reviews' }, { competitorId: 'c2', source: 'gbp' }]),
       postBatchTasks,
     } as unknown as WorkerDeps;
@@ -106,7 +106,7 @@ describe('vendor jobs', () => {
       vendorsConfigured: () => true,
       ensureSelfCompetitors: vi.fn(async () => 0),
       syncTripadvisorSources: vi.fn(async () => ({ active: 0, inactive: 0 })),
-      syncSocialSources: vi.fn(async () => ({ active: 0, inactive: 0, discover: [] as string[] })),
+      syncSocialSources: vi.fn(async () => ({ active: 0, inactive: 0 })),
       claimDueSources: vi.fn(async () => [{ competitorId: 'c1', source: 'reviews' }, { competitorId: 'c2', source: 'gbp' }]),
       postBatchTasks: vi.fn(async () => {
         throw new Error('db down');
@@ -133,7 +133,7 @@ describe('vendor jobs', () => {
         order.push('sync');
         return { active: 0, inactive: 0 };
       }),
-      syncSocialSources: vi.fn(async () => ({ active: 0, inactive: 0, discover: [] as string[] })),
+      syncSocialSources: vi.fn(async () => ({ active: 0, inactive: 0 })),
       claimDueSources: vi.fn(async () => {
         order.push('claim');
         return [];
@@ -225,22 +225,20 @@ describe('vendor jobs', () => {
     expect(scanRankings).toHaveBeenCalledWith(c, { trigger: 'manual', scanId: s, requestedBy: 'u1' });
     expect(jobs.rankScan.schema.parse({ clientId: c })).toEqual({ clientId: c, trigger: 'scheduled' });
   });
-  it('a claimed social source enqueues social-pull (not a collect or batch); sync-listed competitors get one social-discover each', async () => {
+  it('a claimed social source enqueues social-pull (not a collect or batch)', async () => {
     const deps = {
       vendorsConfigured: () => true,
       ensureSelfCompetitors: vi.fn(async () => 0),
       syncTripadvisorSources: vi.fn(async () => ({ active: 0, inactive: 0 })),
-      syncSocialSources: vi.fn(async () => ({ active: 2, inactive: 0, discover: ['c1', 'c2'] })),
+      syncSocialSources: vi.fn(async () => ({ active: 2, inactive: 0 })),
       claimDueSources: vi.fn(async () => [{ competitorId: 'c1', source: 'social' }, { competitorId: 'c1', source: 'gbp' }]),
       postBatchTasks: vi.fn(async () => ({ failed: 0 })),
     } as unknown as WorkerDeps;
     const enqueueCollect = vi.fn(async (_p: { competitorId: string; source: 'gbp' | 'ads_google' | 'ads_meta' }) => {});
     const enqueueSocialPull = vi.fn(async (_id: string) => {});
-    const enqueueSocialDiscover = vi.fn(async (_id: string) => {});
-    const jobs = createVendorJobs(deps, { enqueueCollect, enqueueRankScan: async () => {}, enqueueRankMap: async () => {}, enqueueSocialPull, enqueueSocialDiscover });
+    const jobs = createVendorJobs(deps, { enqueueCollect, enqueueRankScan: async () => {}, enqueueRankMap: async () => {}, enqueueSocialPull });
     await jobs.schedule.handler({});
     expect(enqueueSocialPull.mock.calls).toEqual([['c1']]);
-    expect(enqueueSocialDiscover.mock.calls).toEqual([['c1'], ['c2']]);
     expect(enqueueCollect.mock.calls.map((c) => c[0])).toEqual([{ competitorId: 'c1', source: 'gbp' }]);
     expect(deps.postBatchTasks).not.toHaveBeenCalled();
   });

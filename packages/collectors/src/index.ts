@@ -69,4 +69,5 @@ export * from './social/client';
 export { confirmsDomain, siteHost as socialSiteHost } from './social/host';
 export { FB_MAX_PAGES, pullSocial, SOCIAL_COLLECTOR_VERSION } from './social/pull';
 export { discoverSocialAccounts, type SocialCompetitor } from './social/search';
+export { runSocialDiscover, runSocialPull } from './social/run';
 export { SOCIAL_KIND, syncSocialSources } from './social/sources';

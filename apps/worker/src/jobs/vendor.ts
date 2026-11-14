@@ -21,9 +21,8 @@ export function createVendorJobs(
     enqueueRankMap(clientId: string): Promise<void>;
     /** Phase 12a: a discovery review sample landed for this run → non-forced `rival-finalise`. */
     enqueueRivalFinalise?(runId: string): Promise<void>;
-    /** 18e: a claimed `social` source -> `social-pull`; a competitor first activated with no accounts -> `social-discover` (singleton per competitor). */
+    /** 18e: a claimed `social` source -> `social-pull` (the first pull discovers the accounts itself). */
     enqueueSocialPull?(competitorId: string): Promise<void>;
-    enqueueSocialDiscover?(competitorId: string): Promise<void>;
   },
 ) {
   let warnedScheduleUnconfigured = false;
@@ -45,7 +44,6 @@ export function createVendorJobs(
       workerLog.debug(`[vendor-schedule] tripadvisor sources: ${ta.active} active, ${ta.inactive} inactive`);
       const soc = await deps.syncSocialSources();
       workerLog.debug(`[vendor-schedule] social sources: ${soc.active} active, ${soc.inactive} inactive`);
-      for (const id of soc.discover) await queue.enqueueSocialDiscover?.(id);
       const claimed = await deps.claimDueSources(500);
       // `social` runs as its own job (a ScrapeCreators pull per competitor), never a collect or a batch.
       for (const d of claimed) if (d.source === 'social') await queue.enqueueSocialPull?.(d.competitorId);

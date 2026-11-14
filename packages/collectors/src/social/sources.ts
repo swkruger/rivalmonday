@@ -1,17 +1,15 @@
-import { agencyServiceable, client, clientCompetitor, clientWorkAllowed, competitorSource, type Db, socialAccount } from '@cs/db';
-import { and, eq, inArray, isNull, notInArray, sql } from 'drizzle-orm';
+import { agencyServiceable, client, clientCompetitor, clientWorkAllowed, competitorSource, type Db } from '@cs/db';
+import { and, eq, inArray, notInArray, sql } from 'drizzle-orm';
 import type { PackLoader } from '../rivals/run';
 
 /** `competitor_source.source` of the weekly social pull. */
 export const SOCIAL_KIND = 'social';
 
 /**
- * `social` source rows exist (active) only for competitors a client tracks, or owns as its self business, where the client passes
- * `clientWorkAllowed` and `agencyServiceable` and its pack has `social: true`; every other row is deactivated. `discover` lists
- * the active competitors that have never run the source and have no `social_account` row (any status), so the caller enqueues
- * one discovery each: the first claim marks `last_run_at`, which ends the listing.
+ * Competitors a client tracks, or owns as its self business, where the client passes `clientWorkAllowed` and `agencyServiceable`
+ * and its pack has `social: true`.
  */
-export async function syncSocialSources(db: Db, packs: PackLoader): Promise<{ active: number; inactive: number; discover: string[] }> {
+export async function wantedSocialCompetitors(db: Db, packs: PackLoader): Promise<string[]> {
   const clients = await db
     .select({ id: client.id, verticalId: client.verticalId, selfId: client.selfCompetitorId })
     .from(client)
@@ -25,20 +23,27 @@ export async function syncSocialSources(db: Db, packs: PackLoader): Promise<{ ac
     const rows = await db.select({ id: clientCompetitor.competitorId }).from(clientCompetitor).where(inArray(clientCompetitor.clientId, opted.map((c) => c.id)));
     for (const r of rows) wanted.add(r.id);
   }
-  const ids = [...wanted];
+  return [...wanted];
+}
+
+/**
+ * `social` source rows exist (active) only for the competitors `wantedSocialCompetitors` returns; every other row is deactivated.
+ */
+export async function syncSocialSources(db: Db, packs: PackLoader): Promise<{ active: number; inactive: number }> {
+  const ids = await wantedSocialCompetitors(db, packs);
   if (ids.length > 0) {
     await db.insert(competitorSource).values(ids.map((competitorId) => ({ competitorId, source: SOCIAL_KIND })))
       .onConflictDoUpdate({ target: [competitorSource.competitorId, competitorSource.source], set: { active: true } });
   }
   await db.update(competitorSource).set({ active: false })
     .where(and(eq(competitorSource.source, SOCIAL_KIND), eq(competitorSource.active, true), ids.length > 0 ? notInArray(competitorSource.competitorId, ids) : undefined));
-  const discover = ids.length === 0 ? [] : (await db.select({ id: competitorSource.competitorId }).from(competitorSource)
-    .where(and(
-      eq(competitorSource.source, SOCIAL_KIND), eq(competitorSource.active, true), isNull(competitorSource.lastRunAt), inArray(competitorSource.competitorId, ids),
-      sql`NOT EXISTS (SELECT 1 FROM ${socialAccount} sa WHERE sa.competitor_id = ${competitorSource.competitorId})`,
-    ))).map((r) => r.id);
   const [counts] = await db.select({
     inactive: sql<number>`count(*) FILTER (WHERE NOT ${competitorSource.active})`.mapWith(Number),
   }).from(competitorSource).where(eq(competitorSource.source, SOCIAL_KIND));
-  return { active: ids.length, inactive: counts?.inactive ?? 0, discover };
+  return { active: ids.length, inactive: counts?.inactive ?? 0 };
+}
+
+/** Pushes the next try back a day without touching `last_run_at` (the source has not run), e.g. when the vendor key is missing. */
+export async function deferSocialSource(db: Db, competitorId: string, status: string): Promise<void> {
+  await db.execute(sql`UPDATE competitor_source SET next_due_at = now() + interval '1 day', last_status = ${status} WHERE competitor_id = ${competitorId} AND source = ${SOCIAL_KIND}`);
 }
