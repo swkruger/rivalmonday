@@ -1,7 +1,7 @@
 import { oauthProvider } from '@better-auth/oauth-provider';
 import type { Db } from '@cs/db';
 import type { Branding, EmailPayload } from '@cs/email';
-import { acceptInvitations, completePendingSignups, dropUnboundConsents, hasSignInRight } from '@cs/tools';
+import { acceptInvitations, completePendingSignups, dropUnboundConsents, hasSignInRight, hasSignInRightIn } from '@cs/tools';
 import type { BetterAuthOptions } from 'better-auth';
 import { createAuthMiddleware, getSessionFromCtx } from 'better-auth/api';
 import { magicLink } from 'better-auth/plugins/magic-link';
@@ -136,9 +136,13 @@ export function buildAuthOptions(deps: AuthDeps): BetterAuthOptions {
         sendMagicLink: ({ email, url }) => {
           deps.onMagicLink?.(email, url);
           deps.runInBackground((async () => {
-            if (!(await hasSignInRight(deps.service, email, now()))) return;
+            // 13a1: an agency host mails only its own people (membership or open invitation in that agency); anyone else gets
+            // the same response and no email. Sign-up wording is platform-only.
+            if (info.kind === 'agency') {
+              if (!(await hasSignInRightIn(deps.service, email, info.agencyId, now()))) return;
+            } else if (!(await hasSignInRight(deps.service, email, now()))) return;
             // Phase 10: an open agency sign-up for this address switches the email to "confirm your email to create {agency}".
-            const pending = await openPendingSignup(deps.service, email, now());
+            const pending = info.kind === 'agency' ? null : await openPendingSignup(deps.service, email, now());
             await deps.sendEmail(email, {
               template: 'sign_in',
               props: { branding: await deps.branding(), url, expiresMinutes: MAGIC_LINK_MINUTES, ...(pending ? { signup: { agencyName: pending.agencyName } } : {}) },

@@ -82,6 +82,15 @@ describe('authFor (13a1 P6, Appendix D)', () => {
     expect(m.pools).toEqual(['svc-dev', 'svc-demo']);
   });
 
+  it('same origin with a different host agency builds a new instance', () => {
+    const a = authFor(agencyHost(ACME, IDS.agencyA));
+    const b = authFor(agencyHost(ACME, IDS.agencyB)); // e.g. the custom domain moved, or a freed host_slug was reused
+    expect(b).not.toBe(a);
+    expect((lastDeps().host.info as { agencyId: string }).agencyId).toBe(IDS.agencyB);
+    expect(authFor(agencyHost(ACME, IDS.agencyB))).toBe(b);
+    expect(m.pools).toEqual(['svc-dev']);
+  });
+
   it('requestAuth follows the proxy headers; none = platform', async () => {
     expect(await requestAuth()).toBe(platformAuth());
     m.headers = new Headers({ 'x-rm-host-kind': 'agency', 'x-rm-host-agency': IDS.agencyA, 'x-rm-origin': ACME });

@@ -76,6 +76,20 @@ export async function hasSignInRight(service: Db, email: string, now = new Date(
   return rows.length > 0;
 }
 
+/**
+ * 13a1: the sign-in right on an agency's own host — a membership or an open invitation IN that agency. A pending agency
+ * sign-up belongs to no agency (sign-up is platform-only), so it never counts here.
+ */
+export async function hasSignInRightIn(service: Db, email: string, agencyId: string, now = new Date()): Promise<boolean> {
+  const e = normalizeEmail(email);
+  const rows = await service.execute(sql`
+    select 1 from invitation where lower(email) = ${e} and agency_id = ${agencyId}::uuid and accepted_at is null and revoked_at is null and expires_at > ${now.toISOString()}::timestamptz
+    union all
+    select 1 from membership m join auth."user" u on u.id = m.user_id where lower(u.email) = ${e} and m.agency_id = ${agencyId}::uuid
+    limit 1`);
+  return rows.length > 0;
+}
+
 /** Links (or creates) the contact that receives this member's notifications (decision 5). */
 async function contactFor(tx: Tx, inv: typeof invitation.$inferSelect, user: { id: string; name?: string | null }, keepRole: boolean): Promise<string> {
   const [existing] = await tx.select({ id: contact.id }).from(contact).where(and(

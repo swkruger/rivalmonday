@@ -336,6 +336,55 @@ describe('one Better Auth per origin (13a1 P6, Appendix D)', () => {
     expect(o.advanced?.defaultCookieAttributes?.domain).toBeUndefined();
   });
 
+  it('a forged x-forwarded-host / x-forwarded-proto still yields a magic link on the instance origin', async () => {
+    const links: string[] = [];
+    const agencyAuth = betterAuth(buildAuthOptions(deps(AGENCY_HOST, { onMagicLink: (_e, url) => void links.push(url) })));
+    const res = await agencyAuth.handler(new Request(`${ACME}/api/auth/sign-in/magic-link`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', origin: ACME, 'x-forwarded-host': 'evil.example', 'x-forwarded-proto': 'https', host: 'evil.example' },
+      body: JSON.stringify({ email: 'nobody@example.com', callbackURL: '/' }),
+    }));
+    expect(res.status).toBe(200);
+    await flush();
+    expect(links).toHaveLength(1);
+    expect(new URL(links[0]!).origin).toBe(ACME);
+    expect(links[0]).not.toContain('evil.example');
+  });
+
+  describe('agency host sign-in rights (13a1 ruling)', () => {
+    const sendTo = async (email: string) => {
+      const agencyAuth = betterAuth(buildAuthOptions(deps(AGENCY_HOST, {
+        sendEmail: async (to, payload) => {
+          const r = await renderEmail(payload);
+          await mail.send({ from: 'x@mail.localhost', to, replyTo: null, subject: r.subject, html: r.html, text: r.text, tag: 'sign_in', metadata: {} }, { agencyId: IDS.agencyA, clientId: null });
+        },
+      })));
+      const res = await agencyAuth.handler(new Request(`${ACME}/api/auth/sign-in/magic-link`, { method: 'POST', headers: { 'content-type': 'application/json', origin: ACME }, body: JSON.stringify({ email, callbackURL: '/' }) }));
+      expect(res.status).toBe(200);
+      expect(await res.json()).toEqual({ status: true }); // identical either way: no enumeration
+      await flush();
+      return mail.sent.filter((m) => m.to === email);
+    };
+
+    it('agency host sends no sign-in email to an address with rights only in another agency', async () => {
+      await dbs.owner.execute(sql`insert into auth."user" (id, name, email, "emailVerified") values ('ub', '', 'b-staff@example.com', true)`);
+      await dbs.service.insert(membership).values({ userId: 'ub', agencyId: IDS.agencyB, role: 'agency_admin', createdBy: 't' });
+      await dbs.service.insert(invitation).values({ agencyId: IDS.agencyB, email: 'b-invitee@example.com', role: 'client_owner', clientId: IDS.clientB1, invitedBy: 't', expiresAt: new Date(Date.now() + 86_400_000) });
+      await dbs.service.insert(pendingSignup).values({ email: 'founder@example.com', agencyName: 'New', source: 'open', ipHash: 'h'.repeat(64), expiresAt: new Date(Date.now() + 86_400_000) });
+      expect(await sendTo('b-staff@example.com')).toHaveLength(0);
+      expect(await sendTo('b-invitee@example.com')).toHaveLength(0);
+      expect(await sendTo('founder@example.com')).toHaveLength(0);
+    });
+
+    it('agency host sends to its own client contact', async () => {
+      await dbs.service.insert(invitation).values({ agencyId: IDS.agencyA, email: 'owner@a1.example', role: 'client_owner', clientId: IDS.clientA1, invitedBy: 't', expiresAt: new Date(Date.now() + 86_400_000) });
+      await dbs.owner.execute(sql`insert into auth."user" (id, name, email, "emailVerified") values ('ua', '', 'viewer@a1.example', true)`);
+      await dbs.service.insert(membership).values({ userId: 'ua', agencyId: IDS.agencyA, role: 'client_viewer', clientId: IDS.clientA1, createdBy: 't' });
+      expect(await sendTo('owner@a1.example')).toHaveLength(1);
+      expect(await sendTo('viewer@a1.example')).toHaveLength(1);
+    });
+  });
+
   it('the running instance trusts only its own origin (Better Auth skips origin checks under NODE_ENV=test, so assert the list)', async () => {
     const ctx = await betterAuth(buildAuthOptions(deps(AGENCY_HOST))).$context;
     expect([...new Set(ctx.trustedOrigins)]).toEqual([ACME]); // baseURL's origin + trustedOrigins (the same one)

@@ -47,7 +47,7 @@ function create(name: EnvName, host: RequestHost, pool: Pool) {
     runInBackground: (task) => after(task),
     sendEmail: async (to, payload) => {
       const [r, s] = await Promise.all([renderEmail(payload), signInSender(service, env, host)]);
-      await transport.send({ from: s.from, to, replyTo: s.replyTo, subject: r.subject, html: r.html, text: r.text, tag: 'sign_in', metadata: {} }, { agencyId: null, clientId: null });
+      await transport.send({ from: s.from, to, replyTo: s.replyTo, subject: r.subject, html: r.html, text: r.text, tag: 'sign_in', metadata: {} }, { agencyId: host.info.kind === 'agency' ? host.info.agencyId : null, clientId: null });
     },
   });
   // nextCookies() must be the last plugin so cookies set by server actions reach the response.
@@ -61,8 +61,12 @@ const pools = perEnv((name) => {
   const raw = new Pool({ connectionString: envUrls(name).service, max: 5 });
   return profilingOn() ? instrumentPgPool(raw) : raw;
 }, (p) => p.end());
-/** 13a1 (P6): one Better Auth instance per origin per environment (sessions live in each database's `auth` schema). */
-const instances = perEnv(() => new Map<string, Auth>(), (m) => m.clear());
+/**
+ * 13a1 (P6): one Better Auth instance per origin per environment (sessions live in each database's `auth` schema). The entry
+ * remembers the host agency it closes over (sign-in sender and branding): when a hostname resolves to another agency (a
+ * moved custom domain, a reused host_slug) the instance is rebuilt instead of mailing as the old agency.
+ */
+const instances = perEnv(() => new Map<string, { agencyId: string | null; auth: Auth }>(), (m) => m.clear());
 
 /**
  * The instance for `host`. Platform and MCP origins must equal their known origin; an agency origin must be a plain
@@ -77,8 +81,11 @@ export function authFor(host: RequestHost, name?: EnvName): Auth {
     if (!/^[a-z0-9.-]+$/.test(u.hostname) || u.protocol !== a.protocol || u.port !== a.port || u.origin !== host.origin) throw new Error('bad agency origin');
   }
   const map = instances(name);
-  let a = map.get(host.origin);
-  if (!a) { a = create(name ?? activeEnvName(), host, pools(name)); map.set(host.origin, a); }
+  const agencyId = host.info.kind === 'agency' ? host.info.agencyId : null;
+  const hit = map.get(host.origin);
+  if (hit && hit.agencyId === agencyId) return hit.auth;
+  const a = create(name ?? activeEnvName(), host, pools(name));
+  map.set(host.origin, { agencyId, auth: a });
   return a;
 }
 /** The current request's instance (proxy headers; none = platform). */

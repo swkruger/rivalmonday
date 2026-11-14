@@ -3,7 +3,7 @@ import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers'
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { seedUser, truncateAuth } from '../../test/fixtures';
-import { acceptInvitations, createInvitation, hasSignInRight, invitationProblem } from './invitations';
+import { acceptInvitations, createInvitation, hasSignInRight, hasSignInRightIn, invitationProblem } from './invitations';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -65,6 +65,21 @@ describe('hasSignInRight', () => {
     expect(await hasSignInRight(dbs.service, 'member@e.co', NOW)).toBe(false);
     await dbs.service.insert(membership).values({ userId: 'u1', agencyId: IDS.agencyA, role: 'agency_admin', createdBy: 'x' });
     expect(await hasSignInRight(dbs.service, 'Member@E.co', NOW)).toBe(true);
+  });
+});
+
+describe('hasSignInRightIn (13a1: an agency host signs in only its own people)', () => {
+  it('counts only memberships and open invitations in that agency; never a pending sign-up', async () => {
+    await seedUser(dbs.owner, 'u1', 'member@e.co');
+    await dbs.service.insert(membership).values({ userId: 'u1', agencyId: IDS.agencyA, role: 'client_owner', clientId: IDS.clientA1, createdBy: 'x' });
+    expect(await hasSignInRightIn(dbs.service, 'Member@E.co', IDS.agencyA, NOW)).toBe(true);
+    expect(await hasSignInRightIn(dbs.service, 'member@e.co', IDS.agencyB, NOW)).toBe(false);
+    await createInvitation(dbs.service, { agencyId: IDS.agencyB, email: 'inv@e.co', role: 'client_owner', clientId: IDS.clientB1, invitedBy: 'x' }, NOW);
+    expect(await hasSignInRightIn(dbs.service, 'inv@e.co', IDS.agencyB, NOW)).toBe(true);
+    expect(await hasSignInRightIn(dbs.service, 'inv@e.co', IDS.agencyA, NOW)).toBe(false);
+    expect(await hasSignInRightIn(dbs.service, 'inv@e.co', IDS.agencyB, new Date('2026-11-01T00:00:00Z'))).toBe(false);
+    await dbs.service.insert(pendingSignup).values({ email: 'new@agency.co', agencyName: 'A', source: 'open', ipHash: 'h', expiresAt: new Date(NOW.getTime() + 3_600_000) });
+    expect(await hasSignInRightIn(dbs.service, 'new@agency.co', IDS.agencyA, NOW)).toBe(false);
   });
 });
 
