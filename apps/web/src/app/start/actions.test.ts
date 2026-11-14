@@ -4,7 +4,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const m = vi.hoisted(() => ({
   lookup: vi.fn(), submit: vi.fn(), send: vi.fn(), turnstile: vi.fn(), after: [] as (() => unknown)[],
   headerIp: '203.0.113.9, 10.0.0.1', turnstileCfg: {} as { siteKey?: string; secretKey?: string },
+  host: { origin: 'https://app.test', info: { kind: 'platform' } } as unknown, intake: vi.fn(),
 }));
+vi.mock('@/server/request-host', () => ({ requestHost: async () => m.host }));
+vi.mock('./brand', () => ({ agencyIntake: (slug: string) => m.intake(slug) }));
 vi.mock('@cs/tools', async (orig) => ({
   ...(await orig<typeof import('@cs/tools')>()),
   intakeLookup: (...a: unknown[]) => m.lookup(...a),
@@ -41,6 +44,8 @@ beforeEach(() => {
   m.send.mockResolvedValue(undefined);
   m.lookup.mockResolvedValue({ places: [signed] });
   m.turnstileCfg = {};
+  m.host = { origin: 'https://app.test', info: { kind: 'platform' } };
+  m.intake.mockReset();
 });
 
 describe('lookupBusinessAction', () => {
@@ -157,3 +162,28 @@ describe('submitIntakeAction', () => {
     expect(input.message).toBeUndefined();
   });
 });
+
+describe('intake actions on an agency host (13a1 N3)', () => {
+  beforeEach(() => {
+    m.host = { origin: 'https://acme.clients.test', info: { kind: 'agency', agencyId: 'A1', canonical: true, canonicalOrigin: 'https://acme.clients.test' } };
+    // agencyIntake is host-scoped: only the host agency's own slug resolves.
+    m.intake.mockImplementation(async (slug: string) => (slug === 'smith-co' ? { kind: 'agency' } : null));
+  });
+
+  it('lookup with another agency’s slug or the platform page is refused without a lookup; its own slug works', async () => {
+    expect(await lookupBusinessAction({ slug: 'other-co', name: 'Smith', location: 'Austin' })).toEqual({ ok: false, error: 'This page is no longer available.' });
+    expect(await lookupBusinessAction({ slug: null, name: 'Smith', location: 'Austin' })).toEqual({ ok: false, error: 'This page is no longer available.' });
+    expect(m.lookup).not.toHaveBeenCalled();
+    expect(await lookupBusinessAction({ slug: 'smith-co', name: 'Smith', location: 'Austin' })).toMatchObject({ ok: true });
+  });
+
+  it('crafted submit with another agency’s slug or none creates no lead (same page); its own slug submits', async () => {
+    expect(await submitIntakeAction(idle, form({ slug: 'other-co' }))).toEqual(DONE);
+    expect(await submitIntakeAction(idle, form({ slug: '' }))).toEqual(DONE);
+    expect(m.submit).not.toHaveBeenCalled();
+    expect(m.after).toHaveLength(0);
+    expect(await submitIntakeAction(idle, form({ slug: 'smith-co' }))).toEqual(DONE);
+    expect(m.submit).toHaveBeenCalledTimes(1);
+  });
+});
+

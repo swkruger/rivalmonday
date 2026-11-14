@@ -6,6 +6,7 @@ const m = vi.hoisted(() => ({ viewer: null as Record<string, unknown> | null, ru
 vi.mock('@/server/current-viewer', () => ({ getViewer: async () => m.viewer }));
 vi.mock('@/server/run-tool', () => ({ runTool: (...a: unknown[]) => m.runTool(...a) }));
 vi.mock('@/server/env', () => ({ webEnv: () => ({ appUrl: 'https://app.example' }) }));
+vi.mock('@/server/request-host', () => ({ requestHost: async () => ({ origin: 'https://app.example', info: { kind: 'platform' } }) }));
 const { POST } = await import('./route');
 
 const ORIGIN = 'https://app.example';

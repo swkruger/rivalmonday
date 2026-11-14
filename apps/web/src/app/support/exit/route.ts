@@ -35,7 +35,7 @@ function leave(to: string, own: string): NextResponse {
  * `end_support_session` on the operator's own context (a support context would refuse the write), always clears
  * `rm_support`, and 303s back to the agency's console page with `?ended=1` (or `/platform` when nothing was open).
  *
- * M6: resolves the signed-in user directly (`getOperatorViewer`, no redirect), so an operator who lost their own
+ * M6: resolves the signed-in user directly (`getOperatorViewer`, which never redirects), so an operator who lost their own
  * membership mid-session still ends their own open row and loses the cookie (then `/no-access`, where `/platform`
  * would send them anyway). Not signed in: nothing to end; the cookie is still cleared. A failed `Origin` check is a
  * 403 that ends nothing and clears nothing (CSRF); the session then runs out at its expiry.

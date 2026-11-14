@@ -21,7 +21,7 @@ const refuse = (error: AvatarError) => Response.json({ error, message: AVATAR_ER
 export async function POST(req: Request) {
   const viewer = await getViewerForClient(null);
   if (!viewer || viewer.kind !== 'user') return notFound();
-  if (!sameOrigin(req)) return notFound();
+  if (!(await sameOrigin(req))) return notFound();
 
   const declared = Number(req.headers.get('content-length') ?? '');
   if (Number.isFinite(declared) && declared > MAX_BODY_BYTES) return refuse('too_large');

@@ -2,6 +2,7 @@ import type { Role } from '@cs/core';
 import type { MembershipSummary } from '@cs/tools';
 import { describe, expect, it } from 'vitest';
 import { decideHost, NO_PLATFORM_BOUNCE, platformBounceTarget } from './host-viewer';
+import { type HostInfo, routeForHost, STAFF_ONLY } from './hosts';
 import type { RequestHost } from './request-host';
 
 const A = '11111111-1111-4111-8111-111111111111';
@@ -99,9 +100,33 @@ describe('platformBounceTarget (N5)', () => {
       expect(NO_PLATFORM_BOUNCE.test(path), path).toBe(true);
       expect(platformBounceTarget({ host: platform, memberships: client, path, pickedAgencyId: A }), path).toBeNull();
     }
-    for (const path of ['/', '/c/x', '/inbox', '/settings/profile', '/starter', '/sign-income']) {
+    for (const path of ['/', '/c/x', '/inbox', '/settings/profile', '/starter', '/sign-income', '/start-evil', '/sign-inX', '/agencyx', '/platforms']) {
       expect(platformBounceTarget({ host: platform, memberships: client, path, pickedAgencyId: A }), path).toBe(client[0]);
     }
+  });
+
+  it('every STAFF_ONLY path → platformBounceTarget null', () => {
+    for (const path of ['/agency', '/agency/clients', '/agency/clients?x=1', '/platform', '/platform/agencies/x#y', '/onboarding', '/onboarding/steps', '/onboarding?s=1']) {
+      expect(STAFF_ONLY.test(path.split(/[?#]/)[0]!), path).toBe(true);
+      expect(platformBounceTarget({ host: platform, memberships: client, path, pickedAgencyId: A }), path).toBeNull();
+    }
+  });
+
+  it('a decideHost redirect target never routes straight back to the source origin (no cross-host loop)', () => {
+    const infoOf = (origin: string): HostInfo => (origin === PLATFORM ? { kind: 'platform' } : { kind: 'agency', agencyId: A, canonical: true, canonicalOrigin: A_ORIGIN });
+    const paths = ['/', '/c/x?y=1', '/inbox', '/agency', '/agency/clients?x=1', '/platform', '/platform/agencies/a', '/onboarding', '/onboarding/x', '/settings/profile', '/start-evil', '/sign-inX'];
+    const sets = [[mem(A, 'client_owner')], [mem(A, 'agency_admin')], [mem(A, 'client_owner'), mem(B, 'agency_admin')]];
+    let redirects = 0;
+    for (const host of [platform, agencyA]) for (const ms of sets) for (const path of paths) {
+      const target = platformBounceTarget({ host, memberships: ms, path, pickedAgencyId: A });
+      const d = decide(host, ms, path, target ? { origin: A_ORIGIN, isOperator: false } : null);
+      if (d.kind !== 'redirect') continue;
+      redirects++;
+      const to = new URL(d.to);
+      const back = routeForHost(infoOf(to.origin), { pathname: to.pathname, search: to.search, method: 'GET' }, PLATFORM);
+      if (back.kind === 'redirect') expect(new URL(back.to).origin, `${host.origin}${path}`).not.toBe(host.origin);
+    }
+    expect(redirects).toBeGreaterThan(0);
   });
 
   it('platformBounceTarget null on agency/mcp hosts', () => {

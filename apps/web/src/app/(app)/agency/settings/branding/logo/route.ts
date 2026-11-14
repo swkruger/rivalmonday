@@ -22,7 +22,7 @@ export async function POST(req: Request) {
   const viewer = await getViewer();
   if (!viewer || viewer.kind !== 'user' || viewer.ctx.role !== 'agency_admin') return notFound();
   // Refusals are 404s (project rule), CSRF included; still before any body read.
-  if (!sameOrigin(req)) return notFound();
+  if (!(await sameOrigin(req))) return notFound();
 
   const declared = Number(req.headers.get('content-length') ?? '');
   if (Number.isFinite(declared) && declared > MAX_BODY_BYTES) return refuse('too_large');

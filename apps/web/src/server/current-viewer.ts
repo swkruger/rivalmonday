@@ -38,9 +38,9 @@ export const SUPPORT_END_PATH = '/support/end';
  *
  * 13a1 P7 (host-scoped viewers): memberships are filtered by the request host (`decideHost`); `rm_support` is read only on
  * the platform host; `operator` off the platform host is null. A user who belongs on another host (staff on an agency host,
- * a client-only non-operator on the platform host) is redirected there in `page`/`operator` mode (`redirect()`, absolute
- * URL) and resolves to null in `api` mode (a POST must not be bounced). The bounce's operator check and client-origin read
- * run only on that path (N5).
+ * a client-only non-operator on the platform host) is redirected there in `page` mode only (`redirect()`, absolute URL); `api`
+ * mode resolves to null (a POST must not be bounced) and `operator` mode never bounces (no `bounce` callback; operators stay,
+ * and `/platform` is exempt anyway). The bounce's operator check and client-origin read run only on that path (N5).
  */
 type Mode = 'page' | 'api' | 'operator';
 async function viewerWith(clientHint: string | null, mode: Mode): Promise<Viewer | null> {
@@ -69,7 +69,7 @@ async function viewerWith(clientHint: string | null, mode: Mode): Promise<Viewer
     host,
     path: h.get('x-rm-path') ?? '/',
     platformOrigin: platformOrigin(env.hostEnv),
-    bounce: session
+    bounce: session && mode !== 'operator'
       ? async (target) => {
         const [role, origin] = await Promise.all([
           platformRoleForUser({ service, platformAdmins: platformAdmins() }, session.userId),
@@ -89,7 +89,7 @@ async function viewerWith(clientHint: string | null, mode: Mode): Promise<Viewer
       : undefined,
   });
   if (r?.kind !== 'redirect') return r;
-  if (mode === 'api') return null;
+  if (mode !== 'page') return null; // api: never bounce a POST; operator: unreachable on the platform (no bounce), null elsewhere
   redirect(r.to);
 }
 

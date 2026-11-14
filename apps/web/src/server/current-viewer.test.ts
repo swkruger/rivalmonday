@@ -408,6 +408,17 @@ describe('host-scoped viewers (13a1 P7, N4, N5)', () => {
     expect(await getViewer()).toMatchObject({ kind: 'user', ctx: { agencyId: IDS.agencyB } });
   });
 
+  it('client-only non-operator: /agency, /platform, /onboarding never bounce; operator mode never redirects', async () => {
+    m.admins = [];
+    await clientOnly();
+    for (const path of ['/agency/clients', '/platform', '/onboarding']) {
+      m.path = path;
+      expect(await getViewer(), path).toMatchObject({ kind: 'user' });
+    }
+    m.path = '/inbox';
+    expect(await getOperatorViewer()).toMatchObject({ kind: 'user' });
+  });
+
   it('operator mode off the platform host → null', async () => {
     await onAgency(IDS.agencyA);
     expect(await getOperatorViewer()).toBeNull();

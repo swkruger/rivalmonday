@@ -2,11 +2,12 @@ import { createHash } from 'node:crypto';
 import sharp from 'sharp';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const m = vi.hoisted(() => ({ viewer: null as Record<string, unknown> | null, runTool: vi.fn(), viewerFor: vi.fn() }));
+const m = vi.hoisted(() => ({ viewer: null as Record<string, unknown> | null, runTool: vi.fn(), viewerFor: vi.fn(), origin: 'https://app.example' }));
 // API mode only: a page-mode `getViewer` can answer a stale support cookie with a 307 to a GET-only route, a 405 on POST.
 vi.mock('@/server/current-viewer', () => ({ getViewerForClient: m.viewerFor }));
 vi.mock('@/server/run-tool', () => ({ runTool: (...a: unknown[]) => m.runTool(...a) }));
 vi.mock('@/server/env', () => ({ webEnv: () => ({ appUrl: 'https://app.example' }) }));
+vi.mock('@/server/request-host', () => ({ requestHost: async () => ({ origin: m.origin, info: { kind: 'platform' } }) }));
 const { POST } = await import('./route');
 
 const ORIGIN = 'https://app.example';
@@ -22,6 +23,7 @@ function upload(bytes: Uint8Array | string | null, opts: { origin?: string | nul
 }
 
 beforeEach(() => {
+  m.origin = ORIGIN;
   m.viewer = me;
   m.viewerFor.mockReset();
   m.viewerFor.mockImplementation(async () => m.viewer);
@@ -41,6 +43,14 @@ describe('POST /settings/profile/avatar', () => {
     expect((await sharp(bytes).metadata()).width).toBe(256);
     expect(((await res.json()) as { avatarUrl: string }).avatarUrl).toBe(`/files/avatar/u1/${input.sha256}.png`);
     expect(m.viewerFor).toHaveBeenCalledWith(null);
+  });
+
+  it('13a1: the origin check passes on an agency host (its own origin) and fails for a foreign one', async () => {
+    m.origin = 'https://acme.neutral.example';
+    expect((await POST(upload(await png(), { origin: 'https://acme.neutral.example' }))).status).toBe(200);
+    expect((await POST(upload(await png(), { origin: ORIGIN }))).status).toBe(404);
+    expect((await POST(upload(await png(), { origin: 'https://bravo.neutral.example' }))).status).toBe(404);
+    expect(m.runTool).toHaveBeenCalledTimes(1);
   });
 
   it('404s a cross-origin or origin-less post before reading the body', async () => {

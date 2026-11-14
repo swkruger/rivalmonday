@@ -9,7 +9,9 @@ import { activeEnvName, processGuardOn } from '@/server/dev-guard';
 import { webEmailTransport } from '@/server/email-transport';
 import { webEnv } from '@/server/env';
 import { toolDeps } from '@/server/tools';
+import { requestHost } from '@/server/request-host';
 import { verifyTurnstile } from '@/server/turnstile';
+import { agencyIntake } from './brand';
 import { REF_RE, SLUG_RE } from './params';
 
 /**
@@ -44,9 +46,15 @@ function slugOf(raw: unknown): { slug: string | null } | null {
   return typeof raw === 'string' && SLUG_RE.test(raw) ? { slug: raw } : null;
 }
 
+/** 13a1 N3: on an agency host only that agency's own intake page counts (`agencyIntake` is host-scoped); no platform page there. */
+async function onThisHost(s: { slug: string | null }): Promise<boolean> {
+  if ((await requestHost()).info.kind !== 'agency') return true;
+  return s.slug !== null && (await agencyIntake(s.slug)) !== null;
+}
+
 export async function lookupBusinessAction(input: { slug: string | null; name: string; location: string }): Promise<LookupResult> {
   const s = slugOf(input?.slug);
-  if (!s) return { ok: false, error: GONE };
+  if (!s || !(await onThisHost(s))) return { ok: false, error: GONE };
   const secret = webEnv().authSecret;
   const ipHash = hashIp((await clientIp()) ?? 'unknown', secret);
   try {
@@ -94,8 +102,10 @@ export async function submitIntakeAction(_prev: SubmitState, formData: FormData)
     const s = slugOf(text(formData, 'slug'));
     const ref = text(formData, 'ref').trim();
     const deps = toolDeps();
+    // 13a1 N3: another agency's (or the platform's) page on an agency host is refused like an unknown link: same page, no lead.
+    const offHost = s !== null && !(await onThisHost(s));
     // A malformed slug gets the same page; submitIntake refuses an unknown link itself (and logs the reason word).
-    const r = await submitIntake(deps, {
+    const r = offHost ? { send: null } : await submitIntake(deps, {
       slug: s ? s.slug : text(formData, 'slug'),
       lookup, // the signed place; submitIntake checks its shape, caps and signature
       intakeSecret: env.authSecret,
