@@ -7,6 +7,7 @@ import type { ToolDeps } from '../deps';
 import { detailOf, pageOf, pageResult } from '../paging';
 import { requireVisibleClient } from '../workspace/scope';
 import { pageFields, pagedItems, RecommendationView, toIso } from './schemas';
+import { linkBase } from '../link-base';
 
 const { defineTool } = toolkit<ToolDeps>();
 const uuid = z.string().uuid();
@@ -28,8 +29,9 @@ export const listRecommendations = defineTool({
       tx.select().from(recommendation).where(eq(recommendation.clientId, clientId)).orderBy(desc(recommendation.updatedAt), desc(recommendation.id)).offset(offset).limit(limit + 1));
     const { rows, nextCursor } = pageResult(fetched, limit, offset);
     if (detailOf(input, meta) === 'summary') {
+      const base = await linkBase(deps, ctx); // 13a1 P8: client roles → client origin
       return {
-        items: rows.map((r) => ({ id: r.id, title: r.title, date: r.updatedAt.toISOString(), evidenceIds: r.evidenceIds, url: appLinkFor(deps.appUrl, { t: 'recommendation', clientId, id: r.id }) })),
+        items: rows.map((r) => ({ id: r.id, title: r.title, date: r.updatedAt.toISOString(), evidenceIds: r.evidenceIds, url: appLinkFor(base, { t: 'recommendation', clientId, id: r.id }) })),
         nextCursor,
       };
     }

@@ -12,6 +12,7 @@ import { AGENCY_BRIEF_STATUSES, CLIENT_BRIEF_STATUSES, DASHBOARD_ITEM_TYPES, sea
 import { searchKnowledgeHits } from './knowledge';
 import { workspaceBusinesses } from '../workspace/business';
 import { clientEvents, eventJoin, type WorkspaceClient } from '../workspace/scope';
+import { linkBase } from '../link-base';
 
 const { defineTool } = toolkit<ToolDeps>();
 
@@ -208,9 +209,10 @@ export const search = defineTool({
       }
     }
     const knowledge = types.has('knowledge') ? await knowledgeHits(deps, ctx, c, input.query, input.limit, vec) : [];
+    const base = await linkBase(deps, ctx); // 13a1 P8: client roles → client origin
     return {
       results: rrfMerge([fts, vector, knowledge], 60, input.limit).map((h) => ({
-        id: h.key, title: h.title, url: appLinkFor(deps.appUrl, h.target),
+        id: h.key, title: h.title, url: appLinkFor(base, h.target),
         // d12 on every channel: snippets are captured or model-written text.
         snippet: h.final ? h.snippet : redactForModel(h.snippet, { businessNames: [...h.names, c.name] }),
       })),

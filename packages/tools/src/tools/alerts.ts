@@ -7,6 +7,7 @@ import { detailOf, pageOf, pageResult } from '../paging';
 import type { ToolDeps } from '../registry';
 import { workspaceClient } from '../workspace/scope';
 import { AlertDetail, AlertSummary, pagedItems, pagedListInput, toIso } from './schemas';
+import { linkBase } from '../link-base';
 
 const { defineTool } = toolkit<ToolDeps>();
 
@@ -28,8 +29,9 @@ export const listAlerts = defineTool({
         .orderBy(desc(alert.createdAt), desc(alert.id)).offset(offset).limit(limit + 1));
     const { rows, nextCursor } = pageResult(fetched, limit, offset);
     if (detailOf(input, meta) === 'summary') {
+      const base = await linkBase(deps, ctx); // 13a1 P8: client roles → client origin
       return {
-        items: rows.map(({ a }) => ({ id: a.id, title: a.headline, date: (a.deliveredAt ?? a.createdAt).toISOString(), evidenceIds: a.evidenceIds, url: appLinkFor(deps.appUrl, { t: 'alert', id: a.id }) })),
+        items: rows.map(({ a }) => ({ id: a.id, title: a.headline, date: (a.deliveredAt ?? a.createdAt).toISOString(), evidenceIds: a.evidenceIds, url: appLinkFor(base, { t: 'alert', id: a.id }) })),
         nextCursor,
       };
     }

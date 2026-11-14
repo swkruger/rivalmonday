@@ -5,6 +5,7 @@ import { z } from 'zod';
 import type { ToolDeps } from '../deps';
 import { linkedCompetitors } from '../workspace/evidence-access';
 import { requireVisibleEvent, workspaceClient } from '../workspace/scope';
+import { linkBase } from '../link-base';
 
 const { defineTool } = toolkit<ToolDeps>();
 const uuid = z.string().uuid();
@@ -57,7 +58,8 @@ export const addRecommendation = defineTool({
     await deps.service.insert(feedback).values({
       agencyId: ctx.agencyId, clientId: c.id, subjectType: 'recommendation', subjectId: rec!.id, kind: 'created', actor: ctx.userId,
     });
-    return { id: rec!.id, url: appLinkFor(deps.appUrl, { t: 'recommendation', clientId: c.id, id: rec!.id }) };
+    const base = await linkBase(deps, ctx); // 13a1 P8: client roles → client origin
+    return { id: rec!.id, url: appLinkFor(base, { t: 'recommendation', clientId: c.id, id: rec!.id }) };
   },
 });
 

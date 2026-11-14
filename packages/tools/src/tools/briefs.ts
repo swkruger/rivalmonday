@@ -8,6 +8,7 @@ import type { ToolDeps } from '../registry';
 import { packsOf } from '../catalog/access';
 import { workspaceClient } from '../workspace/scope';
 import { BriefDetail, BriefSummary, StartingPointStatus, pagedItems, pagedListInput, toIso } from './schemas';
+import { linkBase } from '../link-base';
 
 const { defineTool } = toolkit<ToolDeps>();
 const CLIENT_VISIBLE = ['approved', 'sent'];
@@ -43,8 +44,9 @@ export const listBriefs = defineTool({
       for (const id of i.evidenceIds) if (!list.includes(id)) list.push(id);
       evidenceOf.set(i.briefId, list);
     }
+    const base = await linkBase(deps, ctx); // 13a1 P8: client roles → client origin
     return {
-      items: rows.map((b) => ({ id: b.id, title: `${b.kind === 'starting_point' ? 'Starting point' : 'Weekly brief'} ${b.deliveryDate}`, date: b.deliveryDate, evidenceIds: evidenceOf.get(b.id) ?? [], url: appLinkFor(deps.appUrl, { t: 'brief', id: b.id }) })),
+      items: rows.map((b) => ({ id: b.id, title: `${b.kind === 'starting_point' ? 'Starting point' : 'Weekly brief'} ${b.deliveryDate}`, date: b.deliveryDate, evidenceIds: evidenceOf.get(b.id) ?? [], url: appLinkFor(base, { t: 'brief', id: b.id }) })),
       nextCursor,
     };
   },

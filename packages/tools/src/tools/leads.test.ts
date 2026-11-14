@@ -1,5 +1,5 @@
 import { type AccessContext, createAccessContext } from '@cs/core';
-import { client, clientSetup, contact, intakeLink, invitation, lead, membership, notification, platformAdmin, type SetupLookup } from '@cs/db';
+import { agencyDomain, client, clientSetup, contact, intakeLink, invitation, lead, membership, notification, platformAdmin, type SetupLookup } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import type { DeliveryConfig } from '@cs/engine';
 import { createMemoryTransport } from '@cs/email';
@@ -277,6 +277,15 @@ describe('list_leads / get_lead', () => {
 });
 
 describe('intake link', () => {
+  it('intake link state url is on the client origin', async () => {
+    const hostEnv = { appUrl: 'https://app.test', neutralDomain: 'clients.test', extraPlatformHosts: [] };
+    await call(admin, 'update_intake_link', {});
+    const get = () => registry({ hostEnv }).invoke(admin, 'get_intake_link', {}) as Promise<{ url: string }>;
+    expect((await get()).url).toBe('https://agency-a.clients.test/start/agency-a');
+    await dbs.service.insert(agencyDomain).values({ agencyId: IDS.agencyA, hostname: 'intel.agency-a.test', status: 'live' });
+    expect((await get()).url).toBe('https://intel.agency-a.test/start/agency-a');
+  });
+
   it('intake link create/update/slug_taken', async () => {
     expect(await call(admin, 'get_intake_link', {})).toEqual({ slug: null, enabled: false, url: null, counts: { newThisMonth: 0, accepted: 0 } });
     // First update creates the row with the slugified agency name.

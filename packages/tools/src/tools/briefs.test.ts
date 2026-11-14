@@ -1,5 +1,7 @@
 import { brief, briefItem, citationAuditRun, client, clientCompetitor } from '@cs/db';
 import { IDS } from '@cs/db/test-helpers';
+import type { AccessContext } from '@cs/core';
+import { createToolRegistry } from '../registry';
 import { and, eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { ctx, dbs, registry, resetWorkspace, seedEvent, seedSelf } from './workspace-fixtures';
@@ -21,6 +23,14 @@ describe('list_briefs paging and detail', () => {
     const out = (await registry.invoke(admin, 'list_briefs', { clientId: IDS.clientA1 }, mcp)) as { items: Record<string, unknown>[]; nextCursor?: string | null };
     expect(out.items).toEqual([{ id: b!.id, title: 'Weekly brief 2026-10-05', date: '2026-10-05', evidenceIds: ['e1', 'e2', 'e3'], url: `/go/brief/${b!.id}` }]);
     expect(out.nextCursor).toBeNull();
+  });
+
+  it('client-role MCP url is on the client origin, agency-role on APP_URL (list_briefs)', async () => {
+    const [b] = await dbs.owner.insert(brief).values({ ...base, ...period, deliveryDate: '2026-10-05', status: 'sent', summary: 'Sent' }).returning();
+    const hosted = createToolRegistry({ app: dbs.app, service: dbs.service, appUrl: 'https://app.test', hostEnv: { appUrl: 'https://app.test', neutralDomain: 'clients.test', extraPlatformHosts: [] } }, { audit: { record: async () => {} } });
+    const urls = async (c: AccessContext) => ((await hosted.invoke(c, 'list_briefs', { clientId: IDS.clientA1 }, mcp)) as { items: { url: string }[] }).items.map((i) => i.url);
+    expect(await urls(ctx('client_viewer', [IDS.clientA1], ['dashboard', 'mcp']))).toEqual([`https://agency-a.clients.test/go/brief/${b!.id}`]);
+    expect(await urls(admin)).toEqual([`https://app.test/go/brief/${b!.id}`]);
   });
 
   it('list_briefs paginates over mcp with nextCursor and no overlap', async () => {

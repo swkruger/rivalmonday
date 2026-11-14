@@ -1,4 +1,4 @@
-import { client, clientSetup, competitorSuggestion, contact, discoveryRun, invitation, notification } from '@cs/db';
+import { agency, agencyDomain, client, clientSetup, competitorSuggestion, contact, discoveryRun, invitation, notification } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { addContact, type DeliveryConfig } from '@cs/engine';
 import { testDeliveryConfig } from '@cs/engine/test-config';
@@ -58,8 +58,18 @@ describe('queueCompetitorReview', () => {
     expect(rows[0]!.dedupeKey).toMatch(new RegExp(`^competitor-review:${ID}:`));
     const props = payloadOf(rows[0]!).props as { competitorNames: string[]; reviewUrl: string };
     expect(props.competitorNames).toEqual(['Rival 3', 'Rival 2', 'Rival 1', 'Rival 6', 'Rival 7']); // top then watch, score desc, max 5, no minor/dismissed
-    expect(props.reviewUrl).toBe(`https://app.test/sign-in?email=owner%40smith.co&next=${encodeURIComponent(`/c/${ID}`)}`);
+    expect(props.reviewUrl).toBe(`https://agency-a.clients.example/sign-in?email=owner%40smith.co&next=${encodeURIComponent(`/c/${ID}`)}`);
     expect(payloadOf(rows[0]!).cc).toEqual(['inviter@agency.co']);
+  });
+
+  it('review URL on the client origin and the email logo rehosted', async () => {
+    await seed({ askedOwner: true });
+    await dbs.service.insert(agencyDomain).values({ agencyId: IDS.agencyA, hostname: 'intel.agency-a.test', status: 'live' });
+    await dbs.owner.update(agency).set({ branding: { logoUrl: 'https://app.test/files/logo/agency-a/l.png' } }).where(eq(agency.id, IDS.agencyA));
+    expect(await go()).toBe(true);
+    const props = payloadOf((await mails())[0]!).props as { reviewUrl: string; branding: { logoUrl: string } };
+    expect(props.reviewUrl.startsWith('https://intel.agency-a.test/sign-in?')).toBe(true);
+    expect(props.branding.logoUrl).toBe('https://intel.agency-a.test/files/logo/agency-a/l.png');
   });
 
   it('auto send skipped when owner was not asked', async () => {
@@ -119,7 +129,7 @@ describe('queueCompetitorReview', () => {
     expect(rows).toHaveLength(2);
     // Owners never enter /setup (P8): the link always goes to the client overview.
     const props = payloadOf(rows[0]!).props as { reviewUrl: string };
-    expect(props.reviewUrl).toBe(`https://app.test/sign-in?email=owner%40smith.co&next=${encodeURIComponent(`/c/${ID}`)}`);
+    expect(props.reviewUrl).toBe(`https://agency-a.clients.example/sign-in?email=owner%40smith.co&next=${encodeURIComponent(`/c/${ID}`)}`);
   });
 
   it('review email links to overview', async () => {
@@ -128,7 +138,7 @@ describe('queueCompetitorReview', () => {
     await dbs.owner.update(client).set({ serviceArea: { center: { lat: 1, lng: 1 }, radiusKm: 10, zips: [] } }).where(eq(client.id, ID));
     expect(await go()).toBe(true);
     const n = (await mails())[0]!;
-    expect((payloadOf(n).props as { reviewUrl: string }).reviewUrl).toBe(`https://app.test/sign-in?email=owner%40smith.co&next=${encodeURIComponent(`/c/${ID}`)}`);
+    expect((payloadOf(n).props as { reviewUrl: string }).reviewUrl).toBe(`https://agency-a.clients.example/sign-in?email=owner%40smith.co&next=${encodeURIComponent(`/c/${ID}`)}`);
     expect((payloadOf(n).props as { reviewUrl: string }).reviewUrl).not.toContain('setup');
   });
 

@@ -1,6 +1,6 @@
 import { type AccessContext, canAccessClient, isAgencyRole, ToolError } from '@cs/core';
 import { client, clientSetup, contact, invitation, type Tx } from '@cs/db';
-import { loadBranding, notify } from '@cs/engine';
+import { loadClientBranding, notify } from '@cs/engine';
 import { and, eq, isNull, sql } from 'drizzle-orm';
 import type { ToolDeps } from '../deps';
 import { completeIfDone } from '../setup/state';
@@ -64,13 +64,14 @@ export async function sendClientInvite(
     return false;
   }
   const cfg = deps.delivery;
-  const branding = await loadBranding(tx, ctx.agencyId);
+  // 13a1 P8/P12: the sign-in link and the logo on the agency's client origin (tx is the service connection).
+  const { branding, origin } = await loadClientBranding(tx, cfg, ctx.agencyId);
   // `{ agency: true }` (platform staff acting for the agency): no inviter lookup, so no Cc.
   const inviter = i.inviter ?? { userId: ctx.userId };
   const rows = 'userId' in inviter ? await tx.execute<{ email: string }>(sql`select email from auth."user" where id = ${inviter.userId}`) : [];
   const inviterEmail = [...rows][0]?.email;
   // Built from validated ids only (never request input); the sign-in page re-checks `next` with `safeNext`.
-  const startUrl = `${cfg.appUrl}/sign-in?email=${encodeURIComponent(i.email)}&next=${encodeURIComponent(landingPath(i.clientId))}`;
+  const startUrl = `${origin}/sign-in?email=${encodeURIComponent(i.email)}&next=${encodeURIComponent(landingPath(i.clientId))}`;
   const props = { branding, businessName: i.clientName, agencyName: branding.displayName, startUrl };
   const queued = await notify(tx, cfg, {
     agencyId: ctx.agencyId, clientId: i.clientId, kind: 'client_invite', audience: 'client', subjectType: 'setup', subjectId: i.clientId,

@@ -3,7 +3,7 @@ import {
   disconnectAgencyConnect, isPaymentProcessing, isSubscribed, monthlyEquivalentCents, planCents, planFor,
 } from '@cs/billing';
 import { type AccessContext, canAccessClient, toolkit, ToolError, type ToolErrorCode } from '@cs/core';
-import { type ClientBillingRow, type ClientBillingState, type Tx, agency, agencyBilling, agencyConnect, client, clientBilling } from '@cs/db';
+import { type ClientBillingRow, type ClientBillingState, type Tx, agency, agencyBilling, agencyConnect, client, clientBilling, clientOriginFor } from '@cs/db';
 import { and, asc, eq, isNull, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import type { ToolDeps } from '../deps';
@@ -370,7 +370,9 @@ async function checkoutFor(
   i: { acct: string; clientId: string; priceId: string; setupFeeCents: number; email: string },
 ): Promise<{ url: string; id: string }> {
   const fee = await effectiveConnectFeePercent(deps.service, ctx.agencyId);
-  const base = appBase(deps);
+  // 13a1 P8: the client owner returns to the agency's client origin (agency pages, `billingUrl`, keep APP_URL).
+  const appUrl = appBase(deps); // refuses without APP_URL
+  const base = deps.hostEnv ? await clientOriginFor(deps.service, ctx.agencyId, deps.hostEnv) : appUrl;
   try {
     return await deps.billing!.createConnectedCheckout({
       stripeAccount: i.acct, priceId: i.priceId, customerEmail: i.email, clientReferenceId: i.clientId,

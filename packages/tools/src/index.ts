@@ -80,3 +80,4 @@ export { sendWaitlistEmail, type WaitlistEmailKind } from './waitlist/emails';
 // Phase 17a: the public sample-brief link (`/sample/<token>` page and its evidence route).
 export { getSampleBrief, type SampleEvidenceRef, sampleEvidenceKey } from './waitlist/sample';
 export { COUNTER_FLOOR, publicCount, type SiteStatus, siteStatus } from './waitlist/site-status';
+export * from './link-base';

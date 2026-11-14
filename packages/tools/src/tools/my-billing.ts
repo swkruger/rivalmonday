@@ -1,6 +1,6 @@
 import { clientBillingPill } from '@cs/billing';
 import { type AccessContext, canAccessClient, toolkit, ToolError } from '@cs/core';
-import { type ClientBillingState, agency, agencyConnect, client, clientBilling } from '@cs/db';
+import { type ClientBillingState, agency, agencyConnect, client, clientBilling, clientOriginFor } from '@cs/db';
 import { resolveBranding } from '@cs/email';
 import { eq } from 'drizzle-orm';
 import { z } from 'zod';
@@ -108,7 +108,9 @@ export const openBillingPortalTool = defineTool({
     try {
       // R25: the portal configuration on the agency's connected account (created on first use when the defaults save missed it).
       const configuration = await ensurePortalConfiguration(deps, ctx.agencyId, acct);
-      const s = await deps.billing.createConnectedPortal({ stripeAccount: acct, customerId: b.stripeCustomerId, returnUrl: `${deps.appUrl.replace(/\/+$/, '')}/c/${clientId}/settings/billing`, configuration });
+      // 13a1 P8: back to the agency's client origin.
+      const base = deps.hostEnv ? await clientOriginFor(deps.service, ctx.agencyId, deps.hostEnv) : deps.appUrl.replace(/\/+$/, '');
+      const s = await deps.billing.createConnectedPortal({ stripeAccount: acct, customerId: b.stripeCustomerId, returnUrl: `${base}/c/${clientId}/settings/billing`, configuration });
       return { url: s.url };
     } catch (e) {
       console.error('[billing] createConnectedPortal failed', { agencyId: ctx.agencyId }, (e as { name?: string } | null)?.name);

@@ -11,6 +11,7 @@ import { forChannel } from '../workspace/model-text';
 import { workspaceClient } from '../workspace/scope';
 import { requireTracked } from './pages';
 import { AdPage, pageFields, toIso } from './schemas';
+import { linkBase } from '../link-base';
 
 const { defineTool } = toolkit<ToolDeps>();
 const uuid = z.string().uuid();
@@ -66,6 +67,7 @@ export const listAds = defineTool({
         ? await deps.service.select({ captureId: evidence.captureId, id: evidence.id }).from(evidence)
           .where(and(inArray(evidence.captureId, captureIds), inArray(evidence.kind, citableEvidenceKinds(meta)))).orderBy(asc(evidence.kind), asc(evidence.id))
         : [];
+      const base = await linkBase(deps, ctx); // 13a1 P8: client roles → client origin
       return {
         items: page.rows.map((a) => {
           const name = names.get(a.competitorId)!;
@@ -73,7 +75,7 @@ export const listAds = defineTool({
           return {
             id: a.id, title: forChannel(meta, a.title ?? a.text?.slice(0, 80) ?? `${a.platform} ad`, [name]), date: a.firstSeenAt.toISOString(),
             evidenceIds: [...(cap ? ev.filter((e) => e.captureId === cap).map((e) => e.id) : []), ...(citableEvidenceKinds(meta).includes('image') ? imagesOf(a.id) : [])],
-            url: appLinkFor(deps.appUrl, { t: 'competitor', clientId: c.id, id: a.competitorId }),
+            url: appLinkFor(base, { t: 'competitor', clientId: c.id, id: a.competitorId }),
           };
         }),
         hasMore: page.hasMore, nextCursor: page.nextCursor,

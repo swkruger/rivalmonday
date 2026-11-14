@@ -1,4 +1,4 @@
-import { agency, agencyOnboarding, type AgencyInviteLinkRow, billingNotice, clientBilling, invitation, membership, type PendingSignupRow, platformAdmin } from '@cs/db';
+import { agency, agencyDomain, agencyOnboarding, type AgencyInviteLinkRow, billingNotice, clientBilling, invitation, membership, type PendingSignupRow, platformAdmin } from '@cs/db';
 import { enqueueSignupEmails } from '@cs/tools';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { asc, eq, sql } from 'drizzle-orm';
@@ -26,6 +26,7 @@ const deps = {
   serviceDb: () => dbs.service,
   billingEmail: () => ({
     appUrl: 'https://app.rm.test',
+    hostEnv: { appUrl: 'https://app.rm.test', neutralDomain: 'clients.test', extraPlatformHosts: [] },
     send: (...a: Parameters<BillingEmailSender['send']>) => send(...a),
     sendClient: async (to: string, agencyId: string, clientId: string, from: SentClient['from'], props: SentClient['props']) => {
       if (clientSend) await clientSend(to);
@@ -111,7 +112,16 @@ describe('9b client billing notices', () => {
     await owner('o1', 'olive@client.test');
     await clientNotice('client-payment-needed');
     await run();
-    expect(sentClient[0]!.props).toMatchObject({ kind: 'client-payment-needed', actionUrl: `https://app.rm.test/c/${IDS.clientA1}/settings/billing` });
+    expect(sentClient[0]!.props).toMatchObject({ kind: 'client-payment-needed', actionUrl: `https://agency-a.clients.test/c/${IDS.clientA1}/settings/billing` }); // 13a1: client origin
+  });
+
+  it('client billing notice actionUrl on the client origin (the live custom host)', async () => {
+    await dbs.owner.insert(agencyDomain).values({ agencyId: IDS.agencyA, hostname: 'intel.agency-a.test', status: 'live' });
+    await setBilling('payment_needed');
+    await owner('o1', 'olive@client.test');
+    await clientNotice('client-payment-needed');
+    await run();
+    expect(sentClient[0]!.props.actionUrl).toBe(`https://intel.agency-a.test/c/${IDS.clientA1}/settings/billing`);
   });
 
   it('no client owners: row is marked done with a reason, no retry loop, checkoutUrl still dropped', async () => {

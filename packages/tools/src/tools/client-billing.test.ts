@@ -586,6 +586,13 @@ describe('per-client billing tools (Task 5)', () => {
       await call(admin, 'enable_client_billing', { clientId: A1 });
       expect(checkoutArg()).toMatchObject({ successUrl: `${APP}/c/${A1}/settings/billing?checkout=done`, cancelUrl: `${APP}/c/${A1}/settings/billing?checkout=cancelled` });
     });
+    it('checkout success URL on the client origin (cancel too)', async () => {
+      registry = createToolRegistry({ app: dbs.app, service: dbs.service, billing: gw, appUrl: APP, hostEnv: { appUrl: APP, neutralDomain: 'clients.test', extraPlatformHosts: [] } }, audit);
+      await ready();
+      await call(admin, 'enable_client_billing', { clientId: A1 });
+      const CO = 'https://agency-a.clients.test';
+      expect(checkoutArg()).toMatchObject({ successUrl: `${CO}/c/${A1}/settings/billing?checkout=done`, cancelUrl: `${CO}/c/${A1}/settings/billing?checkout=cancelled` });
+    });
     it('a price override creates a per-client connected price and stores it', async () => {
       await ready();
       await call(admin, 'enable_client_billing', { clientId: A1, priceCents: 15000, setupFeeCents: 0 });

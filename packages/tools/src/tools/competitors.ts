@@ -7,6 +7,7 @@ import { enqueueOf, type ToolDeps } from '../deps';
 import { latestDoneRun, nextManualSearchAt, type SearchRefusal, type SearchStart, startCompetitorSearch, weeklyLimitMessage } from '../rival-search';
 import { detailOf, pageOf, pageResult } from '../paging';
 import { AdMatch, CompetitorSignalView, HiddenReason, pageFields, pagedItems, Signals, SuggestionView, Tier, TrackedCompetitor } from './schemas';
+import { linkBase } from '../link-base';
 
 const { defineTool } = toolkit<ToolDeps>();
 const uuid = z.string().uuid();
@@ -557,8 +558,9 @@ export const listClientCompetitors = defineTool({
     if (!c) throw new ToolError('not_found', 'Client not found');
     const page = pageResult(rows, pageLimit, offset);
     if (detailOf(input, meta) === 'summary') {
+      const base = await linkBase(deps, ctx); // 13a1 P8: client roles → client origin
       return {
-        items: page.rows.map((r) => ({ id: r.id, title: r.name, date: r.addedAt.toISOString(), evidenceIds: [], url: appLinkFor(deps.appUrl, { t: 'competitor', clientId, id: r.id }) })),
+        items: page.rows.map((r) => ({ id: r.id, title: r.name, date: r.addedAt.toISOString(), evidenceIds: [], url: appLinkFor(base, { t: 'competitor', clientId, id: r.id }) })),
         limit: c.limit, nextCursor: page.nextCursor,
       };
     }

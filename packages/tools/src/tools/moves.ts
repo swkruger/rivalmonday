@@ -10,6 +10,7 @@ import { humanise } from '../workspace/labels';
 import { summaryForChannel } from '../workspace/model-text';
 import { allInOrder, clientEvents, eventJoin, liveEventCount, workspaceClient } from '../workspace/scope';
 import { MoveDetail, MoveRow, pageFields, pagedItems, toIso } from './schemas';
+import { linkBase } from '../link-base';
 
 const { defineTool } = toolkit<ToolDeps>();
 const uuid = z.string().uuid();
@@ -69,10 +70,11 @@ export const listMoves = defineTool({
       for (const l of links) if (l.moveId === moveId) for (const id of evidence.get(l.eventId) ?? []) if (!ids.includes(id)) ids.push(id);
       return ids.slice(0, 10);
     };
+    const base = await linkBase(deps, ctx); // 13a1 P8: client roles → client origin
     return {
       items: rows.map((m) => ({
         id: m.id, title: MOVE_LABELS[m.moveType] ?? humanise(m.moveType), date: (m.lastEvidenceAt ?? m.firstDetectedAt).toISOString(), evidenceIds: evidenceOf(m.id),
-        url: appLinkFor(deps.appUrl, { t: 'move', clientId: c.id, id: m.id }),
+        url: appLinkFor(base, { t: 'move', clientId: c.id, id: m.id }),
       })),
       nextCursor,
     };

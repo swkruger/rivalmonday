@@ -1,5 +1,5 @@
 import { client, clientSetup, competitorSuggestion, contact, invitation } from '@cs/db';
-import { type Conn, type DeliveryConfig, loadBranding, notify, replyToFor } from '@cs/engine';
+import { type Conn, type DeliveryConfig, loadClientBranding, notify, replyToFor } from '@cs/engine';
 import { and, desc, eq, inArray, isNotNull, sql } from 'drizzle-orm';
 import { latestDoneRun } from '../rival-search';
 import { getSetupState } from './state';
@@ -68,11 +68,12 @@ export async function queueCompetitorReview(
   }
   ccEmail ??= (await replyToFor(conn, agencyId, clientId))?.email;
 
-  const branding = await loadBranding(conn, agencyId);
+  // 13a1 P8/P12: the sign-in link and the logo on the agency's client origin (callers pass the service/worker connection).
+  const { branding, origin } = await loadClientBranding(conn, cfg, agencyId);
   // Owners never enter /setup (P8): the overview carries the "choose competitors" card while they are asked to pick.
   const next = `/c/${clientId}`;
   // Built from the validated client id only; the sign-in page re-checks `next` with `safeNext`.
-  const reviewUrl = `${cfg.appUrl}/sign-in?email=${encodeURIComponent(owner.email.toLowerCase())}&next=${encodeURIComponent(next)}`;
+  const reviewUrl = `${origin}/sign-in?email=${encodeURIComponent(owner.email.toLowerCase())}&next=${encodeURIComponent(next)}`;
   const props = { branding, businessName: c.name, competitorNames, reviewUrl };
   const queued = await notify(conn, cfg, {
     agencyId, clientId, kind: 'competitor_review', audience: 'client', subjectType: 'setup', subjectId: clientId,

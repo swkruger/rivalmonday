@@ -1,5 +1,5 @@
 import { type AccessContext, toolkit, ToolError } from '@cs/core';
-import { agency, intakeLink, lead, leadPreviewSchema, type LeadRow, type LeadStatus, setupLookupSchema, type Tx, withTenant } from '@cs/db';
+import { agency, clientOriginFor, intakeLink, lead, leadPreviewSchema, type LeadRow, type LeadStatus, setupLookupSchema, type Tx, withTenant } from '@cs/db';
 import { and, count, desc, eq, gte, inArray, isNull, ne, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { inviteClientUser } from '../access/client-invite';
@@ -247,12 +247,16 @@ async function intakeLinkState(ctx: AccessContext, deps: ToolDeps): Promise<Inta
   const monthStart = new Date();
   monthStart.setUTCDate(1);
   monthStart.setUTCHours(0, 0, 0, 0);
+  // 13a1 (F12): the link prospects get lives on the agency's client origin (the platform `/start/<slug>` keeps working, R6).
+  // Read alongside the tenant reads (service db: agency_domain), so the settings page gains no sequential DB stage.
+  const origin = deps.appUrl && deps.hostEnv ? clientOriginFor(deps.service, ctx.agencyId, deps.hostEnv) : Promise.resolve((deps.appUrl ?? '').replace(/\/+$/, ''));
+  origin.catch(() => {}); // awaited below; only stops an unhandled rejection if the tenant reads throw first
   return withTenant(deps.app, ctx, async (tx) => {
     const [link] = await tx.select().from(intakeLink).where(eq(intakeLink.agencyId, ctx.agencyId));
     const fromLink = and(eq(lead.agencyId, ctx.agencyId), eq(lead.source, 'agency_link'));
     const [fresh] = await tx.select({ n: count() }).from(lead).where(and(fromLink, inArray(lead.status, [...AGENCY_STATUSES]), gte(lead.verifiedAt, monthStart)));
     const [accepted] = await tx.select({ n: count() }).from(lead).where(and(fromLink, eq(lead.status, 'accepted')));
-    const base = (deps.appUrl ?? '').replace(/\/+$/, '');
+    const base = await origin;
     return {
       slug: link?.slug ?? null,
       enabled: link?.enabled ?? false,

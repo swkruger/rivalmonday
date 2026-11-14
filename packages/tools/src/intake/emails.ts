@@ -1,5 +1,5 @@
 import { type Branding, cleanCc, type EmailPayload, type EmailTransport, PermanentEmailError, renderEmail, resolveBranding } from '@cs/email';
-import { contact, type Db, intakeLink, lead, type LeadRow } from '@cs/db';
+import { clientOriginFor, contact, type Db, intakeLink, lead, type LeadRow, rehostLogoUrl } from '@cs/db';
 import { loadBranding, platformSender, replyToFor, type SenderConfig, senderFor } from '@cs/engine';
 import { and, eq, isNull, or, sql } from 'drizzle-orm';
 import { platformOperatorEmails } from '../platform/costs/alerts';
@@ -87,7 +87,10 @@ async function build(deps: LeadEmailDeps, row: LeadRow, kind: LeadEmailKind, ext
   const businessName = row.lookup.title;
   const appUrl = base(deps.appUrl);
   const platformBranding = resolveBranding('Rival Monday', null);
-  const branding = row.agencyId ? await loadBranding(deps.service, row.agencyId) : platformBranding;
+  const agencyBranding = row.agencyId ? await loadBranding(deps.service, row.agencyId) : platformBranding;
+  // 13a1 P8/P12: mail to an agency's lead links to and shows its logo from the agency's client origin; staff mail (agency_new) and pool leads keep APP_URL.
+  const clientOrigin = row.agencyId && kind !== 'agency_new' ? await clientOriginFor(deps.service, row.agencyId, deps.sender.hostEnv) : null;
+  const branding = clientOrigin ? { ...agencyBranding, logoUrl: rehostLogoUrl(agencyBranding.logoUrl, deps.sender.hostEnv, clientOrigin) } : agencyBranding;
   // Pool-notice mail to operators always carries platform branding; everything else follows the lead's owner.
   const agencyName = row.agencyId ? branding.displayName : null;
   const replyTo = row.agencyId ? ((await replyToFor(deps.service, row.agencyId, row.id))?.email ?? null) : null;
@@ -100,7 +103,7 @@ async function build(deps: LeadEmailDeps, row: LeadRow, kind: LeadEmailKind, ext
         const [l] = await deps.service.select({ slug: intakeLink.slug }).from(intakeLink).where(eq(intakeLink.agencyId, row.agencyId));
         from = `?from=${l?.slug ?? '-'}`;
       }
-      return [{ to: row.email, replyTo, branding, payload: { template: 'lead_verify', props: { branding, businessName, verifyUrl: `${appUrl}/start/verify/${extra!.verifyRaw}${from}` } } }];
+      return [{ to: row.email, replyTo, branding, payload: { template: 'lead_verify', props: { branding, businessName, verifyUrl: `${clientOrigin ?? appUrl}/start/verify/${extra!.verifyRaw}${from}` } } }];
     }
     case 'confirmation':
       return [{ to: row.email, replyTo, branding, payload: { template: 'lead_confirmation', props: { branding, businessName, agencyName, preview: row.preview } } }];

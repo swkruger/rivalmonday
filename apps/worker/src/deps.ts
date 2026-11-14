@@ -7,7 +7,7 @@ import {
 } from '@cs/collectors';
 import { DEFAULT_SUPPORT_EMAIL, type AiGuard, type CallScope } from '@cs/core';
 import { createVendorLimiter } from '@cs/core/server';
-import { type AgencyBranding, competitor, type OpsAlert, catalogRows, parseHostEnv, createAiGuard, createDb, createDecisionModeSource, createDecisionSampleSink, createLedgerSink, type Db } from '@cs/db';
+import { type AgencyBranding, clientOriginFor, competitor, type HostEnv, type OpsAlert, catalogRows, parseHostEnv, rehostLogoUrl, createAiGuard, createDb, createDecisionModeSource, createDecisionSampleSink, createLedgerSink, type Db } from '@cs/db';
 import { createCatalog } from '@cs/verticals';
 import type { DiscoveryResult } from '@cs/collectors';
 import {
@@ -48,6 +48,8 @@ export const DEFAULT_SUPPORT_REPLY_TO = DEFAULT_SUPPORT_EMAIL;
 export interface BillingEmailSender {
   /** APP_URL without a trailing slash. */
   appUrl: string;
+  /** 13a1 P8: client notices link to the agency's client origin (`clientOriginFor`); null (no NEUTRAL_DOMAIN): `appUrl`, and `sendClient` refuses. */
+  hostEnv: HostEnv | null;
   /** Phase 10 (R13): `PLATFORM_ADMIN_EMAILS`, normalised; with active owner|staff operators, the sign-up notice recipients. */
   platformAdmins: string[];
   /**
@@ -751,6 +753,7 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv, opts: { aiGuard?: boole
     }),
     billingEmail: () => ({
       appUrl: (env.APP_URL ?? '').replace(/\/+$/, ''),
+      hostEnv,
       platformAdmins: normalizeAdminEmails(env.PLATFORM_ADMIN_EMAILS),
       sendOnboarding: async (to, agencyId, email) => {
         const from = requirePlatformFrom();
@@ -785,7 +788,10 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv, opts: { aiGuard?: boole
       },
       sendClient: async (to, agencyId, clientId, ag, props) => {
         if (!hostEnv) throw new Error('NEUTRAL_DOMAIN is required for client email');
-        const branding = { ...resolveBranding(ag.agencyName, ag.branding), contact: await loadAgencyContact(getDb(), agencyId) };
+        // 13a1 P12: the logo served from the agency's client origin, never APP_URL.
+        const resolved = resolveBranding(ag.agencyName, ag.branding);
+        const origin = await clientOriginFor(getDb(), agencyId, hostEnv);
+        const branding = { ...resolved, logoUrl: rehostLogoUrl(resolved.logoUrl, hostEnv, origin), contact: await loadAgencyContact(getDb(), agencyId) };
         const r = await renderEmail({ template: 'client_billing_notice', props: { ...props, agencyName: branding.displayName, branding } });
         // 13a1 P14: the agency's client sender; Reply-To = branding fromEmail, else the account manager.
         const s = await senderFor(getDb(), agencyId, 'client', { hostEnv, platformFrom });

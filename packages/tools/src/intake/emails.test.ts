@@ -1,4 +1,4 @@
-import { agency, agencySendingDomain, contact, intakeLink, lead, type SetupLookup } from '@cs/db';
+import { agency, agencyDomain, agencySendingDomain, contact, intakeLink, lead, type SetupLookup } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { createMemoryTransport, type EmailTransport } from '@cs/email';
 import { eq } from 'drizzle-orm';
@@ -41,7 +41,7 @@ describe('sendLeadEmail', () => {
     await sendLeadEmail(deps(), id, 'verify', { verifyRaw: 'RAW2' });
     expect(transport.sent).toHaveLength(2);
     expect(transport.sent[0]).toMatchObject({ to: 'sam@smith.co', replyTo: 'amall@a.co', tag: 'lead_verify', subject: 'Confirm your email to see your competitor snapshot' });
-    expect(transport.sent[0]!.html).toContain('https://app.test/start/verify/RAW1');
+    expect(transport.sent[0]!.html).toContain('https://agency-a.clients.example/start/verify/RAW1'); // 13a1: client origin
     expect(transport.sent[0]!.from).toBe('"Agency A" <agency-a@mail.clients.example>');
   });
 
@@ -65,14 +65,36 @@ describe('sendLeadEmail', () => {
   it('verify: the link names the intake page it came from (agency slug; "-" without one; nothing for the platform page)', async () => {
     const noLink = await mkLead({ status: 'unverified', email: 'nolink@x.co' });
     await sendLeadEmail(deps(), noLink, 'verify', { verifyRaw: 'RAW0' });
-    expect(transport.sent[0]!.text).toContain('https://app.test/start/verify/RAW0?from=-');
+    expect(transport.sent[0]!.text).toContain('https://agency-a.clients.example/start/verify/RAW0?from=-');
     await dbs.service.insert(intakeLink).values({ agencyId: IDS.agencyA, slug: 'smith-co' });
     const a = await mkLead({ status: 'unverified' });
     await sendLeadEmail(deps(), a, 'verify', { verifyRaw: 'RAW1' });
-    expect(transport.sent[1]!.text).toContain('https://app.test/start/verify/RAW1?from=smith-co');
+    expect(transport.sent[1]!.text).toContain('https://agency-a.clients.example/start/verify/RAW1?from=smith-co');
     const p = await mkLead({ status: 'unverified', agencyId: null, source: 'platform', email: 'pool@x.co' });
     await sendLeadEmail(deps(), p, 'verify', { verifyRaw: 'RAW2' });
     expect(transport.sent[2]!.text).toMatch(/https:\/\/app\.test\/start\/verify\/RAW2(?!\?)/);
+  });
+
+  it('agency lead verifyUrl on the client origin, pool lead on APP_URL', async () => {
+    await dbs.service.insert(agencyDomain).values({ agencyId: IDS.agencyA, hostname: 'intel.agency-a.test', status: 'live' });
+    const a = await mkLead({ status: 'unverified' });
+    await sendLeadEmail(deps(), a, 'verify', { verifyRaw: 'RAW1' });
+    expect(transport.sent[0]!.text).toContain('https://intel.agency-a.test/start/verify/RAW1?from=-');
+    const p = await mkLead({ status: 'unverified', agencyId: null, source: 'platform', email: 'pool@x.co' });
+    await sendLeadEmail(deps(), p, 'verify', { verifyRaw: 'RAW2' });
+    expect(transport.sent[1]!.text).toContain('https://app.test/start/verify/RAW2');
+  });
+
+  it('lead-facing logo is rehosted to the client origin; the agency_new staff mail keeps APP_URL', async () => {
+    await dbs.owner.update(agency).set({ branding: { logoUrl: 'https://app.example/files/logo/agency-a/l.png' } }).where(eq(agency.id, IDS.agencyA));
+    const a = await mkLead();
+    await sendLeadEmail(deps(), a, 'confirmation');
+    await sendLeadEmail(deps(), a, 'agency_new');
+    const conf = transport.sent.find((m) => m.tag === 'lead_confirmation')!;
+    const staff = transport.sent.find((m) => m.tag === 'lead_agency_new')!;
+    expect(conf.html).toContain('https://agency-a.clients.example/files/logo/agency-a/l.png');
+    expect(conf.html).not.toContain('https://app.example/files/logo');
+    expect(staff.html).toContain('https://app.example/files/logo/agency-a/l.png');
   });
 
   it('agency-branded mail never names Rival Monday (agency_new From is the platform sender, N1); the unassigned pool confirmation carries the platform line', async () => {

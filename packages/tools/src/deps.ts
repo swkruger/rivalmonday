@@ -1,7 +1,7 @@
 import type { BillingGateway } from '@cs/billing';
 import type { GeocodeQuery, GeoPoint, MapsPlace } from '@cs/collectors';
 import { type CallScope, ToolError } from '@cs/core';
-import type { Db } from '@cs/db';
+import type { Db, HostEnv } from '@cs/db';
 import type { DeliveryConfig, PackLoader } from '@cs/engine';
 import type { Catalog, VerticalDraft } from '@cs/verticals';
 import type { LeadEmailDeps } from './intake/emails';
@@ -48,6 +48,8 @@ export interface ToolDeps {
   platformAdmins?: readonly string[];
   /** P11: public app origin; makes MCP row `url`s absolute (absent: root-relative paths). */
   appUrl?: string;
+  /** 13a1 P8: host env (`parseHostEnv`); client-role row `url`s and client-facing links use the agency's client origin (`linkBase`). Absent: `appUrl`. */
+  hostEnv?: HostEnv;
   /** Phase 17a: signs the 30-day `/sample/<token>` links (web: BETTER_AUTH_SECRET). Absent: `send_sample_brief` refuses with `internal`. */
   sampleLinkSecret?: string;
   /** P16: query embedding for `search` (dev environment with an OpenRouter key only); absent: full-text search only. */

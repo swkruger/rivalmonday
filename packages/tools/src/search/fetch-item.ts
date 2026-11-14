@@ -13,6 +13,7 @@ import { eventEvidenceIds, MCP_EVIDENCE_KINDS } from '../workspace/events-read';
 import { channelLabel, detailLines, factView, humanise } from '../workspace/labels';
 import { eventJoin } from '../workspace/scope';
 import { type ActiveClient, activeClients, DASHBOARD_ITEM_TYPES, requireActiveClient } from './scope';
+import { linkBase } from '../link-base';
 
 export const ITEM_TYPES = ['event', 'evidence', 'brief', 'brief_item', 'recommendation', 'alert', 'review', 'page', 'knowledge'] as const;
 export type ItemType = (typeof ITEM_TYPES)[number];
@@ -114,7 +115,7 @@ async function fetchEvent(deps: ToolDeps, ctx: AccessContext, id: string): Promi
   return {
     id: `event:${id}`, title: `${r.name}: ${changeTypeLabel(r.changeType)}`,
     text: redact([r.summary, ...facts, ...details].join('\n'), [r.name, c.name]),
-    url: appLinkFor(deps.appUrl, { t: 'event', clientId: c.id, id }),
+    url: appLinkFor(await linkBase(deps, ctx), { t: 'event', clientId: c.id, id }),
     metadata: { type: 'event', client_id: c.id, evidence_ids: evidenceIds, occurred_at: r.occurredAt.toISOString() },
   };
 }
@@ -162,7 +163,7 @@ async function fetchEvidence(deps: ToolDeps, ctx: AccessContext, id: string): Pr
   }
   return {
     id: `evidence:${id}`, title: `${row.name}: ${EVIDENCE_KIND[row.kind] ?? humanise(row.kind)}, ${day(row.capturedAt)}`,
-    text: redact(text, [row.name, c.name]), url: appLinkFor(deps.appUrl, { t: 'evidence', clientId: c.id, id }),
+    text: redact(text, [row.name, c.name]), url: appLinkFor(await linkBase(deps, ctx), { t: 'evidence', clientId: c.id, id }),
     metadata: { type: 'evidence', client_id: c.id, evidence_ids: [id], occurred_at: row.capturedAt.toISOString() },
     ...(screenshotKey ? { screenshotKey } : {}),
   };
@@ -181,7 +182,7 @@ async function fetchBrief(deps: ToolDeps, ctx: AccessContext, id: string): Promi
   const text = [d.summary ?? '', ...items.map((i) => `## ${itemText(i)}`)].filter((s) => s !== '').join('\n\n');
   return {
     id: `brief:${id}`, title: `${d.kind === 'starting_point' ? 'Starting point' : 'Weekly brief'} ${d.deliveryDate}`, text: redact(text, names, null),
-    url: appLinkFor(deps.appUrl, { t: 'brief', id }),
+    url: appLinkFor(await linkBase(deps, ctx), { t: 'brief', id }),
     metadata: { type: 'brief', client_id: d.clientId, evidence_ids: unionIds(items.map((i) => i.evidenceIds)), occurred_at: d.deliveryDate },
   };
 }
@@ -195,7 +196,7 @@ async function fetchBriefItem(deps: ToolDeps, ctx: AccessContext, id: string): P
   if (!item) throw notFound();
   return {
     id: `brief_item:${id}`, title: item.headline, text: redact(itemText(item), [item.competitorName, ...(await clientNames(deps, ctx, d.clientId))]),
-    url: appLinkFor(deps.appUrl, { t: 'brief_item', id }),
+    url: appLinkFor(await linkBase(deps, ctx), { t: 'brief_item', id }),
     metadata: { type: 'brief_item', client_id: d.clientId, evidence_ids: unionIds([item.evidenceIds]), occurred_at: d.deliveryDate },
   };
 }
@@ -210,7 +211,7 @@ async function fetchRecommendation(deps: ToolDeps, ctx: AccessContext, id: strin
   await requireActiveClient(deps, ctx, r.clientId);
   const text = `${r.rationale}\n\nStatus: ${REC_STATUS[r.status] ?? humanise(r.status)}\nEffort: ${LEVEL[r.effort] ?? r.effort}\nImpact: ${LEVEL[r.impact] ?? r.impact}`;
   return {
-    id: `recommendation:${id}`, title: r.title, text: redact(text, await clientNames(deps, ctx, r.clientId)), url: appLinkFor(deps.appUrl, { t: 'recommendation', clientId: r.clientId, id }),
+    id: `recommendation:${id}`, title: r.title, text: redact(text, await clientNames(deps, ctx, r.clientId)), url: appLinkFor(await linkBase(deps, ctx), { t: 'recommendation', clientId: r.clientId, id }),
     metadata: { type: 'recommendation', client_id: r.clientId, evidence_ids: unionIds([r.evidenceIds]), occurred_at: r.createdAt.toISOString() },
   };
 }
@@ -220,7 +221,7 @@ async function fetchAlert(deps: ToolDeps, ctx: AccessContext, id: string): Promi
   await requireActiveClient(deps, ctx, a.clientId);
   const [c] = await withTenant(deps.app, ctx, (tx) => tx.select({ name: competitor.name }).from(competitor).where(eq(competitor.id, a.competitorId)));
   return {
-    id: `alert:${id}`, title: a.headline, text: redact(a.body, [c?.name, ...(await clientNames(deps, ctx, a.clientId))]), url: appLinkFor(deps.appUrl, { t: 'alert', id }),
+    id: `alert:${id}`, title: a.headline, text: redact(a.body, [c?.name, ...(await clientNames(deps, ctx, a.clientId))]), url: appLinkFor(await linkBase(deps, ctx), { t: 'alert', id }),
     metadata: { type: 'alert', client_id: a.clientId, evidence_ids: unionIds([a.evidenceIds]), occurred_at: (a.deliveredAt ?? a.createdAt).toISOString() },
   };
 }
@@ -243,7 +244,7 @@ async function fetchReview(deps: ToolDeps, ctx: AccessContext, id: string): Prom
   if (r.ownerAnswer) lines.push('', `Owner answer: ${r.ownerAnswer}`);
   return {
     id: `review:${id}`, title: `${name} review${r.rating ? `, ${r.rating}★` : ''}`, text: redact(lines.join('\n'), [name, r.name, c.name]),
-    url: appLinkFor(deps.appUrl, { t: 'review', clientId: c.id, id }),
+    url: appLinkFor(await linkBase(deps, ctx), { t: 'review', clientId: c.id, id }),
     metadata: { type: 'review', client_id: c.id, evidence_ids: [], ...(r.postedAt ? { occurred_at: r.postedAt.toISOString() } : {}) },
   };
 }
@@ -278,7 +279,7 @@ async function fetchPage(deps: ToolDeps, ctx: AccessContext, id: string): Promis
   return {
     id: `page:${id}`, title: `${p.name}: ${pathOf(p.url)}`,
     text: cap ? redact(blocks.map((b) => b.text).join('\n\n'), [p.name, c.name]) : `No text has been captured from ${p.url} yet.`,
-    url: appLinkFor(deps.appUrl, { t: 'page', clientId: c.id, competitorId: p.competitorId }),
+    url: appLinkFor(await linkBase(deps, ctx), { t: 'page', clientId: c.id, competitorId: p.competitorId }),
     metadata: { type: 'page', client_id: c.id, evidence_ids: ev.map((e) => e.id), ...(cap ? { occurred_at: cap.capturedAt.toISOString() } : {}) },
   };
 }
@@ -293,7 +294,7 @@ async function fetchKnowledge(deps: ToolDeps, ctx: AccessContext, id: string): P
   const names = await kbNamesFor(deps.service, ctx.agencyId, { clientFacing: audience === 'client' });
   const text = (t: string): string => redactForModel(renderKbText(t, names));
   return {
-    id: `knowledge:${id}`, title: text(a.title), text: text(a.bodyMd), url: appLinkFor(deps.appUrl, { t: 'kb', id }),
+    id: `knowledge:${id}`, title: text(a.title), text: text(a.bodyMd), url: appLinkFor(await linkBase(deps, ctx), { t: 'kb', id }),
     metadata: { type: 'knowledge', client_id: a.clientId ?? '', evidence_ids: [] },
   };
 }

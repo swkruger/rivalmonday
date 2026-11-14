@@ -113,6 +113,15 @@ describe('get_my_billing', () => {
 });
 
 describe('open_billing_portal', () => {
+  it('portal return URL on the client origin', async () => {
+    registry = createToolRegistry({ app: dbs.app, service: dbs.service, billing: gw, appUrl: APP, hostEnv: { appUrl: APP, neutralDomain: 'clients.test', extraPlatformHosts: [] } }, audit);
+    await seedConnect();
+    await seedBilling();
+    await call(owner, 'open_billing_portal');
+    const arg = gw.callsTo('createConnectedPortal')[0]!.args[0] as { returnUrl: string };
+    expect(arg.returnUrl).toBe(`https://agency-a.clients.test/c/${A1}/settings/billing`);
+  });
+
   it('returns the connected portal url with a return url back to the billing page', async () => {
     await seedConnect();
     await seedBilling();

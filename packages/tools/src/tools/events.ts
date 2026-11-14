@@ -10,6 +10,7 @@ import { changeChannelLabel, detailLines, factView } from '../workspace/labels';
 import { forChannel, summaryForChannel } from '../workspace/model-text';
 import { allInOrder, clientEvents, escapeLike, eventJoin, requireVisibleEvent, workspaceClient } from '../workspace/scope';
 import { EventDetail, EventRow, FEEDBACK_VERDICTS, pageFields, pagedItems } from './schemas';
+import { linkBase } from '../link-base';
 
 const { defineTool } = toolkit<ToolDeps>();
 const uuid = z.string().uuid();
@@ -66,10 +67,11 @@ export const searchEvents = defineTool({
     const page = pageResult(rows, limit, offset);
     if (detailOf(input, meta) === 'summary') {
       const evidence = await eventEvidenceIds(deps, page.rows.map((r) => r.eventId), citableEvidenceKinds(meta)); // visibility proved by the query above
+      const base = await linkBase(deps, ctx); // 13a1 P8: client roles → client origin
       return {
         items: page.rows.map((r) => ({
           id: r.eventId, title: `${r.competitorName}: ${forChannel(meta, r.summary, [r.competitorName])}`.slice(0, 160), date: r.occurredAt.toISOString(),
-          evidenceIds: evidence.get(r.eventId) ?? [], url: appLinkFor(deps.appUrl, { t: 'event', clientId: c.id, id: r.eventId }),
+          evidenceIds: evidence.get(r.eventId) ?? [], url: appLinkFor(base, { t: 'event', clientId: c.id, id: r.eventId }),
         })),
         hasMore: page.hasMore, nextCursor: page.nextCursor,
       };

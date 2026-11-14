@@ -9,6 +9,7 @@ import { pickBusiness, workspaceBusinesses } from '../workspace/business';
 import { forChannel } from '../workspace/model-text';
 import { escapeLike, workspaceClient } from '../workspace/scope';
 import { BusinessKey, pageFields, RatingTrendView, ReviewPage, TopicBenchmarkView } from './schemas';
+import { linkBase } from '../link-base';
 
 const { defineTool } = toolkit<ToolDeps>();
 const uuid = z.string().uuid();
@@ -122,12 +123,13 @@ export const searchReviews = defineTool({
       .offset(offset).limit(limit + 1);
     const page = pageResult(rows, limit, offset);
     if (detailOf(input, meta) === 'summary') {
+      const base = await linkBase(deps, ctx); // 13a1 P8: client roles → client origin
       return {
         items: page.rows.map((r) => {
           const b = byId.get(r.competitorId)!;
           return {
             id: r.id, title: `${b.name} review${r.rating ? `, ${r.rating}\u2605` : ''}`, date: r.postedAt ? r.postedAt.toISOString() : null, evidenceIds: [],
-            url: appLinkFor(deps.appUrl, { t: 'review', clientId: c.id, id: r.id }),
+            url: appLinkFor(base, { t: 'review', clientId: c.id, id: r.id }),
           };
         }),
         hasMore: page.hasMore, nextCursor: page.nextCursor,

@@ -78,6 +78,7 @@ export const toolDeps = perEnv((name: EnvName): ToolDeps => {
     kbImportEnabled: webEnv().kbImport,
     platformAdmins: platformAdmins(name),
     appUrl: webEnv().appUrl,
+    hostEnv: webEnv().hostEnv, // 13a1 P8: client-role links on the client origin (`linkBase`)
     sampleLinkSecret: webEnv().authSecret, // 17a: /sample/<token> links (the page verifies with the same secret)
     // Phase 11c: decline/assign send their lead mail directly after commit; the transport is built per environment (ledger = this env's db).
     leadEmail: { transport: webEmailTransport(processGuardOn(), process.env, createLedgerSink(service)), appUrl: webEnv().appUrl, sender: { hostEnv: webEnv().hostEnv, platformFrom: webEnv().emailFrom }, platformAdmins: platformAdmins(name) },

@@ -1,4 +1,4 @@
-import { agency, alert, brief, briefItem, captureBlock, client, kbArticle, kbChunk, recommendation } from '@cs/db';
+import { agency, agencyDomain, alert, brief, briefItem, captureBlock, client, kbArticle, kbChunk, recommendation } from '@cs/db';
 import { IDS } from '@cs/db/test-helpers';
 import { createPackLoader } from '@cs/engine';
 import { eq } from 'drizzle-orm';
@@ -121,6 +121,15 @@ describe('fetch', () => {
     expect(out.text).not.toContain('Dropped headline');
     expect(JSON.stringify(out)).not.toContain('seo_audit');
     expect(out.metadata).toMatchObject({ type: 'brief', client_id: IDS.clientA1, evidence_ids: ['e1', 'e2'] });
+  });
+
+  it('client-role MCP url is on the client origin, agency-role on APP_URL (fetch)', async () => {
+    const sent = await seedBrief({ status: 'sent' });
+    const hosted = reg({ appUrl: 'https://app.test', hostEnv: { appUrl: 'https://app.test', neutralDomain: 'clients.test', extraPlatformHosts: [] } });
+    expect((await doFetch(viewer, `brief:${sent}`, hosted)).url).toBe(`https://agency-a.clients.test/go/brief/${sent}`);
+    expect((await doFetch(admin, `brief:${sent}`, hosted)).url).toBe(`https://app.test/go/brief/${sent}`);
+    await dbs.service.insert(agencyDomain).values({ agencyId: IDS.agencyA, hostname: 'intel.agency-a.test', status: 'live' });
+    expect((await doFetch(viewer, `brief:${sent}`, hosted)).url).toBe(`https://intel.agency-a.test/go/brief/${sent}`);
   });
 
   it('dropped brief item not_found', async () => {

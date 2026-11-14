@@ -1,5 +1,5 @@
 import { noticeEmailFor } from '@cs/billing';
-import { type EnvName, agency, agencyOnboarding, billingNotice, client, clientBilling } from '@cs/db';
+import { type EnvName, agency, agencyOnboarding, billingNotice, client, clientBilling, clientOriginFor } from '@cs/db';
 import { clientOwnerEmails, platformOperatorEmails } from '@cs/tools';
 import { and, asc, eq, isNull, lt, sql } from 'drizzle-orm';
 import { z } from 'zod';
@@ -138,7 +138,10 @@ export function createBillingNoticeJobs(deps: WorkerDeps, opts: BillingNoticeJob
                   skipReason = 'skipped: billing disconnected';
                 } else {
                   const owners: Recipient[] = (await clientOwnerEmails(tx, row.clientId, new Date())).map((email, i) => ({ id: `owner#${i + 1}`, email }));
-                  const actionUrl = row.kind === 'client-payment-link' ? checkoutUrl : `${mail.appUrl}/c/${row.clientId}/settings/billing`;
+                  // 13a1 P8: the billing page on the agency's client origin (Stripe Checkout links already return there).
+                  const actionUrl = row.kind === 'client-payment-link'
+                    ? checkoutUrl
+                    : `${mail.hostEnv ? await clientOriginFor(tx, row.agencyId, mail.hostEnv) : mail.appUrl}/c/${row.clientId}/settings/billing`;
                   if (owners.length === 0) skipReason = 'skipped: no client owners';
                   else if (!actionUrl) skipReason = 'skipped: no checkout link';
                   else {

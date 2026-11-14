@@ -1,5 +1,5 @@
 import { type AccessContext, createAccessContext } from '@cs/core';
-import { agencyConnect, client, clientSetup, contact, invitation, membership, notification } from '@cs/db';
+import { agency, agencyConnect, agencyDomain, client, clientSetup, contact, invitation, membership, notification } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import type { DeliveryConfig } from '@cs/engine';
 import { renderEmail, type EmailPayload } from '@cs/email';
@@ -95,9 +95,24 @@ describe('inviteClientUser', () => {
     expect(p.template).toBe('client_invite');
     expect(p.cc).toEqual(['admin@e.co']);
     expect(p.props).toMatchObject({ businessName: 'A1 HVAC', agencyName: 'Agency A' });
-    expect(startUrl(out[0]!)).toBe(`https://app.test/sign-in?email=owner%40smith.co&next=${encodeURIComponent(`/c/${IDS.clientA1}`)}`);
+    expect(startUrl(out[0]!)).toBe(`https://agency-a.clients.example/sign-in?email=owner%40smith.co&next=${encodeURIComponent(`/c/${IDS.clientA1}`)}`);
     const rendered = await renderEmail(p);
     expect(rendered.subject).toBe('Agency A invited you to see your competitors');
+  });
+
+  it('client invite startUrl on the client origin (fallback host, then the live custom host)', async () => {
+    await inviteClientUser(admin, deps(), { clientId: IDS.clientA1, email: 'a@x.co', name: null, role: 'client_viewer' }, NOW);
+    await dbs.service.insert(agencyDomain).values({ agencyId: IDS.agencyA, hostname: 'intel.agency-a.test', status: 'live' });
+    await inviteClientUser(admin, deps(), { clientId: IDS.clientA1, email: 'b@x.co', name: null, role: 'client_viewer' }, NOW);
+    const urls = (await rows()).map((n) => startUrl(n).replace(/\?.*$/, '')).sort();
+    expect(urls).toEqual(['https://agency-a.clients.example/sign-in', 'https://intel.agency-a.test/sign-in']);
+  });
+
+  it('client invite email logo is rehosted to the client origin', async () => {
+    await dbs.owner.update(agency).set({ branding: { logoUrl: 'https://app.test/files/logo/agency-a/l.png' } }).where(eq(agency.id, IDS.agencyA));
+    await inviteClientUser(admin, deps(), { clientId: IDS.clientA1, email: 'a@x.co', name: null, role: 'client_viewer' }, NOW);
+    const [n] = await rows();
+    expect((payloadOf(n!).props as { branding: { logoUrl: string } }).branding.logoUrl).toBe('https://agency-a.clients.example/files/logo/agency-a/l.png');
   });
 
   it('re-invite same email reuses the contact and queues a new row (new invitation id)', async () => {
@@ -153,18 +168,18 @@ describe('inviteClientUser', () => {
     await dbs.owner.insert(clientSetup).values({ clientId: IDS.clientA1, agencyId: IDS.agencyA, ownerPickRequestedAt: NOW });
     await inviteClientUser(admin, deps(), { clientId: IDS.clientA1, email: 'o@x.co', name: null, role: 'client_owner' }, NOW);
     const [n] = await rows();
-    expect(startUrl(n!)).toBe(`https://app.test/sign-in?email=o%40x.co&next=${encodeURIComponent(`/c/${IDS.clientA1}`)}`);
+    expect(startUrl(n!)).toBe(`https://agency-a.clients.example/sign-in?email=o%40x.co&next=${encodeURIComponent(`/c/${IDS.clientA1}`)}`);
   });
 
   it('startUrl points at /c/<id> when the setup is closed', async () => {
     await dbs.owner.insert(clientSetup).values({ clientId: IDS.clientA1, agencyId: IDS.agencyA, completedAt: NOW });
     await inviteClientUser(admin, deps(), { clientId: IDS.clientA1, email: 'o@x.co', name: null, role: 'client_owner' }, NOW);
     const [n] = await rows();
-    expect(startUrl(n!)).toBe(`https://app.test/sign-in?email=o%40x.co&next=${encodeURIComponent(`/c/${IDS.clientA1}`)}`);
+    expect(startUrl(n!)).toBe(`https://agency-a.clients.example/sign-in?email=o%40x.co&next=${encodeURIComponent(`/c/${IDS.clientA1}`)}`);
     // No setup row at all reads as closed too.
     await inviteClientUser(admin, deps(), { clientId: IDS.clientA2, email: 'o2@x.co', name: null, role: 'client_owner' }, NOW);
     const n2 = (await rows()).find((x) => x.clientId === IDS.clientA2)!;
-    expect(startUrl(n2)).toBe(`https://app.test/sign-in?email=o2%40x.co&next=${encodeURIComponent(`/c/${IDS.clientA2}`)}`);
+    expect(startUrl(n2)).toBe(`https://agency-a.clients.example/sign-in?email=o2%40x.co&next=${encodeURIComponent(`/c/${IDS.clientA2}`)}`);
   });
 
   it('startUrl points at /c/<id> once the owner steps are done, though the setup stays open for staff (billing todo)', async () => {
@@ -173,7 +188,7 @@ describe('inviteClientUser', () => {
     await dbs.owner.insert(clientSetup).values({ clientId: IDS.clientA1, agencyId: IDS.agencyA, skipped: ['search'], competitorsDoneAt: NOW });
     await inviteClientUser(admin, deps(), { clientId: IDS.clientA1, email: 'o@x.co', name: null, role: 'client_owner' }, NOW);
     const [n] = await rows();
-    expect(startUrl(n!)).toBe(`https://app.test/sign-in?email=o%40x.co&next=${encodeURIComponent(`/c/${IDS.clientA1}`)}`);
+    expect(startUrl(n!)).toBe(`https://agency-a.clients.example/sign-in?email=o%40x.co&next=${encodeURIComponent(`/c/${IDS.clientA1}`)}`);
     const [row] = await dbs.service.select().from(clientSetup);
     expect(row!.completedAt).toBeNull(); // billing still todo
   });
@@ -244,7 +259,7 @@ describe('invite_member with client roles', () => {
     const [n] = await rows();
     expect(n).toMatchObject({ contactId: c!.id, dedupeKey: `client-invite:${out.invitationId}:${c!.id}:email` });
     expect(payloadOf(n!).cc).toEqual(['am@e.co']);
-    expect(startUrl(n!)).toBe(`https://app.test/sign-in?email=v%40x.co&next=${encodeURIComponent(`/c/${IDS.clientA2}`)}`);
+    expect(startUrl(n!)).toBe(`https://agency-a.clients.example/sign-in?email=v%40x.co&next=${encodeURIComponent(`/c/${IDS.clientA2}`)}`);
     // A viewer is never the setup's invited owner.
     const [setup] = await dbs.service.select().from(clientSetup).where(eq(clientSetup.clientId, IDS.clientA2));
     expect(setup!.invitedContactId).toBeNull();
@@ -254,7 +269,7 @@ describe('invite_member with client roles', () => {
     await openSetup();
     await registry().invoke(admin, 'invite_member', { email: 'v@x.co', role: 'client_viewer', clientId: IDS.clientA1 });
     const [n] = await rows();
-    expect(startUrl(n!)).toBe(`https://app.test/sign-in?email=v%40x.co&next=${encodeURIComponent(`/c/${IDS.clientA1}`)}`);
+    expect(startUrl(n!)).toBe(`https://agency-a.clients.example/sign-in?email=v%40x.co&next=${encodeURIComponent(`/c/${IDS.clientA1}`)}`);
   });
 
   it('agency-role invite_member unchanged', async () => {

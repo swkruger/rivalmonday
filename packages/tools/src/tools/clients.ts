@@ -5,6 +5,7 @@ import { z } from 'zod';
 import type { ToolDeps } from '../registry';
 import { detailOf, pageOf, pageResult } from '../paging';
 import { ClientProfile, ClientSummary, pageFields, pagedItems } from './schemas';
+import { linkBase } from '../link-base';
 
 const { defineTool } = toolkit<ToolDeps>();
 
@@ -22,7 +23,8 @@ export const listClients = defineTool({
     const fetched = await withTenant(deps.app, ctx, (tx) => tx.select().from(client).orderBy(asc(client.name), asc(client.id)).offset(offset).limit(limit + 1));
     const { rows, nextCursor } = pageResult(fetched, limit, offset);
     if (detailOf(input, meta) === 'summary') {
-      return { items: rows.map((c) => ({ id: c.id, title: c.name, date: null, evidenceIds: [], url: appLinkFor(deps.appUrl, { t: 'client', clientId: c.id }) })), nextCursor };
+      const base = await linkBase(deps, ctx); // 13a1 P8: client roles → client origin
+      return { items: rows.map((c) => ({ id: c.id, title: c.name, date: null, evidenceIds: [], url: appLinkFor(base, { t: 'client', clientId: c.id }) })), nextCursor };
     }
     return { items: rows.map((c) => ({ id: c.id, name: c.name, verticalId: c.verticalId, timezone: c.timezone, status: c.status })), nextCursor };
   },
