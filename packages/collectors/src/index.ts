@@ -67,3 +67,4 @@ export * from './tripadvisor/parse';
 export * from './tripadvisor/search';
 export * from './social/client';
 export { confirmsDomain, siteHost as socialSiteHost } from './social/host';
+export { FB_MAX_PAGES, pullSocial, SOCIAL_COLLECTOR_VERSION } from './social/pull';
