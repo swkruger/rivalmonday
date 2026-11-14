@@ -1,5 +1,5 @@
 import { hashInput } from '@cs/core/server';
-import { auditLog, capture, evidence, observation, socialAccount, socialPost } from '@cs/db';
+import { auditLog, capture, client, evidence, observation, socialAccount, socialPost } from '@cs/db';
 import { IDS } from '@cs/db/test-helpers';
 import { and, eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, it } from 'vitest';
@@ -106,8 +106,26 @@ describe('agency social tools (18e)', () => {
     ]);
   });
 
-  it.each(['https://example.com/smithhvac', 'https://facebook.com/groups/x/posts/1', 'https://facebook.com/profile.php?id=abc', 'not a url at all', 'https://instagram.com/'])('rejects %s as invalid_input', async (url) => {
+  it.each([
+    'https://example.com/smithhvac', 'https://facebook.com/groups/x/posts/1', 'https://facebook.com/profile.php?id=abc', 'not a url at all', 'https://instagram.com/',
+    ...['groups', 'pages', 'watch', 'events', 'marketplace', 'gaming', 'home.php', 'login', 'sharer', 'share', 'story.php', 'permalink.php', 'photo', 'photos', 'videos', 'hashtag', 'people', 'Groups'].map((x) => `https://www.facebook.com/${x}/`),
+    ...['p', 'reel', 'reels', 'explore', 'stories', 'tv', 'accounts', 'direct', 'about', 'legal', 'Explore'].map((x) => `https://instagram.com/${x}`),
+    'https://facebook.com/bad$handle', 'https://instagram.com/bad-handle',
+  ])('rejects %s as invalid_input', async (url) => {
     await expect(confirm({ url, decision: 'confirm' })).rejects.toMatchObject({ code: 'invalid_input', userFacing: true });
+  });
+
+  it('accepts mobile hosts, query strings and fragments', async () => {
+    await confirm({ url: 'https://m.facebook.com/SmithHVAC?ref=x#top', decision: 'confirm' });
+    await confirm({ url: 'https://www.instagram.com/smith_ig/?igsh=abc', decision: 'confirm' });
+    expect((await rows()).map((a) => a.handle).sort()).toEqual(['smith_ig', 'smithhvac']);
+  });
+
+  it('needs exactly one of accountId and url', async () => {
+    const acc = await account({ status: 'suggested', confirmedBy: null });
+    await expect(confirm({ accountId: acc.id, url: 'https://www.instagram.com/other', decision: 'confirm' })).rejects.toMatchObject({ code: 'invalid_input' });
+    await expect(confirm({ decision: 'confirm' })).rejects.toMatchObject({ code: 'invalid_input' });
+    expect((await rows())[0]).toMatchObject({ status: 'suggested', url: 'https://www.facebook.com/smithhvac' });
   });
 
   it('confirm demotes the previously confirmed account of the same network; reject sets rejected', async () => {
@@ -156,5 +174,16 @@ describe('find_social_accounts (18e)', () => {
     await dbs.owner.update(auditLog).set({ createdAt: ago(8) }).where(and(eq(auditLog.tool, 'find_social_accounts'), eq(auditLog.inputHash, hashInput({ competitorId: X }))));
     await expect(real.invoke(admin, 'find_social_accounts', { competitorId: X })).resolves.toEqual({ queued: true });
     expect(enqueued).toHaveLength(2);
+  });
+
+  it('paused client → refused, nothing enqueued', async () => {
+    await dbs.owner.update(client).set({ pausedAt: new Date() }).where(eq(client.id, IDS.clientA1));
+    await expect(real.invoke(admin, 'find_social_accounts', { competitorId: X })).rejects.toMatchObject({ userFacing: true });
+    expect(enqueued).toEqual([]);
+  });
+
+  it('an out-of-agency competitor is not_found', async () => {
+    await expect(real.invoke(ctx('agency_admin', 'all', [], IDS.agencyB), 'find_social_accounts', { competitorId: IDS.competitorY })).rejects.toMatchObject({ code: 'not_found' });
+    expect(enqueued).toEqual([]);
   });
 });

@@ -1,10 +1,11 @@
-import { canAccessClient, isAgencyRole, toolkit, ToolError } from '@cs/core';
+import { canAccessClient, SPEND_PAUSED_COPY, toolkit, ToolError } from '@cs/core';
 import { hashInput } from '@cs/core/server';
 import { socialCaptureUrl } from '@cs/collectors';
-import { auditLog, capture, client, clientCompetitor, evidence, observation, type SocialNetwork, socialAccount, withTenant } from '@cs/db';
+import { agencyServiceable, auditLog, capture, client, clientCompetitor, clientWorkAllowed, evidence, observation, type SocialNetwork, socialAccount, withTenant } from '@cs/db';
 import { isOfferPost, socialPostsOfConfirmedAccounts } from '@cs/engine';
 import { and, asc, desc, eq, gt, inArray, isNull, ne, or, sql } from 'drizzle-orm';
 import { z } from 'zod';
+import { packsOf } from '../catalog/access';
 import { enqueueOf, type ToolDeps } from '../deps';
 import { citableEvidenceKinds } from '../workspace/events-read';
 import { forChannel } from '../workspace/model-text';
@@ -22,7 +23,8 @@ export const SOCIAL_FIND_DAYS = 7;
 const PROFILE_KIND = 'social_profile';
 const uuid = z.string().uuid();
 
-const ACCOUNT_URL_COPY = 'Paste a Facebook page link (facebook.com/yourrival) or an Instagram profile link (instagram.com/yourrival).';
+/** (draft → copy review) */
+const ACCOUNT_URL_COPY = 'That link is not a Facebook page or Instagram profile. Paste the page link itself, like facebook.com/yourrival or instagram.com/yourrival (not a post, group or section).';
 
 /** `<network>:<id>`, the key of an account's `social_profile` observations (the capture url minus `social:`). */
 const profileKey = (a: { network: string; handle: string; externalId: string | null }): string => socialCaptureUrl(a).slice('social:'.length);
@@ -49,7 +51,7 @@ async function followerReadings(db: ToolDeps['service'], competitorIds: string[]
 export const getSocialActivity = defineTool({
   name: 'get_social_activity',
   access: 'read',
-  description: "The client's and its tracked rivals' confirmed Facebook and Instagram accounts: followers, the follower change over 90 days, posts in the last 30 days, the latest post date and any offers posted in the last 30 days. "
+  description: "The client's and its tracked rivals' confirmed Facebook and Instagram accounts: followers, the follower change over 90 days, posts in the last 30 days, the latest post date within those 30 days and any offers posted in the last 30 days. "
     + 'Only accounts confirmed as the business\'s own appear; a business with none is listed with no accounts. Each account\'s and offer\'s evidenceId is the evidence to cite for it.',
   input: z.object({ clientId: uuid }),
   output: SocialActivityView,
@@ -120,11 +122,13 @@ export const getSocialActivity = defineTool({
 });
 
 /** A competitor the caller may act on: one of the caller's accessible clients (own agency, not archived) tracks it or it is that client's own business. Anything else is `not_found`. */
-async function requireVisibleCompetitor(deps: ToolDeps, ctx: Parameters<typeof canAccessClient>[0] & { agencyId: string }, competitorId: string): Promise<void> {
-  const rows = await deps.service.select({ id: client.id }).from(client)
+async function requireVisibleCompetitor(deps: ToolDeps, ctx: Parameters<typeof canAccessClient>[0] & { agencyId: string }, competitorId: string): Promise<{ id: string; verticalId: string; workAllowed: boolean }[]> {
+  const rows = await deps.service.select({ id: client.id, verticalId: client.verticalId, workAllowed: sql<boolean>`${clientWorkAllowed(client)} AND ${agencyServiceable(client.agencyId)}` }).from(client)
     .leftJoin(clientCompetitor, and(eq(clientCompetitor.clientId, client.id), eq(clientCompetitor.competitorId, competitorId)))
     .where(and(eq(client.agencyId, ctx.agencyId), isNull(client.archivedAt), or(eq(client.selfCompetitorId, competitorId), eq(clientCompetitor.competitorId, competitorId))));
-  if (!rows.some((r) => canAccessClient(ctx, r.id))) throw new ToolError('not_found', 'Business not found');
+  const visible = rows.filter((r) => canAccessClient(ctx, r.id));
+  if (visible.length === 0) throw new ToolError('not_found', 'Business not found');
+  return visible;
 }
 
 const refuseInput = (message: string) => new ToolError('invalid_input', message, { userFacing: true });
@@ -132,6 +136,9 @@ const refuseInput = (message: string) => new ToolError('invalid_input', message,
 const FB_HOSTS = new Set(['facebook.com', 'www.facebook.com', 'm.facebook.com', 'web.facebook.com']);
 const IG_HOSTS = new Set(['instagram.com', 'www.instagram.com']);
 const HANDLE = /^[a-z0-9._-]{1,80}$/;
+/** First path segments that are site sections or content, never an account (case-insensitive). */
+const FB_RESERVED = new Set(['groups', 'pages', 'watch', 'events', 'marketplace', 'gaming', 'home.php', 'login', 'sharer', 'share', 'story.php', 'permalink.php', 'photo', 'photos', 'videos', 'hashtag', 'people']);
+const IG_RESERVED = new Set(['p', 'reel', 'reels', 'explore', 'stories', 'tv', 'accounts', 'direct', 'about', 'legal']);
 
 export interface ParsedAccountUrl { network: SocialNetwork; handle: string; externalId: string | null; url: string }
 
@@ -152,12 +159,12 @@ export function parseSocialUrl(raw: string): ParsedAccountUrl {
       return { network: 'facebook', handle: id, externalId: id, url: `https://www.facebook.com/profile.php?id=${id}` };
     }
     const alias = (parts[0] ?? '').toLowerCase();
-    if (parts.length !== 1 || !HANDLE.test(alias) || alias === 'profile.php') throw refuseInput(ACCOUNT_URL_COPY);
+    if (parts.length !== 1 || !HANDLE.test(alias) || alias === 'profile.php' || FB_RESERVED.has(alias)) throw refuseInput(ACCOUNT_URL_COPY);
     return { network: 'facebook', handle: alias, externalId: null, url: `https://www.facebook.com/${parts[0]}` };
   }
   if (IG_HOSTS.has(host)) {
     const handle = (parts[0] ?? '').toLowerCase();
-    if (parts.length !== 1 || !/^[a-z0-9._]{1,30}$/.test(handle)) throw refuseInput(ACCOUNT_URL_COPY);
+    if (parts.length !== 1 || !/^[a-z0-9._]{1,30}$/.test(handle) || IG_RESERVED.has(handle)) throw refuseInput(ACCOUNT_URL_COPY);
     return { network: 'instagram', handle, externalId: null, url: `https://www.instagram.com/${parts[0]}` };
   }
   throw refuseInput(ACCOUNT_URL_COPY);
@@ -187,13 +194,12 @@ export const confirmSocialAccount = defineTool({
   name: 'confirm_social_account',
   access: 'write',
   description: "Confirm or reject a Facebook or Instagram account for a business the agency tracks, by account id or by pasting its link. Confirming replaces any account already confirmed for that network. Agency roles only.",
-  input: z.object({ competitorId: uuid, accountId: uuid.optional(), url: z.string().min(1).max(500).optional(), decision: z.enum(['confirm', 'reject']) }),
+  input: z.object({ competitorId: uuid, accountId: uuid.optional(), url: z.string().min(1).max(500).optional(), decision: z.enum(['confirm', 'reject']) })
+    .refine((i) => (i.accountId === undefined) !== (i.url === undefined), { message: 'Give either an account or a link, not both.' }),
   output: z.object({ accountId: uuid, status: z.enum(['confirmed', 'rejected']) }),
   permission: 'agency',
   async handler(ctx, input, deps) {
-    if (!isAgencyRole(ctx.role)) throw new ToolError('not_found', 'Business not found');
     await requireVisibleCompetitor(deps, ctx, input.competitorId);
-    if (!input.accountId && !input.url) throw refuseInput(ACCOUNT_URL_COPY);
     const parsed = input.url ? parseSocialUrl(input.url) : null;
     const competitorId = input.competitorId;
     return deps.service.transaction(async (tx) => {
@@ -202,7 +208,7 @@ export const confirmSocialAccount = defineTool({
         const p = parsed!;
         return (await tx.select().from(socialAccount).where(and(
           eq(socialAccount.competitorId, competitorId), eq(socialAccount.network, p.network),
-          p.externalId ? or(eq(socialAccount.handle, p.handle), eq(socialAccount.externalId, p.externalId)) : eq(socialAccount.handle, p.handle),
+          p.externalId ? or(sql`lower(${socialAccount.handle}) = ${p.handle}`, eq(socialAccount.externalId, p.externalId)) : sql`lower(${socialAccount.handle}) = ${p.handle}`,
         )))[0];
       };
       const existing = await find();
@@ -237,7 +243,13 @@ export const findSocialAccounts = defineTool({
   output: z.object({ queued: z.literal(true) }),
   permission: 'agency',
   async handler(ctx, { competitorId }, deps) {
-    await requireVisibleCompetitor(deps, ctx, competitorId);
+    const clients = await requireVisibleCompetitor(deps, ctx, competitorId);
+    // Paid vendor searches: only for a business some client of the caller still has work allowed for, whose vertical watches social accounts.
+    const load = packsOf(deps);
+    const allowed = clients.filter((c) => c.workAllowed);
+    const watched = (await Promise.all(allowed.map(async (c) => (await load(c.verticalId)).social === true))).some(Boolean);
+    if (allowed.length === 0) throw new ToolError('spend_paused', SPEND_PAUSED_COPY, { userFacing: true });
+    if (!watched) throw new ToolError('conflict', 'Facebook and Instagram are not watched for this type of business.', { userFacing: true });
     const enqueue = enqueueOf(deps);
     // Counted from the registry's audit rows (same agency, tool and input hash, ok, inside the window); refused calls never count.
     const [row] = await deps.service.select({ n: sql<number>`count(*)::int` }).from(auditLog).where(and(
