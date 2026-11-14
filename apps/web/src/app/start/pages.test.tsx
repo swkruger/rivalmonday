@@ -2,15 +2,16 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const m = vi.hoisted(() => ({ intake: vi.fn(), preview: vi.fn(), refresh: vi.fn(), host: { origin: 'https://app.test', info: { kind: 'platform' } } as unknown }));
+const m = vi.hoisted(() => ({ intake: vi.fn(), preview: vi.fn(), refresh: vi.fn(), logo: null as string | null, host: { origin: 'https://app.test', info: { kind: 'platform' } } as unknown }));
 vi.mock('@cs/tools', () => ({ resolveIntake: (...a: unknown[]) => m.intake(...a), getPublicPreview: (...a: unknown[]) => m.preview(...a) }));
 vi.mock('@cs/engine', () => ({
-  loadBranding: async () => ({ displayName: 'Smith Marketing', logoUrl: null, primary: '#123456', secondary: '#654321', accent: '#F5A524', ink: '#0B2540', canvas: '#F6F9FC', panel: '#EEF2F6', fromName: 'Smith Marketing' }),
+  loadBranding: async () => ({ displayName: 'Smith Marketing', logoUrl: m.logo, primary: '#123456', secondary: '#654321', accent: '#F5A524', ink: '#0B2540', canvas: '#F6F9FC', panel: '#EEF2F6', fromName: 'Smith Marketing' }),
 }));
 vi.mock('@/server/db', () => ({ dbs: () => ({ service: 'svc' }) }));
+vi.mock('@cs/db', async (orig) => ({ ...(await orig<typeof import('@cs/db')>()), clientOriginFor: async () => 'https://smith.neutral.test' }));
 vi.mock('@/server/request-host', () => ({ requestHost: async () => m.host }));
 vi.mock('@/server/dev-guard', () => ({ activeEnvName: () => 'test' }));
-vi.mock('@/server/env', () => ({ webEnv: () => ({ turnstile: { siteKey: 'site' } }) }));
+vi.mock('@/server/env', () => ({ webEnv: () => ({ turnstile: { siteKey: 'site' }, hostEnv: { appUrl: 'https://app.test', neutralDomain: 'neutral.test', extraPlatformHosts: [] } }) }));
 vi.mock('./actions', () => ({ lookupBusinessAction: vi.fn(), submitIntakeAction: vi.fn() }));
 vi.mock('next/navigation', () => ({
   notFound: () => {
@@ -40,6 +41,7 @@ beforeEach(() => {
   m.preview.mockReset();
   m.intake.mockResolvedValue({ agencyId: 'A1', branding: 'agency' });
   m.host = { origin: 'https://app.test', info: { kind: 'platform' } };
+  m.logo = null;
 });
 const onAgencyHost = (agencyId: string) => {
   m.host = { origin: 'https://acme.neutral.test', info: { kind: 'agency', agencyId, canonical: true, canonicalOrigin: 'https://acme.neutral.test' } };
@@ -77,6 +79,21 @@ describe('/start/<slug>', () => {
     const meta = await agencyMeta({ params: Promise.resolve({ slug: 'smith-co' }), searchParams: sp() });
     expect(meta.title).toBe('Get your free competitor snapshot · Smith Marketing');
     expect(meta.robots).toEqual({ index: false, follow: false });
+  });
+});
+
+describe('/start/<slug> logo (13a1 P12)', () => {
+  it('the agency logo is served from its client origin: the agency host itself, else clientOriginFor on the platform', async () => {
+    m.logo = 'https://app.test/files/logo/A1/l.png';
+    const src = async () => {
+      const { container, unmount } = render(await AgencyPage({ params: Promise.resolve({ slug: 'smith-co' }), searchParams: sp() }));
+      const v = container.querySelector('img')?.getAttribute('src');
+      unmount();
+      return v;
+    };
+    expect(await src()).toBe('https://smith.neutral.test/files/logo/A1/l.png');
+    onAgencyHost('A1');
+    expect(await src()).toBe('https://acme.neutral.test/files/logo/A1/l.png');
   });
 });
 
