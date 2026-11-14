@@ -63,6 +63,11 @@ describe('social ScrapeCreators calls', () => {
     expect(gated).toMatchObject({ followerCount: 1558 });
   });
 
+  it('facebook profile: a public profile whose pageIntro mentions "Profile is private" parses as public', async () => {
+    const { ctx } = setup({ ...fbProfile, pageIntro: 'Profile is private? Not here.' });
+    expect(await scFacebookProfile(ctx, 'u')).toMatchObject({ id: '100064175676130' });
+  });
+
   it('facebook profile: a "Profile is private" message also means private', async () => {
     const { ctx } = setup({ success: true, message: 'Profile is private' });
     expect(await scFacebookProfile(ctx, 'u')).toEqual({ private: true });

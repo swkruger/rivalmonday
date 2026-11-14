@@ -84,7 +84,10 @@ export async function scSearchCompanies(ctx: ScContext, q: string): Promise<ScCo
   });
 }
 
-const isPrivateBody = (b: Record<string, unknown>): boolean => b.isPrivate === true || JSON.stringify(b).includes('Profile is private');
+const isPrivateBody = (b: Record<string, unknown>): boolean =>
+  b.isPrivate === true ||
+  (typeof b.account_status === 'string' && /private/i.test(b.account_status)) ||
+  [b.message, b.error].some((m) => typeof m === 'string' && m.includes('Profile is private'));
 
 /** `gated` retries with `include_gated_profile=true` (followers only). A private profile without it resolves `{ private: true }`. */
 export async function scFacebookProfile(ctx: ScContext, url: string, opts: { gated?: boolean } = {}): Promise<ScFbProfile | { private: true }> {

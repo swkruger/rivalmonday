@@ -11,6 +11,10 @@ describe('siteHost', () => {
     expect(siteHost('')).toBeNull();
     expect(siteHost(null)).toBeNull();
   });
+  it('returns null for non-http(s) schemes', () => {
+    expect(siteHost('mailto:info@glowdentalco.com')).toBeNull();
+    expect(siteHost('ftp://glowdentalco.com')).toBeNull();
+  });
 });
 
 describe('confirmsDomain', () => {

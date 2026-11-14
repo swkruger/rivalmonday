@@ -6,7 +6,9 @@ export function siteHost(url: string | null | undefined): string | null {
   const raw = url?.trim();
   if (!raw) return null;
   try {
-    const host = new URL(/^[a-z][a-z0-9+.-]*:\/\//i.test(raw) ? raw : `https://${raw}`).hostname.toLowerCase().replace(/^www\./, '');
+    const u = new URL(/^[a-z][a-z0-9+.-]*:(?!\d)/i.test(raw) ? raw : `https://${raw}`);
+    if (u.protocol !== 'http:' && u.protocol !== 'https:') return null;
+    const host = u.hostname.toLowerCase().replace(/^www\./, '');
     return host || null;
   } catch {
     return null;
