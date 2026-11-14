@@ -1,5 +1,5 @@
 import { signLink } from '@cs/core/server';
-import { contact, type Db } from '@cs/db';
+import { clientOriginFor, contact, type Db, type HostEnv } from '@cs/db';
 import { and, eq, isNotNull, like } from 'drizzle-orm';
 import { DEMO_DOMAIN, DEMO_LINK_TARGET, DEMO_USERS, type DemoUserKey } from './users';
 
@@ -15,8 +15,11 @@ export interface DemoLink {
   url: string;
 }
 
-/** Spec §5.2: one signed link per demo user that exists in `service`'s database, in DEMO_USERS order. */
-export async function demoSignInLinks(service: Db, opts: { secret: string; baseUrl: string; now?: Date }): Promise<DemoLink[]> {
+/**
+ * Spec §5.2: one signed link per demo user that exists in `service`'s database, in DEMO_USERS order. 13a1 P8: a client
+ * contact's link opens on its agency's client origin (`hostEnv`, from `parseHostEnv`); staff and a null host env keep `baseUrl`.
+ */
+export async function demoSignInLinks(service: Db, opts: { secret: string; baseUrl: string; hostEnv?: HostEnv | null; now?: Date }): Promise<DemoLink[]> {
   const rows = await service
     .select({ id: contact.id, email: contact.email, agencyId: contact.agencyId, clientId: contact.clientId })
     .from(contact)
@@ -27,7 +30,8 @@ export async function demoSignInLinks(service: Db, opts: { secret: string; baseU
     const c = rows.find((r) => r.email.toLowerCase() === u.email);
     if (!c) continue;
     const token = signLink(opts.secret, { sub: c.id, agency: c.agencyId, client: c.clientId ?? c.agencyId, t: DEMO_LINK_TARGET, id: c.id }, opts.now);
-    out.push({ key: u.key, label: u.label, email: u.email, url: `${base}${DEMO_SIGN_IN_PATH}/${token}` });
+    const origin = c.clientId && opts.hostEnv ? await clientOriginFor(service, c.agencyId, opts.hostEnv) : base;
+    out.push({ key: u.key, label: u.label, email: u.email, url: `${origin}${DEMO_SIGN_IN_PATH}/${token}` });
   }
   return out;
 }

@@ -1,7 +1,7 @@
 import { mkdir, rm } from 'node:fs/promises';
 import { basename, join } from 'node:path';
 import { requireSalt } from '@cs/collectors';
-import { assertDatabase, createDb, DEMO_DATABASE, ensureDatabase, resetDatabase, resolveEnvironment } from '@cs/db';
+import { assertDatabase, createDb, DEMO_DATABASE, ensureDatabase, parseHostEnv, resetDatabase, resolveEnvironment } from '@cs/db';
 import { createFsStore } from '@cs/storage';
 import { seedKnowledge } from '@cs/tools';
 import { type DemoLink, demoSignInLinks } from './links';
@@ -41,13 +41,13 @@ export async function runDemoReset(o: { repoRoot: string; env?: NodeJS.ProcessEn
   try {
     const kb = await seedKnowledge(db, join(o.repoRoot, 'docs', 'help'));
     log(`[reset] help articles: ${kb.created} created, ${kb.updated} updated, ${kb.unchanged} unchanged`);
-    return await demoSignInLinks(db, { secret, baseUrl: env.APP_URL?.trim() || 'http://localhost:3000' });
+    return await demoSignInLinks(db, { secret, baseUrl: env.APP_URL?.trim() || 'http://localhost:3000', hostEnv: parseHostEnv(env).hostEnv });
   } finally {
     await close();
   }
 }
 
 export function printDemoLinks(links: DemoLink[], log: (line: string) => void = console.log): void {
-  log('Sign-in links (they work while the app runs with the dev panel on, DEMO selected):');
+  log('Sign-in links (they work while the app runs with the dev panel on, DEMO selected; client owners open on their agency host):');
   for (const l of links) log(`  ${l.label} <${l.email}>\n    ${l.url}`);
 }

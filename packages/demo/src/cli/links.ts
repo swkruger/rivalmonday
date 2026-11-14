@@ -1,4 +1,4 @@
-import { createDb, redactSecrets, resolveEnvironment } from '@cs/db';
+import { createDb, parseHostEnv, redactSecrets, resolveEnvironment } from '@cs/db';
 import { demoSignInLinks } from '../links';
 import { printDemoLinks } from '../reset';
 import { loadRepoEnv, repoRoot } from './repo';
@@ -9,7 +9,7 @@ try {
   const env = resolveEnvironment(name, { repoRoot: repoRoot() });
   const { db, close } = createDb(env.serviceUrl);
   try {
-    const links = await demoSignInLinks(db, { secret: process.env.LINK_SIGNING_SECRET ?? '', baseUrl: process.env.APP_URL?.trim() || 'http://localhost:3000' });
+    const links = await demoSignInLinks(db, { secret: process.env.LINK_SIGNING_SECRET ?? '', baseUrl: process.env.APP_URL?.trim() || 'http://localhost:3000', hostEnv: parseHostEnv(process.env).hostEnv });
     if (links.length === 0) console.log(`No demo users in ${name.toUpperCase()}. Run pnpm demo:reset first.`);
     else printDemoLinks(links);
   } finally {
