@@ -74,16 +74,15 @@ async function pullFacebook(deps: PullDeps, a: Account, tick: () => void): Promi
           ).map((r) => r.id)
         : [],
     );
-    let stop = false;
+    // A pinned old post may lead a page: stop only after a page with nothing new (every post stored or older than the watermark).
+    let added = 0;
     for (const post of res.posts) {
       const older = newestMs !== null && post.publishTime !== null && post.publishTime * 1000 < newestMs;
-      if (stored.has(post.id) || older) {
-        stop = true;
-        break;
-      }
+      if (stored.has(post.id) || older) continue;
       fresh.push(post);
+      added++;
     }
-    if (stop || !res.cursor || res.posts.length === 0) break;
+    if (added === 0 || !res.cursor) break;
     cursor = res.cursor;
   }
   const posts = fresh.flatMap((x): NewPost[] =>
@@ -149,23 +148,30 @@ export async function pullSocial(deps: PullDeps, competitorId: string): Promise<
       payload: { network: a.network, accountId: pulled.accountId, profile: pulled.profile, posts: pulled.rawPosts },
     });
     captures.push(rec.captureId);
-    const at = now();
-    if (pulled.posts.length) {
-      await deps.db
+    try {
+      const at = now();
+      const pl = pulled;
+      await deps.db.transaction(async (tx) => {
+    if (pl.posts.length) {
+      await tx
         .insert(socialPost)
-        .values(pulled.posts.map((p) => ({ ...p, competitorId, network: a.network, firstCaptureId: rec.captureId, firstSeenAt: at })))
+        .values(pl.posts.map((p) => ({ ...p, competitorId, network: a.network, firstCaptureId: rec.captureId, firstSeenAt: at })))
         .onConflictDoNothing({ target: [socialPost.network, socialPost.postId] });
     }
-    const data: Record<string, unknown> = { network: a.network, accountId: pulled.accountId, followers: pulled.followers };
-    if (pulled.likes != null) data.likes = pulled.likes;
-    if (pulled.postsCount != null) data.postsCount = pulled.postsCount;
-    await deps.db
+    const data: Record<string, unknown> = { network: a.network, accountId: pl.accountId, followers: pl.followers };
+    if (pl.likes != null) data.likes = pl.likes;
+    if (pl.postsCount != null) data.postsCount = pl.postsCount;
+    await tx
       .insert(observation)
-      .values({ competitorId, captureId: rec.captureId, kind: 'social_profile', key: `${a.network}:${pulled.accountId}`, data, observedAt: at });
-    await deps.db
+      .values({ competitorId, captureId: rec.captureId, kind: 'social_profile', key: `${a.network}:${pl.accountId}`, data, observedAt: at });
+    await tx
       .update(socialAccount)
-      .set({ lastPulledAt: at, ...(pulled.gated ? { gated: true } : {}) })
+      .set({ lastPulledAt: at, ...(pl.gated ? { gated: true } : {}) })
       .where(eq(socialAccount.id, a.id));
+      });
+    } catch (err) {
+      console.warn(`social: db write failed for ${url}: ${err instanceof Error ? err.message : String(err)}`);
+    }
   }
   return { captures, credits };
 }

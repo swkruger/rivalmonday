@@ -76,14 +76,14 @@ const pages = (...ps: ScFbPost[][]) => {
 };
 
 describe('pullSocial facebook', () => {
-  it('stops at first stored post_id', async () => {
+  it('stops after a page with nothing new', async () => {
     await seedStored('b', 5);
     const facebookPosts = pages([fbPost('a', 1), fbPost('b', 5), fbPost('c', 9)], [fbPost('d', 12)]);
     await account('facebook');
     const res = await pullSocial(deps(sc({ facebookPosts })), IDS.competitorX);
-    expect(facebookPosts).toHaveBeenCalledTimes(1);
+    expect(facebookPosts).toHaveBeenCalledTimes(2);
     expect((await posts()).map((p) => p.postId).sort()).toEqual(['a', 'b']);
-    expect(res.credits).toBe(2);
+    expect(res.credits).toBe(3);
   });
 
   it('stops after 3 pages', async () => {
@@ -102,7 +102,7 @@ describe('pullSocial facebook', () => {
     const facebookPosts = pages([fbPost('a', 1), fbPost('older', 8)], [fbPost('x', 9)]);
     await account('facebook');
     await pullSocial(deps(sc({ facebookPosts })), IDS.competitorX);
-    expect(facebookPosts).toHaveBeenCalledTimes(1);
+    expect(facebookPosts).toHaveBeenCalledTimes(2);
     expect((await posts()).map((p) => p.postId).sort()).toEqual(['a', 'gone']);
   });
 
@@ -174,5 +174,58 @@ describe('pullSocial eligibility and failures', () => {
     expect(caps.map((c) => c.status).sort()).toEqual(['ok', 'vendor_error']);
     expect(await posts()).toHaveLength(12);
     expect(await dbs.owner.select().from(observation)).toHaveLength(1);
+  });
+});
+
+describe('pullSocial fix round 1', () => {
+  it('pinned old post first does not stop tracking', async () => {
+    await account('facebook');
+    await seedStored('gone', 5);
+    const facebookPosts = pages([fbPost('pinned', 400), fbPost('a', 1), fbPost('b', 2)], [fbPost('c', 3), fbPost('old2', 30)], [fbPost('d', 4)]);
+    await pullSocial(deps(sc({ facebookPosts })), IDS.competitorX);
+    expect(facebookPosts).toHaveBeenCalledTimes(3);
+    expect((await posts()).map((p) => p.postId).sort()).toEqual(['a', 'b', 'c', 'd', 'gone']);
+  });
+
+  it('ig post newer does not stop fb paging', async () => {
+    await account('facebook');
+    const [cap] = await dbs.owner.insert(capture).values({ competitorId: IDS.competitorX, source: 'social', status: 'ok', collectorVersion: 'social/1' }).returning();
+    await dbs.owner.insert(socialPost).values({
+      competitorId: IDS.competitorX, network: 'instagram', postId: 'igX', postedAt: new Date((T0 + 86400) * 1000), text: '', url: 'u', firstCaptureId: cap!.id, firstSeenAt: NOW,
+    });
+    const facebookPosts = pages([fbPost('a', 1)]);
+    await pullSocial(deps(sc({ facebookPosts })), IDS.competitorX);
+    expect((await posts()).filter((p) => p.network === 'facebook').map((p) => p.postId)).toEqual(['a']);
+  });
+
+  it('db error in one account continues with the next', async () => {
+    await account('facebook');
+    await account('instagram');
+    const facebookPosts = pages([fbPost('a', 1, { text: 'bad text' })]);
+    const res = await pullSocial(deps(sc({ facebookPosts })), IDS.competitorX);
+    expect(res.captures).toHaveLength(2);
+    const all = await posts();
+    expect(all.filter((p) => p.network === 'facebook')).toHaveLength(0);
+    expect(all.filter((p) => p.network === 'instagram')).toHaveLength(12);
+    const obs = await dbs.owner.select().from(observation);
+    expect(obs.map((o) => o.key)).toEqual(['instagram:glowdentalco']);
+  });
+
+  it('null publishTime skipped', async () => {
+    await account('facebook');
+    const facebookPosts = pages([fbPost('n', 1, { publishTime: null }), fbPost('a', 2)]);
+    await pullSocial(deps(sc({ facebookPosts })), IDS.competitorX);
+    expect((await posts()).map((p) => p.postId)).toEqual(['a']);
+  });
+
+  it('already-gated account calls gated directly', async () => {
+    await account('facebook', { gated: true });
+    const facebookProfile = vi.fn(async () => fbProfile());
+    const client = sc({ facebookProfile });
+    const res = await pullSocial(deps(client), IDS.competitorX);
+    expect(facebookProfile).toHaveBeenCalledTimes(1);
+    expect(facebookProfile).toHaveBeenCalledWith(expect.any(String), { gated: true });
+    expect(client.facebookPosts).not.toHaveBeenCalled();
+    expect(res.credits).toBe(1);
   });
 });
