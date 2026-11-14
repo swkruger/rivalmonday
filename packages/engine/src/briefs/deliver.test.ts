@@ -71,7 +71,7 @@ describe('deliverDueBriefs', () => {
     const email = (await sentRows()).find((r) => r.channel === 'email')!;
     const props = (email.payload as { props: { items: { headline: string; link: string }[]; summary: string } }).props;
     expect(props.items.map((i) => i.headline)).toEqual(['First', 'Second']);
-    expect(props.items[0]!.link).toMatch(/^https:\/\/app\.example\/l\//);
+    expect(props.items[0]!.link).toMatch(/^https:\/\/agency-a\.clients\.example\/l\//); // 13a1: client origin
     expect(JSON.stringify(email.payload)).not.toMatch(/upsell|reputation|"ppc"/);
     expect(props.summary).toBe('2 competitor updates this week.'); // recomputed: an item was dropped
     expect(email.payload).toMatchObject({ replyTo: 'am@a.example' });

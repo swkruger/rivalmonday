@@ -5,7 +5,7 @@ import { and, eq, gt, gte, isNull, lt, ne, sql } from 'drizzle-orm';
 import { PDF_CATCHUP_DAYS, type PdfDeps, pdfRetryDue } from '../briefs/pdf';
 import { safeTimezone } from '../briefs/schedule';
 import { trendSnapshot } from '../briefs/trend';
-import { type DeliveryConfig, loadBranding, notify, personalLink } from '../delivery/outbox';
+import { type DeliveryConfig, loadBranding, loadClientBranding, notify, personalLink } from '../delivery/outbox';
 import { localClock, zonedTimeToUtc } from '../delivery/time';
 import type { PackLoader } from '../tag/tag-stage';
 
@@ -80,14 +80,15 @@ export async function runQuarterlyReports(deps: { db: Db; packs: PackLoader; del
       const id = await deps.db.transaction(async (tx) => {
         const [rep] = await tx.insert(trendReport).values({ agencyId: c.agencyId, clientId: c.id, quarter: q.quarter, periodStart: period.start, periodEnd: period.end, data, status: 'sent', sentAt: now }).onConflictDoNothing().returning({ id: trendReport.id });
         if (!rep) return null;
-        const branding = await loadBranding(tx, c.agencyId);
+        // 13a1 P12: the client copy's logo on the client origin, the agency copy's on APP_URL.
+        const brandingFor = { client: (await loadClientBranding(tx, deps.delivery, c.agencyId)).branding, agency: await loadBranding(tx, c.agencyId) };
         const scope = { agencyId: c.agencyId, clientId: c.id };
         const title = `Competitor trends for ${q.quarter}`;
         for (const audience of ['client', 'agency'] as const) {
           await notify(tx, deps.delivery, {
             ...scope, kind: 'trend_report', audience, subjectType: 'trend_report', subjectId: rep.id, dedupe: `trend_report:${rep.id}:${audience}`, link: { t: 'trend_report', id: rep.id }, now,
-            build: (r, link) => {
-              const props: TrendReportEmailProps = { branding, recipientName: r?.name ?? null, clientName: c.name, quarter: q.quarter, data, link, pdfLink: r ? personalLink(deps.delivery, r.contactId, scope, 'trend_report_pdf', rep.id, now) : null };
+            build: (r, link, base) => {
+              const props: TrendReportEmailProps = { branding: brandingFor[audience], recipientName: r?.name ?? null, clientName: c.name, quarter: q.quarter, data, link, pdfLink: r ? personalLink(deps.delivery, r.contactId, scope, 'trend_report_pdf', rep.id, now, base) : null };
               return { title, body: `${c.name}: your competitor trends for ${q.quarter} are ready.`, email: { template: 'trend_report', props } };
             },
           });

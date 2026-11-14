@@ -1,7 +1,7 @@
 import { agencyServiceable, clientServiceable, alert, changeEvent, client, competitor, type Db } from '@cs/db';
 import { and, asc, eq, inArray } from 'drizzle-orm';
 import { safeTimezone } from '../briefs/schedule';
-import { type DeliveryConfig, loadBranding, notify, personalLink } from '../delivery/outbox';
+import { type DeliveryConfig, loadClientBranding, notify, personalLink } from '../delivery/outbox';
 import { localClock } from '../delivery/time';
 import { lockClientAlerts, withdrawAlerts } from './create';
 
@@ -39,17 +39,17 @@ export async function runAlertDigests(deps: { db: Db; delivery: DeliveryConfig }
       const live = rows.filter((r) => !r.retractedAt);
       if (live.length === 0) return;
       await tx.update(alert).set({ status: 'delivered', deliveredAt: now, deliveredLocalDate: clock.date, updatedAt: now }).where(inArray(alert.id, live.map((r) => r.a.id)));
-      const branding = await loadBranding(tx, c.agencyId);
+      const { branding } = await loadClientBranding(tx, deps.delivery, c.agencyId);
       const scope = { agencyId: c.agencyId, clientId: c.clientId };
       const title = `${live.length} more competitor alert${live.length === 1 ? '' : 's'} today`;
       await notify(tx, deps.delivery, {
         ...scope, kind: 'alert_digest', audience: 'client', subjectType: 'digest', subjectId: c.clientId, dedupe: `digest:${c.clientId}:${clock.date}`,
         link: { t: 'notifications', id: c.clientId }, now,
-        build: (r, link) => ({
+        build: (r, link, base) => ({
           title, body: live.map((x) => x.a.headline).join('\n'),
           email: { template: 'alert_digest', props: {
             branding, recipientName: r?.name ?? null, clientName: c.name, date: clock.date, link,
-            alerts: live.map((x) => ({ competitorName: x.competitorName, headline: x.a.headline, body: x.a.body, link: r ? personalLink(deps.delivery, r.contactId, scope, 'alert', x.a.id, now) : link })),
+            alerts: live.map((x) => ({ competitorName: x.competitorName, headline: x.a.headline, body: x.a.body, link: r ? personalLink(deps.delivery, r.contactId, scope, 'alert', x.a.id, now, base) : link })),
           } },
         }),
       });

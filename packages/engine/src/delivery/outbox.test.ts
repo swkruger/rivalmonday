@@ -1,12 +1,12 @@
 import { verifyLink } from '@cs/core/server';
-import { agency, AGENCY_KINDS, agencyBilling, CLIENT_KINDS, agencySendingDomain, agencyWebhook, alert, changeEvent, client, contact, notification } from '@cs/db';
+import { agency, AGENCY_KINDS, agencyBilling, CLIENT_KINDS, agencyDomain, agencySendingDomain, agencyWebhook, alert, changeEvent, client, contact, notification } from '@cs/db';
 import { IDS, openTestDbs, pauseAgency, pauseClient, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { createMemoryTransport, type EmailPayload, type EmailTransport, PermanentEmailError, resolveBranding } from '@cs/email';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { day, seedScoredEvent } from '../../test/seed';
 import { addContact } from './contacts';
-import { type ChannelSender, createEmailSender, deliveryConfigFromEnv, dispatchDue, notify, type NotifyInput, PermanentSendError } from './outbox';
+import { type ChannelSender, createEmailSender, deliveryConfigFromEnv, dispatchDue, loadBranding, notify, type NotifyInput, PermanentSendError } from './outbox';
 import { testDeliveryConfig, testSenderConfig } from './test-config';
 
 const dbs = openTestDbs();
@@ -35,7 +35,7 @@ describe('notify', () => {
     const [email, inApp] = await rows();
     expect(inApp).toMatchObject({ channel: 'in_app', status: 'sent', contactId: owner, title: 'H' });
     expect(email).toMatchObject({ channel: 'email', status: 'pending', address: 'owner@a1.example' });
-    const token = email!.link!.replace('https://app.example/l/', '');
+    const token = email!.link!.replace('https://agency-a.clients.example/l/', ''); // 13a1: client links on the client origin
     expect(verifyLink(cfg.linkSecrets, token, NOW)).toMatchObject({ sub: owner, client: IDS.clientA1, t: 'alert' });
   });
 
@@ -88,6 +88,43 @@ describe('notify', () => {
     await notify(dbs.service, cfg, input({ cc: ['o@a1.example', 'am@a.example'] }));
     const [email] = await rows();
     expect((email!.payload as { cc: string[] }).cc).toEqual(['am@a.example']);
+  });
+
+  it('notify builds client links on the custom host, agency links on APP_URL', async () => {
+    await addContact(dbs.service, { agencyId: IDS.agencyA, clientId: IDS.clientA1, role: 'client_owner', email: 'o@a1.example' });
+    await addContact(dbs.service, { agencyId: IDS.agencyA, role: 'account_manager', email: 'am@a.example' });
+    const bases: string[] = [];
+    const build: NotifyInput['build'] = (_r, link, base) => { bases.push(base); return { title: 'H', body: 'B', email: payload(link) }; };
+    // Before a custom domain is live: the fallback host <host_slug>.<neutral>.
+    await notify(dbs.service, cfg, input({ dedupe: 'c:1', build }));
+    await dbs.service.insert(agencyDomain).values({ agencyId: IDS.agencyA, hostname: 'intel.agency-a.test', status: 'live' });
+    await notify(dbs.service, cfg, input({ dedupe: 'c:2', build }));
+    await notify(dbs.service, cfg, input({ kind: 'am_alert', audience: 'agency', dedupe: 'a:1', build }));
+    const links = (await rows()).filter((r) => r.channel === 'email').map((r) => `${r.dedupeKey.split(':').slice(0, 2).join(':')} ${r.link!.replace(/\/l\/.*$/, '')}`).sort();
+    expect(links).toEqual(['a:1 https://app.example', 'c:1 https://agency-a.clients.example', 'c:2 https://intel.agency-a.test']);
+    expect(bases).toEqual(['https://agency-a.clients.example', 'https://intel.agency-a.test', 'https://app.example']);
+  });
+
+  it('webhook links stay on APP_URL', async () => {
+    await dbs.service.insert(agencyDomain).values({ agencyId: IDS.agencyA, hostname: 'intel.agency-a.test', status: 'live' });
+    await dbs.service.insert(agencyWebhook).values({ agencyId: IDS.agencyA, kind: 'slack', url: 'https://hooks.slack.com/services/T/B/X', createdBy: 'x' });
+    await notify(dbs.service, cfg, input({ kind: 'am_alert', audience: 'agency', dedupe: 'am:wh' }));
+    const [hook] = (await rows()).filter((x) => x.channel === 'slack');
+    expect(hook!.link).toBe(`https://app.example/go/alert/${IDS.clientA1}`);
+  });
+
+  it('a client origin failure throws and rolls the transaction back (no stray outbox row)', async () => {
+    await addContact(dbs.service, { agencyId: IDS.agencyA, clientId: IDS.clientA1, role: 'client_owner', email: 'o@a1.example' });
+    const broken = { ...cfg, hostEnv: { ...cfg.hostEnv, appUrl: 'not a url' } };
+    await expect(dbs.service.transaction((tx) => notify(tx, broken, input()))).rejects.toThrow();
+    expect(await rows()).toEqual([]);
+  });
+
+  it('client email logo is rehosted; agency logo stays on APP_URL', async () => {
+    await dbs.owner.update(agency).set({ branding: { logoUrl: 'https://app.example/files/logo/agency-a/logo.png' } }).where(eq(agency.id, IDS.agencyA));
+    expect((await loadBranding(dbs.service, IDS.agencyA)).logoUrl).toBe('https://app.example/files/logo/agency-a/logo.png');
+    const b = await loadBranding(dbs.service, IDS.agencyA, { origin: 'https://agency-a.clients.example', hostEnv: cfg.hostEnv });
+    expect(b.logoUrl).toBe('https://agency-a.clients.example/files/logo/agency-a/logo.png');
   });
 
   it('leaves nothing behind when the surrounding transaction rolls back', async () => {

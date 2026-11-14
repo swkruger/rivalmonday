@@ -1,6 +1,6 @@
 import { type LinkTarget, MIN_LINK_SECRET_LENGTH } from '@cs/core';
 import { signLink } from '@cs/core/server';
-import { agencyProfile, agencyServiceable, agency, agencyWebhook, alert, changeEvent, type Channel, contact, type Db, type HostEnv, notification, type NotificationKind, parseHostEnv } from '@cs/db';
+import { agencyProfile, agencyServiceable, agency, agencyWebhook, alert, changeEvent, type Channel, clientOriginFor, contact, type Db, type HostEnv, notification, type NotificationKind, parseHostEnv, rehostLogoUrl } from '@cs/db';
 import { type AgencyContact, type Branding, cleanCc, type EmailPayload, type EmailTransport, type OutgoingAttachment, PermanentEmailError, renderEmail, resolveAgencyContact, resolveBranding } from '@cs/email';
 import { and, eq, isNull, lt, or, sql } from 'drizzle-orm';
 import { type Audience, type Conn, contactsByIds, type Recipient, recipientsFor, replyToFor } from './contacts';
@@ -28,17 +28,37 @@ export function deliveryConfigFromEnv(env: NodeJS.ProcessEnv): DeliveryConfig | 
   return { appUrl, linkSecrets: [secret, ...previous], hostEnv, platformFrom: platformFromEnv(env) };
 }
 
-/** A signed link for one contact (decision 5); Phase 5 serves /l/<token>. */
-export function personalLink(cfg: DeliveryConfig, contactId: string, scope: { agencyId: string; clientId: string }, t: LinkTarget, id: string, now: Date): string {
-  return `${cfg.appUrl}/l/${signLink(cfg.linkSecrets[0]!, { sub: contactId, agency: scope.agencyId, client: scope.clientId, t, id }, now)}`;
+/**
+ * 13a1 P8/P9: the base of every link in a message — the agency's client origin (`clientOriginFor`) for the client audience,
+ * `APP_URL` for agency staff. `conn` must be able to read `agency_domain` (service/worker connection, F9). Throws for an
+ * unknown agency, so a caller's transaction rolls back rather than queue a link on the wrong host.
+ */
+export async function linkBaseFor(conn: Conn, cfg: DeliveryConfig, audience: Audience, agencyId: string): Promise<string> {
+  return audience === 'client' ? clientOriginFor(conn, agencyId, cfg.hostEnv) : cfg.appUrl;
 }
-/** Shared channels (Slack/Teams) never carry a token: Phase 5 serves /go/<target>/<id> behind login. */
+
+/** A signed link for one contact (decision 5) on `base` (`linkBaseFor`); Phase 5 serves /l/<token>. */
+export function personalLink(cfg: DeliveryConfig, contactId: string, scope: { agencyId: string; clientId: string }, t: LinkTarget, id: string, now: Date, base: string): string {
+  return `${base}/l/${signLink(cfg.linkSecrets[0]!, { sub: contactId, agency: scope.agencyId, client: scope.clientId, t, id }, now)}`;
+}
+/** Shared channels (Slack/Teams) never carry a token: Phase 5 serves /go/<target>/<id> behind login. Agency-only, so always `APP_URL`. */
 export const plainLink = (cfg: DeliveryConfig, t: LinkTarget, id: string) => `${cfg.appUrl}/go/${t}/${id}`;
 
-export async function loadBranding(db: Conn, agencyId: string): Promise<Branding> {
+/**
+ * The agency's email branding. 13a1 (P12): client-facing callers pass their client `origin` so a logo stored on `APP_URL`
+ * is served from the client origin (`rehostLogoUrl`); agency-facing callers omit it.
+ */
+export async function loadBranding(db: Conn, agencyId: string, opts?: { origin: string; hostEnv: HostEnv }): Promise<Branding> {
   const [a] = await db.select({ name: agency.name, branding: agency.branding }).from(agency).where(eq(agency.id, agencyId));
   if (!a) throw new Error(`agency ${agencyId} not found`);
-  return { ...resolveBranding(a.name, a.branding ?? null), contact: await loadAgencyContact(db, agencyId) };
+  const b = resolveBranding(a.name, a.branding ?? null);
+  return { ...b, logoUrl: opts ? rehostLogoUrl(b.logoUrl, opts.hostEnv, opts.origin) : b.logoUrl, contact: await loadAgencyContact(db, agencyId) };
+}
+
+/** 13a1: client-facing branding plus the client origin it was rehosted to (one `clientOriginFor`). */
+export async function loadClientBranding(conn: Conn, cfg: DeliveryConfig, agencyId: string): Promise<{ branding: Branding; origin: string }> {
+  const origin = await clientOriginFor(conn, agencyId, cfg.hostEnv);
+  return { branding: await loadBranding(conn, agencyId, { origin, hostEnv: cfg.hostEnv }), origin };
 }
 
 export async function loadAgencyContact(db: Conn, agencyId: string): Promise<AgencyContact | null> {
@@ -60,8 +80,11 @@ export interface NotifyInput {
   dedupe: string;
   link: { t: LinkTarget; id: string };
   now: Date;
-  /** Text for in-app/webhook rows and the email payload; `r` is null for a webhook. */
-  build: (r: Recipient | null, link: string) => { title: string; body: string; email: EmailPayload | null };
+  /**
+   * Text for in-app/webhook rows and the email payload; `r` is null for a webhook. `base` is this audience's link base
+   * (`linkBaseFor`): extra `personalLink`s in the message use it.
+   */
+  build: (r: Recipient | null, link: string, base: string) => { title: string; body: string; email: EmailPayload | null };
   /** 11b Q1: explicit recipients (this client's contacts, any `active`, email only) instead of `recipientsFor`; `INACTIVE_OK_KINDS` only. */
   contactIds?: string[];
   /** 11b §3: copied addresses, cleaned per recipient into `payload.cc`. */
@@ -79,11 +102,13 @@ export async function notify(conn: Conn, cfg: DeliveryConfig, input: NotifyInput
   const recipients = input.contactIds ? await contactsByIds(conn, input.agencyId, input.clientId, input.contactIds) : await recipientsFor(conn, input);
   const replyTo = input.audience === 'client' ? (await replyToFor(conn, input.agencyId, input.clientId))?.email ?? null : null;
   const scope = { agencyId: input.agencyId, clientId: input.clientId };
+  // 13a1 P8: before any row is built; a failure throws and the caller's transaction rolls back.
+  const linkBase = recipients.length > 0 ? await linkBaseFor(conn, cfg, input.audience, input.agencyId) : cfg.appUrl;
   const base = { agencyId: input.agencyId, clientId: input.clientId, kind: input.kind, subjectType: input.subjectType, subjectId: input.subjectId };
   const values: (typeof notification.$inferInsert)[] = [];
   for (const r of recipients) {
-    const link = personalLink(cfg, r.contactId, scope, input.link.t, input.link.id, input.now);
-    const draft = input.build(r, link);
+    const link = personalLink(cfg, r.contactId, scope, input.link.t, input.link.id, input.now, linkBase);
+    const draft = input.build(r, link, linkBase);
     for (const channel of r.channels) {
       const key = `${input.dedupe}:${r.contactId}:${channel}`;
       if (channel === 'in_app') {
@@ -103,7 +128,7 @@ export async function notify(conn: Conn, cfg: DeliveryConfig, input: NotifyInput
       .where(and(eq(agencyWebhook.agencyId, input.agencyId), eq(agencyWebhook.active, true), or(isNull(agencyWebhook.kinds), sql`${agencyWebhook.kinds} ? ${input.kind}`)));
     for (const h of hooks) {
       const link = plainLink(cfg, input.link.t, input.link.id);
-      const draft = input.build(null, link);
+      const draft = input.build(null, link, cfg.appUrl);
       values.push({ ...base, webhookId: h.id, channel: h.kind as Channel, dedupeKey: `${input.dedupe}:wh:${h.id}`, title: draft.title, body: draft.body, link, status: 'pending', notBefore: input.now });
     }
   }

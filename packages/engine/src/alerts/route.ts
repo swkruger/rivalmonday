@@ -4,7 +4,7 @@ import { alert, type AlertStatus, changeEvent, client, competitor, type Db, feed
 import { and, eq, inArray, sql } from 'drizzle-orm';
 import { safeTimezone } from '../briefs/schedule';
 import { replyToFor } from '../delivery/contacts';
-import { type DeliveryConfig, loadBranding, notify } from '../delivery/outbox';
+import { type DeliveryConfig, loadBranding, loadClientBranding, notify } from '../delivery/outbox';
 import { localClock } from '../delivery/time';
 import type { PackLoader } from '../tag/tag-stage';
 import { lockClientAlerts, withdrawAlerts } from './create';
@@ -45,7 +45,7 @@ export async function releaseAlert(tx: Tx, cfg: DeliveryConfig, a: AlertRow, now
     return 'digest';
   }
   await tx.update(alert).set({ status: 'delivered', delivery: 'immediate', deliveredAt: now, deliveredLocalDate: today, updatedAt: now }).where(eq(alert.id, a.id));
-  const branding = await loadBranding(tx, a.agencyId);
+  const { branding } = await loadClientBranding(tx, cfg, a.agencyId);
   const comp = await competitorName(tx, a.competitorId);
   const detectedOn = localClock(a.createdAt, c.tz).date;
   // 7c2: loaded once per alert; the client email's feedback line (hidden when the agency has no AM or admin contact).

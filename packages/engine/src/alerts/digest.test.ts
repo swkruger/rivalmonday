@@ -42,7 +42,7 @@ describe('runAlertDigests', () => {
     const email = rows.find((r) => r.channel === 'email')!;
     const props = (email.payload as { props: { alerts: { headline: string; link: string }[] } }).props;
     expect(props.alerts.map((a) => a.headline)).toEqual(['First', 'Second']);
-    expect(props.alerts[0]!.link).toMatch(/^https:\/\/app\.example\/l\//);
+    expect(props.alerts[0]!.link).toMatch(/^https:\/\/agency-a\.clients\.example\/l\//); // 13a1: client origin
     expect((await dbs.owner.select().from(alert)).every((a) => a.status === 'delivered' && a.deliveredLocalDate === '2026-10-05')).toBe(true);
   });
 

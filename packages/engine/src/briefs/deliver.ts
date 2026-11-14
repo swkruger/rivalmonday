@@ -1,5 +1,5 @@
 import { type AccessContext, canAccessClient, formatDayRange, type GradedChangesView, isAgencyRole, REPORT_CAPS, ToolError } from '@cs/core';
-import { agencyServiceable, clientServiceable, brief, briefItem, type BriefKind, client, competitor, type Db, feedback, withTenant } from '@cs/db';
+import { agencyServiceable, clientServiceable, brief, briefItem, type BriefKind, client, clientOriginFor, competitor, type Db, feedback, type HostEnv, withTenant } from '@cs/db';
 import type { Branding, BriefEmailProps, BriefHighlights, FeedbackContact } from '@cs/email';
 import { and, asc, eq, gte, inArray, isNull, ne, or, sql } from 'drizzle-orm';
 import type { Conn } from '../delivery/contacts';
@@ -30,7 +30,8 @@ export interface BriefDeliveryView {
   timezone: string;
 }
 
-export async function loadBriefView(conn: Conn, briefId: string): Promise<BriefDeliveryView> {
+/** `logo` (13a1 P12): the client email passes its client origin so the logo is rehosted; the PDF renderer omits it (its own `allowUrls`). */
+export async function loadBriefView(conn: Conn, briefId: string, logo?: { origin: string; hostEnv: HostEnv }): Promise<BriefDeliveryView> {
   const [row] = await conn.select({ b: brief, clientName: client.name, timezone: client.timezone }).from(brief).innerJoin(client, eq(client.id, brief.clientId)).where(eq(brief.id, briefId));
   if (!row) throw new Error(`brief ${briefId} not found`);
   const items = await conn
@@ -40,7 +41,7 @@ export async function loadBriefView(conn: Conn, briefId: string): Promise<BriefD
     .leftJoin(competitor, eq(competitor.id, briefItem.competitorId))
     .where(and(eq(briefItem.briefId, briefId), eq(briefItem.status, 'active')))
     .orderBy(asc(briefItem.ord));
-  const branding = await loadBranding(conn, row.b.agencyId);
+  const branding = await loadBranding(conn, row.b.agencyId, logo);
   const am = await replyToFor(conn, row.b.agencyId, row.b.clientId);
   return { b: row.b, clientName: row.clientName, items: items.map((x) => ({ ...x.i, competitorName: x.competitorName ?? row.clientName, firstChangeType: x.firstChangeType })), branding, signOff: branding.signOff ?? `— ${am?.name ?? branding.displayName}`, replyTo: am, timezone: safeTimezone(row.timezone) };
 }
@@ -97,17 +98,17 @@ export async function deliverBrief(deps: { db: Db; delivery: DeliveryConfig }, b
     const final = finalBriefSummary(locked as { kind: BriefKind; summary: string }, all, liveMajorCount(live));
     // pdf_key = null (P4): the sender renders the PDF fresh at dispatch; the hourly catch-up and /files/brief re-render a missing one.
     await tx.update(brief).set({ ...final, status: 'sent', sentAt: now, updatedAt: now, pdfKey: null }).where(eq(brief.id, briefId));
-    const v = await loadBriefView(tx, briefId);
+    const v = await loadBriefView(tx, briefId, { origin: await clientOriginFor(tx, locked.agencyId, deps.delivery.hostEnv), hostEnv: deps.delivery.hostEnv });
     const scope = { agencyId: v.b.agencyId, clientId: v.b.clientId };
     const notifications = await notify(tx, deps.delivery, {
       ...scope, kind: 'brief', audience: 'client', subjectType: 'brief', subjectId: briefId, dedupe: `brief:${briefId}`, link: { t: 'brief', id: briefId }, now,
-      build: (r, link) => ({
+      build: (r, link, base) => ({
         title: v.b.kind === 'starting_point' ? startingPointSubject(v.branding.displayName) : `Weekly competitor brief — ${v.b.deliveryDate}`,
         body: [v.b.summary, ...v.items.map((i) => `• ${i.headline}`)].join('\n'),
         email: { template: 'brief', props: { ...briefEmailProps(v, {
           recipientName: r?.name ?? null, link, live,
-          pdfLink: r ? personalLink(deps.delivery, r.contactId, scope, 'brief_pdf', briefId, now) : null,
-          itemLink: (itemId) => (r ? personalLink(deps.delivery, r.contactId, scope, 'brief_item', itemId, now) : null),
+          pdfLink: r ? personalLink(deps.delivery, r.contactId, scope, 'brief_pdf', briefId, now, base) : null,
+          itemLink: (itemId) => (r ? personalLink(deps.delivery, r.contactId, scope, 'brief_item', itemId, now, base) : null),
         }), attachPdf: v.b.kind !== 'starting_point' } },
       }),
     });
