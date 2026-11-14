@@ -113,6 +113,8 @@ export const ISOLATION_FIXTURES: Record<string, IsolationFixture> = {
   get_search_visibility: client(),
   get_citation_audit: client(),
   list_listed_events: client(),
+  get_social_activity: client(),
+  list_social_accounts: { kind: 'caller', reason: 'a global business visible to any agency that tracks it (others get not_found); the output holds only public social accounts', input: (w) => ({ competitorId: w.ids.competitorX }) },
   get_client_events_menu: client(),
   get_rank_settings: client(),
 
@@ -218,6 +220,8 @@ export const ISOLATION_FIXTURES: Record<string, IsolationFixture> = {
   update_client_rank_settings: client({ keywords: ['ac repair'], gridSize: 5, radiusKm: 10 }),
   request_rank_scan: client(),
   request_citation_audit: client(),
+  confirm_social_account: { kind: 'caller', reason: 'a global business any agency tracking it may act on (others get not_found); writes only public social_account rows, outside tenant data', input: (w) => ({ competitorId: w.ids.competitorX, url: 'https://www.facebook.com/worldrival', decision: 'confirm' }) },
+  find_social_accounts: { kind: 'caller', reason: 'a global business any agency tracking it may act on (others get not_found); only enqueues a public discovery search', input: (w) => ({ competitorId: w.ids.competitorX }) },
   submit_feedback: clientWith((w, t) => ({ eventId: idOf(w, 'event', t.tenant), verdict: 'useful', reason: 'Spot on' })),
   add_recommendation: clientWith((w, t) => ({
     title: 'Match the tune-up price', rationale: 'The rival cut its tune-up price this week.', evidenceIds: [idOf(w, 'evidence', competitorTenant(t), 1)], effort: 'M', impact: 'M',

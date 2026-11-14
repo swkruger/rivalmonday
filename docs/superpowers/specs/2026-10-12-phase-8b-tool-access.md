@@ -98,6 +98,10 @@ get_rank_trend (rankings.ts) | read | read-only
 get_share_of_voice (rankings.ts) | read | read-only
 get_citation_audit (citations.ts) | read | read-only
 list_listed_events (listed-events.ts) | read | read-only
+get_social_activity (social.ts) | read | read-only
+list_social_accounts (social.ts) | read | read-only; agency roles
+confirm_social_account (social.ts) | write | sets social_account status (confirm demotes the network's current confirmed row, a pasted link may insert the row); agency roles
+find_social_accounts (social.ts) | write | enqueues social-discover (paid vendor searches); once per business per agency per 7 days; agency roles
 get_client_events_menu (listed-events.ts) | read | read-only
 list_recommendations (recommendations.ts) | read | read-only
 update_recommendation_status (recommendations.ts) | write | updates status

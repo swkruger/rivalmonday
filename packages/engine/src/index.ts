@@ -22,6 +22,8 @@ export * from './structured/rank';
 export * from './structured/serp';
 export * from './structured/citations';
 export * from './structured/reviews';
+export * from './structured/social';
+export { isOfferPost } from './structured/gbp-posts';
 export * from './events/retract';
 export * from './facts/numeric';
 export * from './prices/ad-price-stage';

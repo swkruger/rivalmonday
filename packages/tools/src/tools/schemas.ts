@@ -536,3 +536,32 @@ export const ListedEventsView = z.object({
   windowStart: z.string(), windowEnd: z.string(),
 });
 export type ListedEventsView = z.infer<typeof ListedEventsView>;
+
+/** 18e: confirmed Facebook / Instagram accounts of the client and its tracked rivals (`get_social_activity`). Only confirmed accounts appear. */
+export const SocialActivityView = z.object({
+  businesses: z.array(z.object({
+    competitorId: uuid, name: z.string(), self: z.boolean(),
+    accounts: z.array(z.object({
+      network: z.enum(['facebook', 'instagram']), handle: z.string(), url: z.string(),
+      followers: z.number().nullable(),
+      /** Latest followers minus the latest reading at least 90 days old; null without an older reading. */
+      followers90dChange: z.number().nullable(),
+      posts30d: z.number(), lastPostAt: iso.nullable(),
+      /** The evidence to cite for this account's counts; null when none is citable on this channel. */
+      evidenceId: z.string().nullable(),
+    })),
+    /** Posts of the last 30 days that read as an offer (a price or a promotion). */
+    offers: z.array(z.object({ network: z.enum(['facebook', 'instagram']), postedAt: iso, text: z.string(), url: z.string(), evidenceId: z.string().nullable() })),
+  })),
+});
+export type SocialActivityView = z.infer<typeof SocialActivityView>;
+
+/** 18e: every account found for a business, including suggested and rejected ones (`list_social_accounts`, agency roles). */
+export const SocialAccountsView = z.object({
+  accounts: z.array(z.object({
+    id: uuid, network: z.enum(['facebook', 'instagram']), handle: z.string(), url: z.string(),
+    status: z.enum(['confirmed', 'suggested', 'rejected']), confirmedBy: z.enum(['website', 'agency']).nullable(),
+    followers: z.number().nullable(), lastPulledAt: iso.nullable(),
+  })),
+});
+export type SocialAccountsView = z.infer<typeof SocialAccountsView>;
