@@ -1,5 +1,6 @@
-import { detectedChange, observation, type SocialNetwork, socialPost } from '@cs/db';
-import { and, eq, gte, ne, sql } from 'drizzle-orm';
+import { socialCaptureUrl } from '@cs/collectors';
+import { capture, type Db, detectedChange, observation, type SocialNetwork, socialAccount, socialPost } from '@cs/db';
+import { and, eq, gte, inArray, ne, sql } from 'drizzle-orm';
 import { isOfferPost, isSelfOnly, POST_MAX_AGE_DAYS, POST_MAX_SINGLE } from './gbp-posts';
 import { AUDIENCE_COOLDOWN_DAYS, AUDIENCE_WINDOW_DAYS, audienceGrowth } from './meta-page';
 import type { CaptureRow, SourceDiffer, StructuredChange } from './vendor-diff';
@@ -15,6 +16,29 @@ const DAY_MS = 86_400_000;
 const AFTER_TEXT_MAX = 300;
 
 export type SocialPostRow = typeof socialPost.$inferSelect;
+export type ConfirmedSocialPost = SocialPostRow & { accountId: string };
+
+/**
+ * Posts of each competitor's currently confirmed accounts, posted since `since`. `social_post` has no account column, so a post
+ * counts only when the capture that first saw it is that account's (`capture.url` = `socialCaptureUrl`): a rejected account's posts never count.
+ */
+export async function socialPostsOfConfirmedAccounts(db: Db, competitorIds: string[], since: Date): Promise<ConfirmedSocialPost[]> {
+  if (competitorIds.length === 0) return [];
+  const rows = await db
+    .select({ post: socialPost, captureUrl: capture.url, handle: socialAccount.handle, externalId: socialAccount.externalId })
+    .from(socialPost)
+    .innerJoin(capture, eq(capture.id, socialPost.firstCaptureId))
+    .innerJoin(
+      socialAccount,
+      and(eq(socialAccount.competitorId, socialPost.competitorId), eq(socialAccount.network, socialPost.network), eq(socialAccount.status, 'confirmed')),
+    )
+    .where(and(inArray(socialPost.competitorId, competitorIds), gte(socialPost.postedAt, since)));
+  return rows.flatMap((r) => {
+    const url = socialCaptureUrl({ network: r.post.network, handle: r.handle, externalId: r.externalId });
+    return r.captureUrl === url ? [{ ...r.post, accountId: url.slice(`social:${r.post.network}:`.length) }] : [];
+  });
+}
+
 export type Cadence = 'started' | 'quiet';
 
 /** The posting rhythm at `now` from posts dated at or before it (P4), or null when neither flip applies. */
@@ -84,9 +108,9 @@ export function diffSocial(ctx: SocialDiffCtx): StructuredChange[] {
     }
   }
 
-  // Cadence: the same state on this and the previous pull, a flip from the pull before that, and no change of the kind in 30 days.
+  // Cadence: the same state on this and the previous pull, a flip from the pull before that (none = baseline, silent), and no change of the kind in 30 days.
   const state = socialCadence(ctx.posts, cap.capturedAt);
-  if (state && socialCadence(ctx.posts, prev.capturedAt) === state && (!ctx.olderCapture || socialCadence(ctx.posts, ctx.olderCapture.capturedAt) !== state)) {
+  if (state && socialCadence(ctx.posts, prev.capturedAt) === state && !!ctx.olderCapture && socialCadence(ctx.posts, ctx.olderCapture.capturedAt) !== state) {
     const key = `social:${network}:cadence:${state}:${ctx.accountId}`;
     if (!ctx.priorChanges.some((c) => c.blockKey === key && c.detectedAt.getTime() >= at - CADENCE_COOLDOWN_DAYS * DAY_MS)) {
       out.push({ kind: 'added', blockKey: key, beforeText: null, afterText: null, details: { changeType: 'content', surface: 'social', network, cadence: state } });
@@ -112,7 +136,8 @@ export const diffSocialCapture: SourceDiffer = async (db, cap, prev, older) => {
   const f = profile?.data.followers;
   const followers = typeof f === 'number' && Number.isFinite(f) ? f : null;
   const at = cap.capturedAt.getTime();
-  const posts = await db.select().from(socialPost).where(and(eq(socialPost.competitorId, cap.competitorId), eq(socialPost.network, net)));
+  // Cadence needs up to 60 d before the older capture (+ its ~7 d gap); bound the read.
+  const posts = (await socialPostsOfConfirmedAccounts(db, [cap.competitorId], new Date(at - 120 * DAY_MS))).filter((p) => p.network === net && p.accountId === accountId);
   const history = profile
     ? await db
         .select({ data: observation.data, captureId: observation.captureId, observedAt: observation.observedAt })

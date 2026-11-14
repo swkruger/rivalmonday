@@ -120,6 +120,10 @@ async function pullInstagram(deps: PullDeps, a: Account, tick: () => void): Prom
   return { accountId: a.handle, profile, followers: p.followers, postsCount: p.postsCount, posts, rawPosts };
 }
 
+/** The capture url of an account (one history per account): `social:facebook:<external_id or handle>` / `social:instagram:<handle>`. */
+export const socialCaptureUrl = (a: { network: string; handle: string; externalId?: string | null }): string =>
+  `social:${a.network}:${a.network === 'facebook' ? (a.externalId ?? a.handle) : a.handle}`;
+
 /** Weekly pull of one competitor's confirmed accounts: one `vendor_json` capture per account, new `social_post` rows, one `social_profile` observation. */
 export async function pullSocial(deps: PullDeps, competitorId: string): Promise<{ captures: string[]; credits: number }> {
   const now = deps.now ?? (() => new Date());
@@ -131,7 +135,7 @@ export async function pullSocial(deps: PullDeps, competitorId: string): Promise<
   let credits = 0;
 
   for (const a of accounts) {
-    const url = `social:${a.network}:${a.network === 'facebook' ? (a.externalId ?? a.handle) : a.handle}`;
+    const url = socialCaptureUrl(a);
     const base = { competitorId, source: 'social', collectorVersion: SOCIAL_COLLECTOR_VERSION, url };
     const calls = { n: 0 };
     let pulled: Pulled | null = null;

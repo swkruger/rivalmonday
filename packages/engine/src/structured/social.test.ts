@@ -1,4 +1,4 @@
-import { detectedChange, observation, socialPost } from '@cs/db';
+import { detectedChange, observation, socialAccount, socialPost } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { day, seedVendorCapture } from '../../test/seed';
@@ -14,9 +14,10 @@ const now = day(90);
 beforeEach(async () => {
   await truncateAll(dbs.owner);
   await seedTenancy(dbs.owner);
+  await dbs.service.insert(socialAccount).values({ competitorId: IDS.competitorX, network: 'facebook', handle: 'acme', url: 'https://facebook.com/acme', status: 'confirmed' });
 });
 
-const cap = (n: number) => seedVendorCapture(dbs.service, { competitorId: IDS.competitorX, source: 'social', url: URL, capturedAt: day(n) });
+const cap = (n: number, url = URL) => seedVendorCapture(dbs.service, { competitorId: IDS.competitorX, source: 'social', url, capturedAt: day(n) });
 const post = (firstCaptureId: string, firstSeenDay: number, id: string, text: string, postedDay: number) =>
   dbs.service.insert(socialPost).values({
     competitorId: IDS.competitorX, network: 'facebook', postId: id, postedAt: day(postedDay), text, url: `https://fb.example/${id}`, firstCaptureId, firstSeenAt: day(firstSeenDay),
@@ -87,6 +88,28 @@ describe('diffSocial (via diffVendorCapture)', () => {
     expect(await changes()).toHaveLength(1);
   });
 
+  it('quiet at baseline → silent (no observed flip)', async () => {
+    const c0 = await cap(0);
+    const c7 = await cap(7);
+    const c14 = await cap(14);
+    for (const [i, d] of [-40, -45, -50, -55].entries()) await post(c0, 0, `b${i}`, 'Another job done', d);
+    await run(c7);
+    await run(c14);
+    expect(await changes()).toEqual([]);
+  });
+
+  it("posts of a rejected account don't feed cadence", async () => {
+    const old = await cap(0, 'social:facebook:oldpage');
+    const c0 = await cap(0);
+    const c28 = await cap(28);
+    const c35 = await cap(35);
+    for (const [i, d] of [-5, -10, -15, -20].entries()) await post(old, 0, `r${i}`, 'Another job done', d);
+    await run(c28);
+    await run(c35);
+    expect(await changes()).toEqual([]);
+    void c0;
+  });
+
   it('followers +21% → audience_growth facebook', async () => {
     const c0 = await cap(0);
     const c28 = await cap(28);
@@ -112,7 +135,7 @@ describe('socialCadence / diffSocial unit rules', () => {
   it('a cadence change is held back for 30 days per account and kind', () => {
     const mk = (n: number) => ({ capturedAt: day(n) }) as SocialDiffCtx['capture'];
     const posts = [-40, -45, -50, -55].map((d, i) => ({ postedAt: day(d), postId: `p${i}`, firstCaptureId: 'x', text: '' })) as SocialDiffCtx['posts'];
-    const base: Omit<SocialDiffCtx, 'priorChanges'> = { competitorId: IDS.competitorX, network: 'facebook', capture: mk(0), prevCapture: mk(-7), olderCapture: null, posts, accountId: 'acme', followers: null, followersHistory: [] };
+    const base: Omit<SocialDiffCtx, 'priorChanges'> = { competitorId: IDS.competitorX, network: 'facebook', capture: mk(0), prevCapture: mk(-7), olderCapture: mk(-14), posts, accountId: 'acme', followers: null, followersHistory: [] };
     const prior = (ago: number) => [{ blockKey: 'social:facebook:cadence:quiet:acme', detectedAt: day(-ago) }];
     expect(diffSocial({ ...base, priorChanges: prior(10) })).toEqual([]);
     expect(diffSocial({ ...base, priorChanges: prior(31) })).toHaveLength(1);
