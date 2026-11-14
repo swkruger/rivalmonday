@@ -27,6 +27,7 @@ Nothing in flight.
 - 2026-11-13: owner adds a second track to 18e: confidence in the Jev evals is now high, so add a setting to run review decisions on **Jev only** (no LLM step), with an option to **re-evaluate with all models** (today's Jev → LLM cascade / shadow comparison). Touches CLAUDE.md decision "Review decisions stay on Jev until pilot gold labels; verifier τ 0.85" and the cascade Jev → LLM → human.
 
 ## New backlog (target -> item)
+- Polish → evals: pin the Ask turn deadline to the eval clock so a slow live record can't store a forced `toolChoice: 'none'` step (replay miss) — *18e Task 13*
 - `[ ] Later -> social: IG ScrapeCreators 200 with success:false throws; record as a failed pull instead` - *18e Task 3 review*
 - `[ ] Later -> social: discovery has no equality-first pass; an IG-rejected handle also skips the FB candidate` - *18e Task 4 review*
 - `[ ] Later -> social: "gated" flag persists only on a successful profile call, so a failed pull pays the gated retry again` - *18e Task 5 review*
