@@ -11,6 +11,7 @@ import type { ToolDeps } from '../deps';
 import { createToolRegistry } from '../registry';
 import { inviteClientUser, sendClientInvite } from './client-invite';
 import { changeMemberRole, inviteMember, LAST_ADMIN_MESSAGE, listTeam, RESEND_LIMIT, resendInvitation, revokeInvitation, revokeMembership, TEAM_INVITE_LIMIT } from './team';
+import { testDeliveryConfig, testSenderConfig } from '@cs/engine';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -147,11 +148,11 @@ describe('revokeInvitation', () => {
 
 describe('resend + team_invite (15c-2a T11)', () => {
   const DAY = 86_400_000;
-  const delivery: DeliveryConfig = { appUrl: 'https://app.test', linkSecrets: ['s'.repeat(40)], fromAddress: 'briefs@app.test' };
+  const delivery: DeliveryConfig = testDeliveryConfig({ appUrl: 'https://app.test', linkSecrets: ['s'.repeat(40)] });
   let transport: ReturnType<typeof createMemoryTransport>;
   const deps = (t: EmailTransport = transport, over: Partial<ToolDeps> = {}): ToolDeps => ({
     app: dbs.app, service: dbs.service, delivery,
-    leadEmail: { transport: t, appUrl: 'https://app.test/', fromAddress: 'team@app.test', platformAdmins: [] }, ...over,
+    leadEmail: { transport: t, appUrl: 'https://app.test/', sender: testSenderConfig({ platformFrom: 'team@app.test' }), platformAdmins: [] }, ...over,
   });
   // The real audit sink: the resend limit counts audit_log rows (B2).
   const registry = (d: ToolDeps = deps()) => createToolRegistry(d);
@@ -238,7 +239,7 @@ describe('resend + team_invite (15c-2a T11)', () => {
     expect(new Date(r.expiresAt).getTime() - new Date(r.sentAt).getTime()).toBe(14 * DAY);
     expect(transport.sent).toHaveLength(1);
     const m = transport.sent[0]!;
-    expect(m).toMatchObject({ to: 'new@e.co', from: '"Peak Digital" <team@app.test>', subject: 'Pat Lee invited you to Peak Digital', tag: 'team_invite' });
+    expect(m).toMatchObject({ to: 'new@e.co', from: '"Rival Monday" <team@app.test>', subject: 'Pat Lee invited you to Peak Digital', tag: 'team_invite' });
     expect(m.text).toContain('Pat Lee has invited you to join Peak Digital as Agency admin. Sign in with this email address to accept.');
     expect(m.html).toContain('href="https://app.test/sign-in?email=new%40e.co&amp;next=%2Fagency"');
     expect(await dbs.service.select().from(notification)).toHaveLength(0);

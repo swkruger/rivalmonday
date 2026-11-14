@@ -76,7 +76,13 @@ export async function updateAgencyBranding(service: Db, ctx: AccessContext, inpu
   requireAdmin(ctx);
   const problems = brandingProblems(input, appUrl);
   if (problems.length) throw new ToolError('invalid_input', problems.join('; '));
-  await service.update(agency).set({ branding: clean(input) }).where(eq(agency.id, ctx.agencyId));
+  const next = clean(input);
+  // BACKLOG 5a T18: a form without the field keeps the stored fromEmail; an explicit '' clears it. One statement (no read-modify-write race).
+  const keepFromEmail = input.fromEmail === undefined;
+  await service
+    .update(agency)
+    .set({ branding: keepFromEmail ? sql`${JSON.stringify(next)}::jsonb || coalesce(jsonb_strip_nulls(jsonb_build_object('fromEmail', ${agency.branding}->'fromEmail')), '{}'::jsonb)` : next })
+    .where(eq(agency.id, ctx.agencyId));
 }
 
 // ---- webhooks (the URL is a secret: never returned) ----

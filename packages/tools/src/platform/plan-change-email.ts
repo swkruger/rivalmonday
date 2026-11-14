@@ -1,5 +1,6 @@
 import { DEFAULT_SUPPORT_EMAIL, type PlanFeature } from '@cs/core';
 import { type AgencyPlanChangeProps, type PlanTerms, renderEmail, resolveBranding } from '@cs/email';
+import { platformSender } from '@cs/engine';
 import { sql } from 'drizzle-orm';
 import type { ToolDeps } from '../deps';
 
@@ -50,7 +51,7 @@ export async function sendAgencyPlanChangeEmail(
           props: { ...props, branding, recipientName: firstNameSource(admin), agencyName: a.name },
         });
         await mail.transport.send(
-          { from: `"Rival Monday" <${mail.fromAddress}>`, to: admin.email, replyTo: supportEmail, subject: r.subject, html: r.html, text: r.text, tag: 'agency_plan_change', metadata: { agency: agencyId } },
+          { from: platformSender(mail.sender), to: admin.email, replyTo: supportEmail, subject: r.subject, html: r.html, text: r.text, tag: 'agency_plan_change', metadata: { agency: agencyId } },
           { agencyId, clientId: null },
         );
         sent++;

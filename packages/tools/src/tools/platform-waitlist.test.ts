@@ -13,6 +13,7 @@ import { ensureSampleAgency, SAMPLE_NO_CONTACTS } from '../waitlist/sample';
 import { resolveIntake } from '../intake/public';
 import { getSampleBrief } from '../waitlist/sample';
 import { SAMPLE_LINK_TTL_MS, verifySampleToken } from '../waitlist/sample-token';
+import { testSenderConfig } from '@cs/engine';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -266,7 +267,7 @@ describe('platform_find_business and assign_waitlist_business', () => {
     reg = createToolRegistry({
       app: dbs.app, service: dbs.service, platformAdmins: ['op@example.com'],
       setupLookup: async (q, scope) => { calls.push({ q, scope }); return [maps(1), maps(2)]; },
-      leadEmail: { transport, appUrl: 'https://app.test', fromAddress: 'briefs@app.test', platformAdmins: ['op@example.com'] },
+      leadEmail: { transport, appUrl: 'https://app.test', sender: testSenderConfig({ platformFrom: 'briefs@app.test' }), platformAdmins: ['op@example.com'] },
     }, { audit: { record: async () => {} } });
     await dbs.service.insert(contact).values({ agencyId: IDS.agencyB, role: 'agency_admin', email: 'admin@b.co', name: 'Bea' });
   });
@@ -498,7 +499,7 @@ describe('send_sample_brief', () => {
   let transport: EmailTransport & { sent: { to: string; subject: string; html: string; text: string; tag?: string }[] };
   const depsOf = (t: EmailTransport, over: Partial<ToolDeps> = {}): ToolDeps => ({
     app: dbs.app, service: dbs.service, platformAdmins: ['op@example.com'], appUrl: 'https://app.test', sampleLinkSecret: SECRET,
-    leadEmail: { transport: t, appUrl: 'https://app.test', fromAddress: 'briefs@app.test', platformAdmins: [] }, ...over,
+    leadEmail: { transport: t, appUrl: 'https://app.test', sender: testSenderConfig({ platformFrom: 'briefs@app.test' }), platformAdmins: [] }, ...over,
   });
   type Sent = { url: string; expiresAt: string; emailed: boolean };
   const send = (id: string, deps: ToolDeps = depsOf(transport), ctx = op) =>

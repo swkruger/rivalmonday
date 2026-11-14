@@ -1,6 +1,6 @@
 import { client, clientSetup, competitorSuggestion, contact, discoveryRun, invitation, notification } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
-import { addContact, type DeliveryConfig } from '@cs/engine';
+import { addContact, type DeliveryConfig, testDeliveryConfig } from '@cs/engine';
 import type { EmailPayload } from '@cs/email';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
@@ -11,7 +11,7 @@ const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
 const NOW = new Date('2026-10-20T14:00:00Z');
 const D = 86_400_000;
-const delivery: DeliveryConfig = { appUrl: 'https://app.test', linkSecrets: ['s'.repeat(40)], fromAddress: 'briefs@app.test' };
+const delivery: DeliveryConfig = testDeliveryConfig({ appUrl: 'https://app.test', linkSecrets: ['s'.repeat(40)] });
 const ID = IDS.clientA1;
 const go = (dedupe = `competitor-review:${ID}`, manual = false, now = NOW) =>
   queueCompetitorReview(dbs.service, delivery, { agencyId: IDS.agencyA, clientId: ID, dedupe, now, manual });

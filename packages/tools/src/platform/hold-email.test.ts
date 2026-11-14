@@ -7,6 +7,7 @@ import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { seedUser, truncateAuth } from '../../test/fixtures';
 import type { ToolDeps } from '../deps';
 import { sendAgencyHoldEmail } from './hold-email';
+import { testSenderConfig } from '@cs/engine';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -16,7 +17,7 @@ const REASON = 'Unpaid invoice INV-SECRET-42';
 let transport: ReturnType<typeof createMemoryTransport>;
 const deps = (o: Partial<ToolDeps> = {}): ToolDeps => ({
   app: dbs.app, service: dbs.service,
-  leadEmail: { transport, appUrl: 'https://app.test/', fromAddress: 'team@app.test', platformAdmins: [] },
+  leadEmail: { transport, appUrl: 'https://app.test/', sender: testSenderConfig({ platformFrom: 'team@app.test' }), platformAdmins: [] },
   ...o,
 });
 
@@ -69,7 +70,7 @@ describe('sendAgencyHoldEmail', () => {
     const err = vi.spyOn(console, 'error').mockImplementation(() => {});
     let n = 0;
     const flaky = { kind: 'memory' as const, send: async () => { if (n++ === 0) throw new Error('boom ann@example.com'); return { providerId: 'x' }; } };
-    expect(await sendAgencyHoldEmail(deps({ leadEmail: { transport: flaky, appUrl: 'https://app.test/', fromAddress: 'team@app.test', platformAdmins: [] } }), A, 'started')).toBe(1);
+    expect(await sendAgencyHoldEmail(deps({ leadEmail: { transport: flaky, appUrl: 'https://app.test/', sender: testSenderConfig({ platformFrom: 'team@app.test' }), platformAdmins: [] } }), A, 'started')).toBe(1);
     const logged = JSON.stringify(err.mock.calls);
     expect(logged).toContain(A);
     expect(logged).not.toMatch(/@example\.com|boom|INV-SECRET/);

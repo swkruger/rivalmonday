@@ -1,8 +1,7 @@
 import { cleanCc, PermanentEmailError, renderEmail } from '@cs/email';
-import { loadBranding } from '@cs/engine';
+import { loadBranding, platformSender } from '@cs/engine';
 import { sql } from 'drizzle-orm';
 import type { ToolDeps } from '../deps';
-import { quoteName } from '../intake/emails';
 
 /** Who the invite email speaks for: a person (named, Cc/reply-to) or the agency itself (platform staff acting for it). */
 export type Inviter = { userId: string } | { agency: true };
@@ -18,7 +17,7 @@ const expiryDate = (d: Date) => new Intl.DateTimeFormat('en-US', { month: 'short
 /**
  * 15c-2a D7 / B1: emails an agency-role invitee directly (the outbox needs a client), through the transport `deps.leadEmail`
  * carries. Call it after the invitation committed: it never throws, so a failed send never undoes the invitation. Returns
- * false when mail is not configured or the send failed. Logs the agency id only: never the address or the sign-in URL.
+ * false when mail is not configured or the send failed. 13a1 N1: From is the platform sender (staff live on APP_URL). Logs the agency id only: never the address or the sign-in URL.
  */
 export async function sendTeamInviteEmail(
   deps: ToolDeps,
@@ -44,7 +43,7 @@ export async function sendTeamInviteEmail(
       props: { branding, inviterName: inviter?.name?.trim() || inviter?.email || branding.displayName, agencyName: branding.displayName, roleLabel: ROLE_LABEL[i.role], expiryDate: expiryDate(i.expiresAt), signInUrl },
     });
     await mail.transport.send(
-      { from: `${quoteName(branding.fromName)} <${mail.fromAddress}>`, to, cc: cleanCc(undefined, to), replyTo: inviter?.email ?? null, subject: r.subject, html: r.html, text: r.text, tag: 'team_invite', metadata: { agency: i.agencyId } },
+      { from: platformSender(mail.sender), to, cc: cleanCc(undefined, to), replyTo: inviter?.email ?? null, subject: r.subject, html: r.html, text: r.text, tag: 'team_invite', metadata: { agency: i.agencyId } },
       { agencyId: i.agencyId, clientId: null },
     );
     return true;

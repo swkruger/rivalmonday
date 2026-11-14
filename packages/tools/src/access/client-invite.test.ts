@@ -11,11 +11,12 @@ import { createToolRegistry } from '../registry';
 import { clientOwnerEmails } from '../tools/client-billing';
 import { inviteClientUser, sendClientInvite, upsertContact } from './client-invite';
 import { acceptInvitations } from './invitations';
+import { testDeliveryConfig } from '@cs/engine';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
 const NOW = new Date('2026-10-17T12:00:00Z');
-const delivery: DeliveryConfig = { appUrl: 'https://app.test', linkSecrets: ['s'.repeat(40)], fromAddress: 'briefs@app.test' };
+const delivery: DeliveryConfig = testDeliveryConfig({ appUrl: 'https://app.test', linkSecrets: ['s'.repeat(40)] });
 const mk = (userId: string, role: AccessContext['role'], scope: AccessContext['clientScope'] = 'all') =>
   createAccessContext({ agencyId: IDS.agencyA, userId, role, clientScope: scope, features: [] });
 const admin = mk('admin', 'agency_admin');

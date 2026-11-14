@@ -1,7 +1,8 @@
 import { client, waitlistEntry } from '@cs/db';
 import { type EmailPayload, PermanentEmailError, renderEmail, resolveBranding } from '@cs/email';
 import { eq } from 'drizzle-orm';
-import { type LeadEmailDeps, quoteName } from '../intake/emails';
+import { platformSender } from '@cs/engine';
+import type { LeadEmailDeps } from '../intake/emails';
 
 // Phase 17a: waitlist mail is sent directly (no client, so no `notification` outbox). Throws on send failure so the caller decides.
 // Never log addresses, tokens or organisation names: a failure logs the entry id and kind only.
@@ -41,7 +42,7 @@ export async function sendWaitlistEmail(
     const r = await renderEmail(payload);
     await deps.transport.send(
       {
-        from: `${quoteName('Rival Monday')} <${deps.fromAddress}>`, to: row.email, replyTo: 'support@rivalmonday.app',
+        from: platformSender(deps.sender), to: row.email, replyTo: 'support@rivalmonday.app',
         subject: r.subject, html: r.html, text: r.text, tag: TAG[kind], metadata: { waitlist: entryId },
       },
       { agencyId: null, clientId: null },

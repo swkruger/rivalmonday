@@ -6,10 +6,11 @@ import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { EnqueueJob } from '../deps';
 import { createToolRegistry } from '../registry';
+import { testDeliveryConfig } from '@cs/engine';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
-const delivery: DeliveryConfig = { appUrl: 'http://localhost:3000', linkSecrets: ['k'.repeat(40)], fromAddress: 'briefs@example.com' };
+const delivery: DeliveryConfig = testDeliveryConfig({ appUrl: 'http://localhost:3000', linkSecrets: ['k'.repeat(40)] });
 const enqueue = vi.fn<EnqueueJob>(async () => {});
 const registry = createToolRegistry({ app: dbs.app, service: dbs.service, delivery, enqueue }, { audit: { record: async () => {} } });
 const ctx = (role: AccessContext['role'], scope: AccessContext['clientScope']) => createAccessContext({ agencyId: IDS.agencyA, userId: `u-${role}`, role, clientScope: scope, features: [] });

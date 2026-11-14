@@ -9,6 +9,7 @@ import { seedUser, truncateAuth } from '../../test/fixtures';
 import { planFeaturesFor } from '../access/plan-features';
 import { createToolRegistry } from '../registry';
 import { seatWarningFor } from './platform-plan-move';
+import { testSenderConfig } from '@cs/engine';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -92,7 +93,7 @@ beforeEach(async () => {
   gw = fakeGateway();
   transport = createMemoryTransport();
   registry = createToolRegistry(
-    { app: dbs.app, service: dbs.service, billing: gw, platformAdmins: ['op@example.com'], leadEmail: { transport, appUrl: 'https://app.test/', fromAddress: 'team@app.test', platformAdmins: [] } },
+    { app: dbs.app, service: dbs.service, billing: gw, platformAdmins: ['op@example.com'], leadEmail: { transport, appUrl: 'https://app.test/', sender: testSenderConfig({ platformFrom: 'team@app.test' }), platformAdmins: [] } },
     { audit: { record: async () => {} } },
   );
 });

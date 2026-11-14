@@ -1,10 +1,11 @@
-import { contact, intakeLink, lead, type SetupLookup } from '@cs/db';
+import { agency, agencySendingDomain, contact, intakeLink, lead, type SetupLookup } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { createMemoryTransport, type EmailTransport } from '@cs/email';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { seedUser, truncateAuth } from '../../test/fixtures';
 import { sendLeadEmail } from './emails';
+import { testSenderConfig } from '@cs/engine';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -13,7 +14,7 @@ const lookup: SetupLookup = { placeId: 'p1', cid: null, title: 'Smith Dental', a
 const ready = { status: 'ready' as const, self: { name: 'Smith Dental', rating: 4.5, votes: 10 }, nearby: [], facts: ['3 of 5 nearby dentists have more reviews than you.'], summary: 'You trail on volume.', category: 'Dentist', generatedAt: '2026-10-17T00:00:00Z' };
 
 let transport: ReturnType<typeof createMemoryTransport>;
-const deps = (t: EmailTransport = transport) => ({ service: dbs.service, transport: t, appUrl: 'https://app.test/', fromAddress: 'briefs@app.test', platformAdmins: ['Owner@Env.co'] });
+const deps = (t: EmailTransport = transport) => ({ service: dbs.service, transport: t, appUrl: 'https://app.test/', sender: testSenderConfig({ platformFrom: 'briefs@app.test' }), platformAdmins: ['Owner@Env.co'] });
 async function mkLead(over: Partial<typeof lead.$inferInsert> = {}) {
   const [l] = await dbs.service.insert(lead).values({ agencyId: IDS.agencyA, source: 'agency_link', status: 'verified', contactName: 'Sam Smith', email: 'sam@smith.co', lookup, preview: ready, ...over }).returning();
   return l!.id;
@@ -24,6 +25,7 @@ beforeEach(async () => {
   await truncateAll(dbs.owner);
   await truncateAuth(dbs.owner);
   await seedTenancy(dbs.owner);
+  await dbs.owner.update(agency).set({ hostSlug: 'agency-a' }).where(eq(agency.id, IDS.agencyA));
   transport = createMemoryTransport();
   await dbs.service.insert(contact).values([
     { agencyId: IDS.agencyA, role: 'agency_admin', email: 'Admin@A.co', name: 'Ada' },
@@ -40,7 +42,24 @@ describe('sendLeadEmail', () => {
     expect(transport.sent).toHaveLength(2);
     expect(transport.sent[0]).toMatchObject({ to: 'sam@smith.co', replyTo: 'amall@a.co', tag: 'lead_verify', subject: 'Confirm your email to see your competitor snapshot' });
     expect(transport.sent[0]!.html).toContain('https://app.test/start/verify/RAW1');
-    expect(transport.sent[0]!.from).toMatch(/^"[^"]+" <briefs@app\.test>$/);
+    expect(transport.sent[0]!.from).toBe('"Agency A" <agency-a@mail.clients.example>');
+  });
+
+  it('agency lead verify mail is From the agency sender; pool verify From the platform', async () => {
+    await dbs.owner.insert(agencySendingDomain).values({ agencyId: IDS.agencyA, domain: 'agency-a.co', localPart: 'hello', status: 'verified' });
+    await dbs.owner.update(agency).set({ branding: { fromName: 'Team A', fromEmail: 'jo@agency-a.co' } }).where(eq(agency.id, IDS.agencyA));
+    const a = await mkLead({ status: 'unverified' });
+    await sendLeadEmail(deps(), a, 'verify', { verifyRaw: 'RAW1' });
+    expect(transport.sent[0]).toMatchObject({ from: '"Team A" <hello@agency-a.co>', replyTo: 'jo@agency-a.co' });
+    for (const kind of ['confirmation', 'declined'] as const) {
+      await sendLeadEmail(deps(), a, kind);
+      expect(transport.sent.at(-1)!.from).toBe('"Team A" <hello@agency-a.co>');
+    }
+    await sendLeadEmail(deps(), a, 'agency_new'); // N1: agency staff get the platform sender
+    expect(transport.sent.at(-1)!.from).toBe('"Rival Monday" <briefs@app.test>');
+    const p = await mkLead({ status: 'unverified', agencyId: null, source: 'platform', email: 'pool@x.co' });
+    await sendLeadEmail(deps(), p, 'verify', { verifyRaw: 'RAW2' });
+    expect(transport.sent.at(-1)!.from).toBe('"Rival Monday" <briefs@app.test>');
   });
 
   it('verify: the link names the intake page it came from (agency slug; "-" without one; nothing for the platform page)', async () => {
@@ -56,12 +75,12 @@ describe('sendLeadEmail', () => {
     expect(transport.sent[2]!.text).toMatch(/https:\/\/app\.test\/start\/verify\/RAW2(?!\?)/);
   });
 
-  it('agency-branded mail never names Rival Monday; the unassigned pool confirmation carries the platform line', async () => {
+  it('agency-branded mail never names Rival Monday (agency_new From is the platform sender, N1); the unassigned pool confirmation carries the platform line', async () => {
     const a = await mkLead();
     await sendLeadEmail(deps(), a, 'confirmation');
     await sendLeadEmail(deps(), a, 'agency_new');
     expect(transport.sent.length).toBeGreaterThan(1);
-    for (const m of transport.sent) for (const s of [m.subject, m.html, m.text, m.from]) expect(s).not.toMatch(/rival\s*monday/i);
+    for (const m of transport.sent) for (const s of [m.subject, m.html, m.text, ...(m.tag === 'lead_agency_new' ? [] : [m.from])]) expect(s).not.toMatch(/rival\s*monday/i);
     transport.sent.length = 0;
     const p = await mkLead({ agencyId: null, source: 'platform', email: 'pool@x.co' });
     await sendLeadEmail(deps(), p, 'confirmation');

@@ -7,6 +7,7 @@ import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { seedUser, truncateAuth } from '../../test/fixtures';
 import type { ToolDeps } from '../deps';
 import { createToolRegistry } from '../registry';
+import { testSenderConfig } from '@cs/engine';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -21,7 +22,7 @@ const agencyAdmin = ctxOf('admin');
 let transport: ReturnType<typeof createMemoryTransport>;
 const deps = (): ToolDeps => ({
   app: dbs.app, service: dbs.service, platformAdmins: ['op@example.com'],
-  leadEmail: { transport, appUrl: 'https://app.test', fromAddress: 'briefs@app.test', platformAdmins: ['op@example.com'] },
+  leadEmail: { transport, appUrl: 'https://app.test', sender: testSenderConfig({ platformFrom: 'briefs@app.test' }), platformAdmins: ['op@example.com'] },
 });
 const call = <T = unknown>(ctx: AccessContext, tool: string, input: Record<string, unknown> = {}) =>
   createToolRegistry(deps(), { audit: { record: async () => {} } }).invoke(ctx, tool, input) as Promise<T>;

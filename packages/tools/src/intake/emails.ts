@@ -1,6 +1,6 @@
 import { type Branding, cleanCc, type EmailPayload, type EmailTransport, PermanentEmailError, renderEmail, resolveBranding } from '@cs/email';
 import { contact, type Db, intakeLink, lead, type LeadRow } from '@cs/db';
-import { loadBranding, replyToFor } from '@cs/engine';
+import { loadBranding, platformSender, replyToFor, type SenderConfig, senderFor } from '@cs/engine';
 import { and, eq, isNull, or, sql } from 'drizzle-orm';
 import { platformOperatorEmails } from '../platform/costs/alerts';
 
@@ -14,7 +14,8 @@ export interface LeadEmailDeps {
   service: Db;
   transport: EmailTransport;
   appUrl: string;
-  fromAddress: string;
+  /** 13a1 (N1): mail to an agency's lead uses that agency's client sender; agency staff, operators and pool leads the platform sender. */
+  sender: SenderConfig;
   platformAdmins: string[];
 }
 
@@ -26,7 +27,6 @@ const GUARD = {
 } as const;
 const GUARD_KEY = { confirmation: 'confirmationSentAt', declined: 'declinedNotifiedAt', agency_new: 'agencyNotifiedAt', pool_new: 'poolNotifiedAt' } as const;
 
-export const quoteName = (s: string) => `"${s.replace(/["\\\r\n]/g, '')}"`;
 const base = (appUrl: string) => appUrl.replace(/\/+$/, '');
 
 /** Agency admins plus account managers who cover every client (`client_scope` null). */
@@ -58,11 +58,13 @@ export async function sendLeadEmail(
   let sent = 0;
   try {
     const msgs = await build(deps, row, kind, extra);
+    // N1: the lead itself (verify/confirmation/declined) hears from its agency; staff (agency_new) and pool mail from the platform.
+    const s = row.agencyId && kind !== 'agency_new' ? await senderFor(deps.service, row.agencyId, 'client', deps.sender) : { from: platformSender(deps.sender) };
     for (const m of msgs) {
       try {
         const r = await renderEmail(m.payload);
         await deps.transport.send(
-          { from: `${quoteName(m.branding.fromName)} <${deps.fromAddress}>`, to: m.to, cc: cleanCc(undefined, m.to), replyTo: m.replyTo, subject: r.subject, html: r.html, text: r.text, tag: `lead_${kind}`, metadata: { lead: leadId } },
+          { from: s.from, to: m.to, cc: cleanCc(undefined, m.to), replyTo: s.replyTo ?? m.replyTo, subject: r.subject, html: r.html, text: r.text, tag: `lead_${kind}`, metadata: { lead: leadId } },
           { agencyId: row.agencyId, clientId: null },
         );
         sent++;

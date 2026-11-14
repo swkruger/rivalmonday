@@ -8,6 +8,7 @@ import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { seedUser, truncateAuth } from '../../test/fixtures';
 import type { ToolDeps } from '../deps';
 import { planChangeWorthEmailing, sendAgencyPlanChangeEmail } from './plan-change-email';
+import { testSenderConfig } from '@cs/engine';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -23,7 +24,7 @@ const props = {
 let transport: ReturnType<typeof createMemoryTransport>;
 const deps = (o: Partial<ToolDeps> = {}): ToolDeps => ({
   app: dbs.app, service: dbs.service,
-  leadEmail: { transport, appUrl: 'https://app.test/', fromAddress: 'team@app.test', platformAdmins: [] },
+  leadEmail: { transport, appUrl: 'https://app.test/', sender: testSenderConfig({ platformFrom: 'team@app.test' }), platformAdmins: [] },
   ...o,
 });
 
@@ -62,7 +63,7 @@ describe('sendAgencyPlanChangeEmail', () => {
   it('swallows transport errors', async () => {
     const err = vi.spyOn(console, 'error').mockImplementation(() => {});
     const bad = { kind: 'memory' as const, send: async () => { throw new Error('boom ann@example.com'); } };
-    expect(await sendAgencyPlanChangeEmail(deps({ leadEmail: { transport: bad, appUrl: 'https://app.test/', fromAddress: 'team@app.test', platformAdmins: [] } }), A, props)).toBe(0);
+    expect(await sendAgencyPlanChangeEmail(deps({ leadEmail: { transport: bad, appUrl: 'https://app.test/', sender: testSenderConfig({ platformFrom: 'team@app.test' }), platformAdmins: [] } }), A, props)).toBe(0);
     expect(JSON.stringify(err.mock.calls)).not.toMatch(/@example\.com|boom/);
   });
 });

@@ -10,11 +10,12 @@ import type { EnqueueJob, ToolDeps } from '../deps';
 import { sendLeadEmail } from '../intake/emails';
 import { createToolRegistry } from '../registry';
 import { slugBase, slugCandidate } from './leads';
+import { testDeliveryConfig, testSenderConfig } from '@cs/engine';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
 
-const delivery: DeliveryConfig = { appUrl: 'https://app.test', linkSecrets: ['s'.repeat(40)], fromAddress: 'briefs@app.test' };
+const delivery: DeliveryConfig = testDeliveryConfig({ appUrl: 'https://app.test', linkSecrets: ['s'.repeat(40)] });
 const lookup: SetupLookup = { placeId: 'pl-smith-1', cid: null, title: 'Smith Dental', address: '1 Main St', city: 'Austin', category: 'Dentist', phone: null, domain: null, rating: 4.5, votes: 10, lat: 30.2, lng: -97.7 };
 const ready = { status: 'ready' as const, self: { name: 'Smith Dental', rating: 4.5, votes: 10 }, nearby: [], facts: ['3 of 5 nearby dentists have more reviews than you.'], summary: 'You trail on volume.', category: 'Dentist', generatedAt: '2026-10-17T00:00:00Z' };
 
@@ -31,7 +32,7 @@ let transport: ReturnType<typeof createMemoryTransport>;
 const enqueue = vi.fn<EnqueueJob>(async () => {});
 const deps = (over: Partial<ToolDeps> = {}): ToolDeps => ({
   app: dbs.app, service: dbs.service, enqueue, delivery, appUrl: 'https://app.test',
-  leadEmail: { transport, appUrl: 'https://app.test', fromAddress: 'briefs@app.test', platformAdmins: ['Owner@Env.co'] },
+  leadEmail: { transport, appUrl: 'https://app.test', sender: testSenderConfig({ platformFrom: 'briefs@app.test' }), platformAdmins: ['Owner@Env.co'] },
   ...over,
 });
 const registry = (over: Partial<ToolDeps> = {}) => createToolRegistry(deps(over), { audit: { record: async () => {} } });
@@ -170,7 +171,7 @@ describe('decline_lead', () => {
     expect(after.poolNotifiedAt).not.toBeNull();
     expect(after.poolNotifiedAt!.getTime()).toBeGreaterThan(new Date('2026-10-02T00:00:00Z').getTime());
     // A cleanup retry (guarded) does not send again.
-    await sendLeadEmail({ service: dbs.service, transport, appUrl: 'https://app.test', fromAddress: 'briefs@app.test', platformAdmins: ['Owner@Env.co'] }, id, 'pool_new');
+    await sendLeadEmail({ service: dbs.service, transport, appUrl: 'https://app.test', sender: testSenderConfig({ platformFrom: 'briefs@app.test' }), platformAdmins: ['Owner@Env.co'] }, id, 'pool_new');
     expect(transport.sent).toHaveLength(2);
   });
 

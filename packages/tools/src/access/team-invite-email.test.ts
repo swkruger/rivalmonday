@@ -1,4 +1,4 @@
-import { agency } from '@cs/db';
+import { agency, agencySendingDomain } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { createMemoryTransport } from '@cs/email';
 import { eq, sql } from 'drizzle-orm';
@@ -6,13 +6,14 @@ import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { seedUser, truncateAuth } from '../../test/fixtures';
 import type { ToolDeps } from '../deps';
 import { sendTeamInviteEmail } from './team-invite-email';
+import { testSenderConfig } from '@cs/engine';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
 
 describe('sendTeamInviteEmail inviter', () => {
   let transport: ReturnType<typeof createMemoryTransport>;
-  const deps = (): ToolDeps => ({ app: dbs.app, service: dbs.service, leadEmail: { transport, appUrl: 'https://app.test/', fromAddress: 'team@app.test', platformAdmins: [] } });
+  const deps = (): ToolDeps => ({ app: dbs.app, service: dbs.service, leadEmail: { transport, appUrl: 'https://app.test/', sender: testSenderConfig({ platformFrom: 'team@app.test' }), platformAdmins: [] } });
   const expiresAt = new Date('2026-11-01T00:00:00Z');
 
   beforeEach(async () => {
@@ -28,6 +29,12 @@ describe('sendTeamInviteEmail inviter', () => {
   it('{ userId } names the inviter and sets replyTo (unchanged)', async () => {
     expect(await sendTeamInviteEmail(deps(), { agencyId: IDS.agencyA, to: 'n@e.co', role: 'agency_admin', inviter: { userId: 'admin' }, expiresAt })).toBe(true);
     expect(transport.sent[0]).toMatchObject({ subject: 'Pat Lee invited you to Peak Digital', replyTo: 'admin@e.co' });
+  });
+
+  it('From is the platform sender (N1), even with a verified sending domain', async () => {
+    await dbs.owner.insert(agencySendingDomain).values({ agencyId: IDS.agencyA, domain: 'peak.co', status: 'verified' });
+    expect(await sendTeamInviteEmail(deps(), { agencyId: IDS.agencyA, to: 'n@e.co', role: 'agency_admin', inviter: { userId: 'admin' }, expiresAt })).toBe(true);
+    expect(transport.sent[0]!.from).toBe('"Rival Monday" <team@app.test>');
   });
 
   it('{ agency: true } names the agency display name, no replyTo', async () => {

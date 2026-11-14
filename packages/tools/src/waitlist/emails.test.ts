@@ -3,12 +3,13 @@ import { openTestDbs, truncateAll } from '@cs/db/test-helpers';
 import { createMemoryTransport, type EmailTransport } from '@cs/email';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { sendWaitlistEmail } from './emails';
+import { testSenderConfig } from '@cs/engine';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
 
 let transport: ReturnType<typeof createMemoryTransport>;
-const deps = (t: EmailTransport = transport) => ({ service: dbs.service, transport: t, appUrl: 'https://app.test/', fromAddress: 'briefs@app.test', platformAdmins: [] });
+const deps = (t: EmailTransport = transport) => ({ service: dbs.service, transport: t, appUrl: 'https://app.test/', sender: testSenderConfig({ platformFrom: 'briefs@app.test' }), platformAdmins: [] });
 async function mk(over: Partial<typeof waitlistEntry.$inferInsert> = {}) {
   const [w] = await dbs.service.insert(waitlistEntry).values({ kind: 'agency', contactName: 'Ada', email: 'ada@a.co', orgName: 'Agency Co', clientCountBand: '1-5', ipHash: 'h', ...over }).returning();
   return w!.id;

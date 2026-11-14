@@ -1,4 +1,5 @@
 import { DEFAULT_SUPPORT_EMAIL } from '@cs/core';
+import { platformSender } from '@cs/engine';
 import { renderEmail, resolveBranding } from '@cs/email';
 import { sql } from 'drizzle-orm';
 import type { ToolDeps } from '../deps';
@@ -37,7 +38,7 @@ export async function sendAgencyHoldEmail(deps: ToolDeps, agencyId: string, kind
           props: { branding, recipientName: firstNameSource(admin), agencyName: a.name, kind, supportEmail },
         });
         await mail.transport.send(
-          { from: `"Rival Monday" <${mail.fromAddress}>`, to: admin.email, replyTo: supportEmail, subject: r.subject, html: r.html, text: r.text, tag: 'agency_hold', metadata: { agency: agencyId } },
+          { from: platformSender(mail.sender), to: admin.email, replyTo: supportEmail, subject: r.subject, html: r.html, text: r.text, tag: 'agency_hold', metadata: { agency: agencyId } },
           { agencyId, clientId: null },
         );
         sent++;

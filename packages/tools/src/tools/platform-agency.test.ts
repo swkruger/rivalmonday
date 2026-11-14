@@ -10,6 +10,7 @@ import { inviteMember, LAST_ADMIN_MESSAGE } from '../access/team';
 import type { ToolDeps } from '../deps';
 import { createToolRegistry } from '../registry';
 import { ARCHIVE_BILLING_MESSAGE } from './platform-agency';
+import { testSenderConfig } from '@cs/engine';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -27,7 +28,7 @@ let registry: ReturnType<typeof createToolRegistry>;
 let gw: FakeGateway;
 const deps = (): ToolDeps => ({
   app: dbs.app, service: dbs.service, appUrl: 'https://app.test', platformAdmins: ['op@example.com'], billing: gw,
-  leadEmail: { transport, appUrl: 'https://app.test/', fromAddress: 'team@app.test', platformAdmins: [] },
+  leadEmail: { transport, appUrl: 'https://app.test/', sender: testSenderConfig({ platformFrom: 'team@app.test' }), platformAdmins: [] },
 });
 const call = (ctx: AccessContext, name: string, input: unknown = {}) => registry.invoke(ctx, name, input);
 const fails = async (p: Promise<unknown>) => {

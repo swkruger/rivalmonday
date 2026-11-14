@@ -10,6 +10,7 @@ import type { SetupState } from '../setup/state';
 import { createToolRegistry } from '../registry';
 import { catalogOf } from '../catalog/access';
 import { closedSetupRecheck, reportedSuggestions } from './setup';
+import { testDeliveryConfig } from '@cs/engine';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -895,7 +896,7 @@ describe('owner pick emails (P12)', () => {
   const D = 86_400_000;
   const reg = () =>
     createToolRegistry(
-      { app: dbs.app, service: dbs.service, enqueue: wizEnqueue, delivery: { appUrl: 'https://app.test', linkSecrets: ['s'.repeat(40)], fromAddress: 'b@app.test' } },
+      { app: dbs.app, service: dbs.service, enqueue: wizEnqueue, delivery: testDeliveryConfig({ appUrl: 'https://app.test', linkSecrets: ['s'.repeat(40)] }) },
       { audit: { record: async () => {} } },
     );
   const reviews = () => dbs.owner.select().from(notification).where(eq(notification.kind, 'competitor_review'));
@@ -945,7 +946,7 @@ describe('send_competitor_review', () => {
   const D = 86_400_000;
   const withDelivery = () =>
     createToolRegistry(
-      { app: dbs.app, service: dbs.service, delivery: { appUrl: 'https://app.test', linkSecrets: ['s'.repeat(40)], fromAddress: 'b@app.test' } },
+      { app: dbs.app, service: dbs.service, delivery: testDeliveryConfig({ appUrl: 'https://app.test', linkSecrets: ['s'.repeat(40)] }) },
       { audit: { record: async () => {} } },
     );
   async function seedInvited() {

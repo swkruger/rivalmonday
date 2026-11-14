@@ -24,6 +24,7 @@ import type { z } from 'zod';
 import type { EnqueueJob, ToolDeps } from '../deps';
 import { dbs } from '../tools/workspace-fixtures';
 import { type IsolationFixture, type IsolationTarget, VIEWER_WRITES } from './fixtures';
+import { testDeliveryConfig, testSenderConfig } from '@cs/engine';
 
 /** What a write tool's cases observe besides the result: the DB (owner connection) and the deps' side-effect spies. */
 export interface WriteProbe { owner: Db; enqueued: unknown[]; gateway: FakeGateway; webhooks?: unknown[] }
@@ -69,10 +70,10 @@ export function isolationDeps(w: IsolationWorld): { deps: ToolDeps; enqueued: un
     kbImportEnabled: true,
     appUrl: 'https://app.example',
     sampleLinkSecret: 'isolation-sample-secret-0123456789abcdef',
-    delivery: { appUrl: 'https://app.example', linkSecrets: ['isolation-link-secret-0123456789abcdef'], fromAddress: 'briefs@app.example' },
+    delivery: testDeliveryConfig({ appUrl: 'https://app.example', linkSecrets: ['isolation-link-secret-0123456789abcdef'] }),
     webhookFetch,
     // direct sends (team invites, hold emails, lead notices) go to memory, never "email is not configured"
-    leadEmail: { transport: createMemoryTransport(), appUrl: 'https://app.example', fromAddress: 'team@app.example', platformAdmins: [] },
+    leadEmail: { transport: createMemoryTransport(), appUrl: 'https://app.example', sender: testSenderConfig({ platformFrom: 'team@app.example' }), platformAdmins: [] },
     platformAdmins: [],
     setupLookup: async () => [],
     evidenceStore: {

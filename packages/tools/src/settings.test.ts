@@ -43,6 +43,20 @@ describe('branding', () => {
     expect(brandingProblems({ logoUrl: 'http://localhost:3000.evil.co/files/logo/a.png' }, 'http://localhost:3000')).toHaveLength(1);
   });
 
+  it('saving branding without fromEmail keeps it', async () => {
+    await updateAgencyBranding(dbs.service, admin, { displayName: 'Acme', fromEmail: 'jo@acme.co' });
+    await updateAgencyBranding(dbs.service, admin, { displayName: 'Acme 2', primary: '#123ABC' });
+    expect((await getAgencyBranding(dbs.service, admin)).stored).toEqual({ displayName: 'Acme 2', primary: '#123ABC', fromEmail: 'jo@acme.co' });
+  });
+
+  it("'' clears it", async () => {
+    await updateAgencyBranding(dbs.service, admin, { displayName: 'Acme', fromEmail: 'jo@acme.co' });
+    await updateAgencyBranding(dbs.service, admin, { displayName: 'Acme', fromEmail: '' });
+    expect((await getAgencyBranding(dbs.service, admin)).stored).toEqual({ displayName: 'Acme' });
+    await updateAgencyBranding(dbs.service, admin, { displayName: 'Acme' }); // nothing stored: still nothing
+    expect((await getAgencyBranding(dbs.service, admin)).stored).toEqual({ displayName: 'Acme' });
+  });
+
   it('is admin-only to change', async () => {
     await expect(updateAgencyBranding(dbs.service, am, { displayName: 'X' })).rejects.toMatchObject({ code: 'permission_denied' });
   });
