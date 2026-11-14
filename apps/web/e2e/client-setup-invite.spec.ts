@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { type Browser, expect, type Page, test, type TestInfo } from '@playwright/test';
 import { agency, billingNotice, client, clientBilling, createDb } from '@cs/db';
 import { createFileTransport } from '@cs/email';
-import { createEmailSender, dispatchDue } from '@cs/engine';
+import { createEmailSender, dispatchDue, testSenderConfig } from '@cs/engine';
 import { clientOwnerEmails } from '@cs/tools';
 import { and, eq } from 'drizzle-orm';
 import { OUTBOX } from '../playwright.config';
@@ -49,7 +49,7 @@ type Mail = { to: string; cc?: string[]; from: string; subject: string; text: st
 
 /** Sends every due outbox row through the file transport, then returns the email to `to` that is not in `before`. */
 async function dispatchAndRead(before: Set<string>, to: string): Promise<Mail> {
-  await withDb((db) => dispatchDue({ db, senders: { email: createEmailSender({ transport: createFileTransport(OUTBOX), fromAddress: 'e2e@example.com' }) } }, new Date()));
+  await withDb((db) => dispatchDue({ db, senders: { email: createEmailSender({ transport: createFileTransport(OUTBOX), db, cfg: testSenderConfig({ platformFrom: 'e2e@example.com' }) }) } }, new Date()));
   for (const f of (await readdir(OUTBOX)).filter((n) => n.endsWith('.json') && !before.has(n))) {
     const mail = JSON.parse(await readFile(join(OUTBOX, f), 'utf8')) as Mail;
     if (mail.to.toLowerCase() === to) return mail;

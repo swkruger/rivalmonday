@@ -15,7 +15,7 @@ vi.mock('@cs/db', async (orig) => ({ ...(await orig<typeof import('@cs/db')>()),
 vi.mock('@/server/tools', () => ({ toolDeps: () => ({ service: 'svc', platformAdmins: ['op@x.co'] }) }));
 vi.mock('@/server/dev-guard', () => ({ activeEnvName: () => 'dev', processGuardOn: () => false }));
 vi.mock('@/server/email-transport', () => ({ webEmailTransport: () => 'transport' }));
-vi.mock('@/server/env', () => ({ webEnv: () => ({ authSecret: 's'.repeat(40), appUrl: 'https://app.test', emailFrom: 'briefs@app.test', turnstile: m.turnstileCfg }) }));
+vi.mock('@/server/env', () => ({ webEnv: () => ({ authSecret: 's'.repeat(40), appUrl: 'https://app.test', emailFrom: 'briefs@app.test', hostEnv: { appUrl: 'https://app.test', neutralDomain: 'clients.test', extraPlatformHosts: [] }, turnstile: m.turnstileCfg }) }));
 vi.mock('@/server/turnstile', () => ({ verifyTurnstile: (...a: unknown[]) => m.turnstile(...a) }));
 vi.mock('next/headers', () => ({ headers: async () => new Headers({ 'x-forwarded-for': m.headerIp }) }));
 vi.mock('next/server', () => ({ after: (fn: () => unknown) => { m.after.push(fn); } }));
@@ -92,7 +92,7 @@ describe('submitIntakeAction', () => {
     await flushAfter();
     expect(m.send).toHaveBeenCalledTimes(1);
     const [emailDeps, leadId, kind, extra] = m.send.mock.calls[0]!;
-    expect(emailDeps).toMatchObject({ service: 'svc', transport: 'transport', appUrl: 'https://app.test', fromAddress: 'briefs@app.test' });
+    expect(emailDeps).toMatchObject({ service: 'svc', transport: 'transport', appUrl: 'https://app.test', sender: { platformFrom: 'briefs@app.test', hostEnv: { appUrl: 'https://app.test', neutralDomain: 'clients.test', extraPlatformHosts: [] } } });
     expect([leadId, kind, extra]).toEqual(['L1', 'verify', { verifyRaw: 'RAWTOKEN' }]);
   });
 

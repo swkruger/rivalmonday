@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { type Browser, expect, type Page, test, type TestInfo } from '@playwright/test';
 import { agency, client, createDb, lead, notification } from '@cs/db';
 import { createFileTransport } from '@cs/email';
-import { createEmailSender, dispatchDue } from '@cs/engine';
+import { createEmailSender, dispatchDue, testSenderConfig } from '@cs/engine';
 import { and, eq } from 'drizzle-orm';
 import { OUTBOX } from '../playwright.config';
 import { ADMIN_STATE, ensureAdminState } from './admin-session';
@@ -170,7 +170,7 @@ test.describe.serial('client intake and leads', () => {
         expect(n?.address?.toLowerCase()).toBe(IN_LEAD.email);
         // Drain the outbox as the worker's dispatcher would: the invite reaches the (inactive) contact, agency-branded.
         const before = await outboxSnapshot();
-        await dispatchDue({ db, senders: { email: createEmailSender({ transport: createFileTransport(OUTBOX), fromAddress: 'e2e@example.com' }) } }, new Date());
+        await dispatchDue({ db, senders: { email: createEmailSender({ transport: createFileTransport(OUTBOX), db, cfg: testSenderConfig({ platformFrom: 'e2e@example.com' }) }) } }, new Date());
         const mail = await waitForMail(before, IN_LEAD.email);
         expect(mail.from).toContain(SI_AGENCY);
         expect(mail.text + mail.subject).not.toMatch(/rival\s*monday/i);

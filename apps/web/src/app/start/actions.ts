@@ -112,7 +112,7 @@ export async function submitIntakeAction(_prev: SubmitState, formData: FormData)
       after(async () => {
         try {
           await sendLeadEmail(
-            { service: deps.service, transport: webEmailTransport(processGuardOn(), process.env, createLedgerSink(deps.service)), appUrl: env.appUrl, fromAddress: env.emailFrom, platformAdmins: [...(deps.platformAdmins ?? [])] },
+            { service: deps.service, transport: webEmailTransport(processGuardOn(), process.env, createLedgerSink(deps.service)), appUrl: env.appUrl, sender: { hostEnv: env.hostEnv, platformFrom: env.emailFrom }, platformAdmins: [...(deps.platformAdmins ?? [])] },
             send.leadId, 'verify', { verifyRaw: send.verifyRaw },
           );
         } catch (e) {
