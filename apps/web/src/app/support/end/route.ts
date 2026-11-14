@@ -1,6 +1,6 @@
 import { resolveSession } from '@cs/tools';
 import { type NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/server/auth';
+import { requestAuth } from '@/server/auth';
 import { dbs } from '@/server/db';
 import { webEnv } from '@/server/env';
 import { platformAdmins } from '@/server/runtime-env';
@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
   let clear = true;
   if (id && id !== req.nextUrl.searchParams.get('sid')) clear = false;
   else if (id) {
-    const s = await auth().api.getSession({ headers: req.headers });
+    const s = await (await requestAuth()).api.getSession({ headers: req.headers });
     if (s) {
       const r = await resolveSession({ service: dbs().service, platformAdmins: platformAdmins() }, { sessionId: id, userId: s.user.id });
       if (r.kind === 'expired') to = `/platform/agencies/${r.agencyId}?ended=1`;

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const m = vi.hoisted(() => ({ session: null as null | { user: { id: string } }, endOpen: vi.fn(), set: vi.fn() }));
-vi.mock('@/server/auth', () => ({ auth: () => ({ api: { getSession: async () => m.session } }) }));
+vi.mock('@/server/auth', () => ({ requestAuth: async () => ({ api: { getSession: async () => m.session } }) }));
 vi.mock('@/server/db', () => ({ dbs: () => ({ service: 'service-db' }) }));
 vi.mock('@cs/tools', () => ({ endOpenSessionFor: (...a: unknown[]) => m.endOpen(...a) }));
 vi.mock('@/server/current-viewer', () => ({ requireContext: vi.fn() }));

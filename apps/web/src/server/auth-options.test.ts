@@ -8,7 +8,7 @@ import { Pool } from 'pg';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { truncateAuth } from '../../test/auth-fixtures';
 import { oauthHarness, pathOf, queryOf, REDIRECT } from '../../test/oauth-fixtures';
-import { buildAuthOptions, oauthOptions } from './auth-options';
+import { type AuthDeps, buildAuthOptions, NEUTRAL_APP_NAME, oauthOptions } from './auth-options';
 import type { WebEnv } from './env';
 
 const dbs = openTestDbs();
@@ -22,13 +22,17 @@ const env: WebEnv = {
   appUrl: 'http://localhost:3000', hostEnv: { appUrl: 'http://localhost:3000', neutralDomain: 'localhost', extraPlatformHosts: [] }, appDatabaseUrl: testUrls.app, serviceDatabaseUrl: testUrls.service, queueDatabaseUrl: testUrls.owner,
   authSecret: 's'.repeat(40), linkSecrets: ['l'.repeat(40)], emailFrom: 'from@example.com', google: null, defaultAgencyId: null, webMonitoring: false, kbImport: false, platformAdmins: [], askFakeAi: false, setupFakeLookup: false, webhookFakeSend: false, siteOrigins: [],
 };
+const PLATFORM = { origin: 'http://localhost:3000', info: { kind: 'platform' } } as const;
+const MCP = { origin: 'http://localhost:3000', info: { kind: 'mcp' } } as const; // the harness drives the provider on APP
+const ACME = 'http://acme.localhost:3000';
+const AGENCY_HOST = { origin: ACME, info: { kind: 'agency', agencyId: IDS.agencyA, canonical: true, canonicalOrigin: ACME } } as const;
 const mail = createMemoryTransport();
 let failSend = false;
 // Background work (the sign-in-link check and send) is collected so tests can wait for it deterministically.
 const background: Promise<unknown>[] = [];
 const flush = () => Promise.all(background.splice(0));
 const auth = betterAuth(buildAuthOptions({
-  env, service: dbs.service, pool,
+  env, host: PLATFORM, service: dbs.service, pool,
   branding: async () => resolveBranding('Rival Monday', null),
   runInBackground: (task) => void background.push(task),
   sendEmail: async (to, payload) => {
@@ -128,7 +132,7 @@ describe('5b-2 hardening (decision 14)', () => {
   });
 
   it('refuses a session for a user who has lost every sign-in right (e.g. a Google user whose memberships were removed)', async () => {
-    const opts = buildAuthOptions({ env, service: dbs.service, pool, branding: async () => resolveBranding('Rival Monday', null), runInBackground: () => {}, sendEmail: async () => {} });
+    const opts = buildAuthOptions({ env, host: PLATFORM, service: dbs.service, pool, branding: async () => resolveBranding('Rival Monday', null), runInBackground: () => {}, sendEmail: async () => {} });
     const before = opts.databaseHooks!.session!.create!.before!;
     await dbs.owner.execute(sql`insert into auth."user" (id, name, email, "emailVerified") values ('g1', 'G', 'google@example.com', true)`);
     const session = { userId: 'g1', token: 't', expiresAt: new Date(Date.now() + 3_600_000), createdAt: new Date(), updatedAt: new Date() };
@@ -143,7 +147,7 @@ describe('Phase 10: pending agency sign-up completion (session.create.after)', (
   const pend = (email: string) =>
     dbs.service.insert(pendingSignup).values({ email, agencyName: 'Fresh Agency', source: 'open', ipHash: 'h'.repeat(64), expiresAt: new Date(Date.now() + 86_400_000) });
   const fresh = async () => (await dbs.owner.select().from(agency)).filter((a) => a.id !== IDS.agencyA && a.id !== IDS.agencyB);
-  const hookOpts = () => buildAuthOptions({ env, service: dbs.service, pool, branding: async () => resolveBranding('Rival Monday', null), runInBackground: () => {}, sendEmail: async () => {} });
+  const hookOpts = () => buildAuthOptions({ env, host: PLATFORM, service: dbs.service, pool, branding: async () => resolveBranding('Rival Monday', null), runInBackground: () => {}, sendEmail: async () => {} });
   const sessionFor = (userId: string) => ({ userId, token: 't', expiresAt: new Date(Date.now() + 3_600_000), createdAt: new Date(), updatedAt: new Date() });
 
   it('a magic-link sign-in of a pending email creates the agency (trialing, admin membership) exactly once', async () => {
@@ -209,7 +213,7 @@ describe('onMagicLink (dev panel sign-in, deviation 4)', () => {
   it('hands the verify URL to the hook synchronously, before the background send', async () => {
     const seen: [string, string][] = [];
     const devAuth = betterAuth(buildAuthOptions({
-      env, service: dbs.service, pool, branding: async () => resolveBranding('Rival Monday', null),
+      env, host: PLATFORM, service: dbs.service, pool, branding: async () => resolveBranding('Rival Monday', null),
       runInBackground: (task) => void background.push(task), sendEmail: async () => {},
       onMagicLink: (email, url) => seen.push([email, url]),
     }));
@@ -224,7 +228,7 @@ describe('onMagicLink (dev panel sign-in, deviation 4)', () => {
 describe('OAuth provider (Phase 6a Task 11)', () => {
   const links: string[] = [];
   const oauthAuth = betterAuth(buildAuthOptions({
-    env, service: dbs.service, pool, branding: async () => resolveBranding('Rival Monday', null),
+    env, host: MCP, service: dbs.service, pool, branding: async () => resolveBranding('Rival Monday', null),
     runInBackground: (task) => void background.push(task), sendEmail: async () => {}, onMagicLink: (_e, url) => void links.push(url),
   }));
   const h = () => oauthHarness(oauthAuth, () => links.at(-1), flush);
@@ -283,5 +287,69 @@ describe('OAuth provider (Phase 6a Task 11)', () => {
     const q = new URLSearchParams(queryOf(a.location!));
     expect(q.get('client_id')).toBe(clientId);
     expect(q.get('sig')).toBeTruthy();
+  });
+});
+
+describe('one Better Auth per origin (13a1 P6, Appendix D)', () => {
+  const deps = (host: AuthDeps['host'], over: Partial<AuthDeps> = {}): AuthDeps => ({
+    env, host, service: dbs.service, pool, branding: async () => resolveBranding('Rival Monday', null),
+    runInBackground: (task) => void background.push(task), sendEmail: async () => {}, ...over,
+  });
+  const MCP_REAL = { origin: 'http://mcp.localhost:3000', info: { kind: 'mcp' } } as const;
+
+  it('baseURL and trustedOrigins equal the host origin', () => {
+    for (const host of [PLATFORM, AGENCY_HOST, MCP_REAL]) {
+      const o = buildAuthOptions(deps(host));
+      expect(o.baseURL, host.origin).toBe(host.origin);
+      expect(o.trustedOrigins, host.origin).toEqual([host.origin]);
+    }
+  });
+
+  it('appName: Rival Monday on the platform, neutral elsewhere', () => {
+    expect(NEUTRAL_APP_NAME).toBe('Connect');
+    expect(buildAuthOptions(deps(PLATFORM)).appName).toBe('Rival Monday');
+    expect(buildAuthOptions(deps(MCP_REAL)).appName).toBe(NEUTRAL_APP_NAME);
+    expect(buildAuthOptions(deps(AGENCY_HOST)).appName).not.toBe('Rival Monday');
+  });
+
+  it('Google provider only on platform', () => {
+    const g = { ...env, google: { clientId: 'gid', clientSecret: 'gsecret' } };
+    expect(buildAuthOptions(deps(PLATFORM, { env: g })).socialProviders?.google).toBeDefined();
+    expect(buildAuthOptions(deps(AGENCY_HOST, { env: g })).socialProviders?.google).toBeUndefined();
+    expect(buildAuthOptions(deps(MCP_REAL, { env: g })).socialProviders?.google).toBeUndefined();
+  });
+
+  it('magic link URL uses the request origin and cookies carry no Domain attribute', async () => {
+    const links: string[] = [];
+    const agencyAuth = betterAuth(buildAuthOptions(deps(AGENCY_HOST, { onMagicLink: (_e, url) => void links.push(url) })));
+    await dbs.service.insert(invitation).values({ agencyId: IDS.agencyA, email: 'owner@client.example', role: 'agency_admin', invitedBy: 't', expiresAt: new Date(Date.now() + 86_400_000) });
+    const res = await agencyAuth.handler(new Request(`${ACME}/api/auth/sign-in/magic-link`, { method: 'POST', headers: { 'content-type': 'application/json', origin: ACME }, body: JSON.stringify({ email: 'owner@client.example', callbackURL: '/' }) }));
+    expect(res.status).toBe(200);
+    await flush();
+    expect(links.at(-1)).toMatch(/^http:\/\/acme\.localhost:3000\/api\/auth\/magic-link\/verify\?token=/);
+    const verify = await agencyAuth.handler(new Request(links.at(-1)!));
+    const cookies = verify.headers.getSetCookie();
+    expect(cookies.some((c) => /session_token=[^;]+;/.test(c))).toBe(true);
+    for (const c of cookies) expect(c).not.toMatch(/;\s*domain=/i);
+    const o = buildAuthOptions(deps(AGENCY_HOST));
+    expect(o.advanced?.crossSubDomainCookies).toBeUndefined();
+    expect(o.advanced?.defaultCookieAttributes?.domain).toBeUndefined();
+  });
+
+  it('the running instance trusts only its own origin (Better Auth skips origin checks under NODE_ENV=test, so assert the list)', async () => {
+    const ctx = await betterAuth(buildAuthOptions(deps(AGENCY_HOST))).$context;
+    expect([...new Set(ctx.trustedOrigins)]).toEqual([ACME]); // baseURL's origin + trustedOrigins (the same one)
+    expect(ctx.isTrustedOrigin('http://localhost:3000/agency')).toBe(false);
+    expect(ctx.isTrustedOrigin(`${ACME}/c/x`)).toBe(true);
+  });
+
+  it('oauth plugin endpoints exist only on the mcp instance', async () => {
+    const body = JSON.stringify({ client_name: 'X', redirect_uris: [REDIRECT], token_endpoint_auth_method: 'none', grant_types: ['authorization_code'], response_types: ['code'] });
+    const register = (a: { handler: (r: Request) => Promise<Response> }, origin: string) =>
+      a.handler(new Request(`${origin}/api/auth/oauth2/register`, { method: 'POST', headers: { 'content-type': 'application/json', origin }, body }));
+    expect((await register(betterAuth(buildAuthOptions(deps(PLATFORM))), PLATFORM.origin)).status).toBe(404);
+    expect((await register(betterAuth(buildAuthOptions(deps(AGENCY_HOST))), ACME)).status).toBe(404);
+    expect((await register(betterAuth(buildAuthOptions(deps(MCP))), MCP.origin)).status).toBe(201);
+    expect(buildAuthOptions(deps(PLATFORM)).hooks?.before).toBeUndefined();
   });
 });

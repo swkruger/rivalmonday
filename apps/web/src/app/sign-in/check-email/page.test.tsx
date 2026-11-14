@@ -9,6 +9,7 @@ vi.mock('@/server/branding', async (importOriginal) => ({
   authBranding: async () => null,
 }));
 vi.mock('@/server/env', () => ({ webEnv: () => ({}) }));
+vi.mock('@/server/request-host', () => ({ requestHost: async () => ({ origin: 'https://app.example', info: { kind: 'platform' } }) }));
 vi.mock('@/components/auth-card', () => ({ AuthCard: ({ children }: { children: React.ReactNode }) => <main>{children}</main> }));
 vi.mock('./resend-button', () => ({ ResendButton: ({ startAgainHref }: { startAgainHref: string }) => <button data-start-again={startAgainHref}>Resend email</button> }));
 const { default: Page } = await import('./page');

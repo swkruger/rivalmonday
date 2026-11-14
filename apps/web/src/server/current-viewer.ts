@@ -4,7 +4,7 @@ import { cookies, headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { cache } from 'react';
 import { clientIdFromPath } from '@/components/shell/nav-items';
-import { auth } from './auth';
+import { requestAuth } from './auth';
 import { billingRedirectFor } from './billing-redirect';
 import { billingSnapshotOf, billingStateOf } from './billing-state';
 import { dbs } from './db';
@@ -36,7 +36,7 @@ export const SUPPORT_END_PATH = '/support/end';
 type Mode = 'page' | 'api' | 'operator';
 async function viewerWith(clientHint: string | null, mode: Mode): Promise<Viewer | null> {
   const [h, jar] = [await headers(), await cookies()];
-  const s = await auth().api.getSession({ headers: h });
+  const s = await (await requestAuth()).api.getSession({ headers: h });
   const session = s ? { userId: s.user.id, email: s.user.email, name: s.user.name, image: s.user.image ?? null } : null;
   const service = dbs().service;
   if (session && mode !== 'operator') {

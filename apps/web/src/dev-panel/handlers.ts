@@ -2,7 +2,7 @@ import 'server-only';
 import { contact } from '@cs/db';
 import { demoSignInLinks } from '@cs/demo/links';
 import { eq } from 'drizzle-orm';
-import { auth } from '@/server/auth';
+import { platformAuth } from '@/server/auth';
 import { dbs } from '@/server/db';
 import { activeEnvName, devEnvFile, webRepoRoot, writeDevEnv } from '@/server/dev-guard';
 import { devHooks } from '@/server/dev-hooks';
@@ -38,7 +38,7 @@ export const handleDevPanel = createPanelHandler({
         },
         // Controller ruling 3: the capture hook exists only for this call, inside the guarded sign-in route.
         startMagicLink: (email, request) =>
-          captureMagicLink(devHooks, email, () => (auth().api as unknown as MagicLinkApi).signInMagicLink({ body: { email, callbackURL: '/' }, headers: request.headers })),
+          captureMagicLink(devHooks, email, () => (platformAuth().api as unknown as MagicLinkApi).signInMagicLink({ body: { email, callbackURL: '/' }, headers: request.headers })),
       },
       req,
       token,

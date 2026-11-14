@@ -3,7 +3,7 @@ import { PENDING_EMAIL_COOKIE, signPendingEmail, verifyPendingEmail } from '@/se
 
 const SECRET = 's'.repeat(40);
 const m = vi.hoisted(() => ({ magic: vi.fn(), slot: vi.fn(), cookieSet: vi.fn(), cookie: undefined as string | undefined }));
-vi.mock('@/server/auth', () => ({ auth: () => ({ api: { signInMagicLink: (a: unknown) => m.magic(a) } }) }));
+vi.mock('@/server/auth', () => ({ requestAuth: async () => ({ api: { signInMagicLink: (a: unknown) => m.magic(a) } }) }));
 vi.mock('@/server/db', () => ({ dbs: () => ({ service: 'svc' }) }));
 vi.mock('@/server/env', () => ({ webEnv: () => ({ authSecret: 's'.repeat(40) }) }));
 vi.mock('@/server/pending-email', async (orig) => ({ ...(await orig<typeof import('@/server/pending-email')>()), takeResendSlot: (...a: unknown[]) => m.slot(...a) }));

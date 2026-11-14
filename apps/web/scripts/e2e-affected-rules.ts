@@ -77,7 +77,7 @@ export const RULES: Rule[] = [
   { pattern: re(`${COMP}shell/spend-banner`), tags: ['@usage', '@navigation'], why: 'spend pause banner in the shell' },
   { pattern: re(`${COMP}shell/`), tags: 'all', why: 'app shell (sidebar, top bar, nav)' },
   {
-    pattern: re(`${SERVER}(?:auth|auth-options|env|db|run-tool|tools|viewer|current-viewer|theme|branding|nav|safe-next|runtime-env|billing-redirect|billing-state)\\.ts$`),
+    pattern: re(`${SERVER}(?:auth|auth-options|request-host|env|db|run-tool|tools|viewer|current-viewer|theme|branding|nav|safe-next|runtime-env|billing-redirect|billing-state)\\.ts$`),
     tags: 'all',
     why: 'shared server foundation',
   },

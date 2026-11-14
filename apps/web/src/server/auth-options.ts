@@ -10,11 +10,20 @@ import { PostgresDialect } from 'kysely';
 import type { Pool } from 'pg';
 import type { WebEnv } from './env';
 import { openPendingSignup } from './pending-signup';
+import type { RequestHost } from './request-host';
 
 export const MAGIC_LINK_MINUTES = 15;
 
+/** 13a1 (decided): the app name where no agency is known (the MCP host's sign-in and its email). Never a product name. */
+export const NEUTRAL_APP_NAME = 'Connect';
+
 export interface AuthDeps {
   env: WebEnv;
+  /**
+   * 13a1 (P6): the origin this instance serves. `baseURL` = `trustedOrigins[0]` = its origin, so cookies stay host-only on
+   * it and magic links point back at it; Google only on the platform, the OAuth provider only on the MCP host.
+   */
+  host: RequestHost;
   service: Db;
   /** Service-role pg pool for Better Auth's Kysely adapter. */
   pool: Pool;
@@ -32,12 +41,13 @@ export interface AuthDeps {
 
 /**
  * Phase 6a: OAuth 2.1 provider for MCP clients (config proven by the Task 1 spike). Opaque access tokens stored as
- * SHA-256 hashes; public clients may register themselves (DCR); every token is for the `<appUrl>/mcp` resource.
+ * SHA-256 hashes; public clients may register themselves (DCR); every token is for the `<origin>/mcp` resource. 13a1: only the
+ * MCP host's instance carries it (`origin` = the MCP origin).
  * `resources` + `clientRegistrationDefaultResources` are required (`enforcePerClientResources` defaults to true);
  * `clientRegistrationAllowedScopes` lets clients ask for feedback/manage; `grantTypes` drops client_credentials.
  */
-export function oauthOptions(appUrl: string) {
-  const resource = `${appUrl}/mcp`;
+export function oauthOptions(origin: string) {
+  const resource = `${origin}/mcp`;
   return {
     loginPage: '/sign-in',
     consentPage: '/oauth/consent',
@@ -99,17 +109,22 @@ const isConsentRequest = (req: Request | undefined): boolean => {
  */
 export function buildAuthOptions(deps: AuthDeps): BetterAuthOptions {
   const now = deps.now ?? (() => new Date());
+  const { origin, info } = deps.host;
+  const mcp = info.kind === 'mcp';
   return {
-    appName: 'Rival Monday',
-    baseURL: deps.env.appUrl,
+    // Better Auth only stores appName in its context (no plugin here reads it). An agency instance is built synchronously and
+    // cached per origin, so it cannot carry the agency's (renamable) display name: it stays neutral.
+    appName: info.kind === 'platform' ? 'Rival Monday' : NEUTRAL_APP_NAME,
+    baseURL: origin,
     secret: deps.env.authSecret,
-    trustedOrigins: [deps.env.appUrl],
+    trustedOrigins: [origin],
+    // Never `crossSubDomainCookies` or a cookie `domain`: a session lives only on the host that set it (Review focus 1).
     advanced: { backgroundTasks: { handler: deps.runInBackground } },
     database: { dialect: new PostgresDialect({ pool: deps.pool }), type: 'postgres', schemaName: 'auth' },
     rateLimit: { enabled: true, storage: 'database', window: 60, max: 100 },
     session: { expiresIn: 60 * 60 * 24 * 14, updateAge: 60 * 60 * 24 },
     account: { accountLinking: { enabled: true, trustedProviders: ['google'] } },
-    socialProviders: deps.env.google ? { google: { clientId: deps.env.google.clientId, clientSecret: deps.env.google.clientSecret, prompt: 'select_account' } } : {},
+    socialProviders: info.kind === 'platform' && deps.env.google ? { google: { clientId: deps.env.google.clientId, clientSecret: deps.env.google.clientSecret, prompt: 'select_account' } } : {},
     plugins: [
       magicLink({
         expiresIn: MAGIC_LINK_MINUTES * 60,
@@ -134,9 +149,9 @@ export function buildAuthOptions(deps: AuthDeps): BetterAuthOptions {
           }));
         },
       }),
-      oauthProvider(oauthOptions(deps.env.appUrl)),
+      ...(mcp ? [oauthProvider(oauthOptions(origin))] : []),
     ],
-    hooks: {
+    hooks: mcp ? {
       before: createAuthMiddleware(async (ctx) => {
         if (ctx.path === '/oauth2/register') {
           const body = publicLoopbackAsNative(ctx.body);
@@ -153,7 +168,7 @@ export function buildAuthOptions(deps: AuthDeps): BetterAuthOptions {
         }
         return undefined;
       }),
-    },
+    } : {},
     databaseHooks: {
       user: {
         create: {

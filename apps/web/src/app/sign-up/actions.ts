@@ -4,7 +4,7 @@ import { CLIENTS_SERVED, hashIp, signupWebsite, startAgencySignup, startAgencySi
 import { cookies, headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
-import { auth } from '@/server/auth';
+import { platformAuth } from '@/server/auth';
 import { dbs } from '@/server/db';
 import { activeEnvName } from '@/server/dev-guard';
 import { webEnv } from '@/server/env';
@@ -84,11 +84,11 @@ export async function startSignup(_prev: SignupState, formData: FormData): Promi
         httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', path: '/', maxAge: SIGNUP_TTL_SECONDS,
       });
       // Refused sign-ups get the same URL; the sign-in right check refuses them later (/no-access, as today).
-      const r = await auth().api.signInSocial({ body: { provider: 'google', callbackURL: CALLBACK, errorCallbackURL: '/sign-up?reason=google', disableRedirect: true }, headers: hdrs });
+      const r = await platformAuth().api.signInSocial({ body: { provider: 'google', callbackURL: CALLBACK, errorCallbackURL: '/sign-up?reason=google', disableRedirect: true }, headers: hdrs });
       googleUrl = r.url ?? null;
     } else if (sendLink) {
-      // The magic-link plugin's endpoints are not on `auth().api`'s type (see CLAUDE.md); the runtime has them.
-      await (auth().api as unknown as MagicLinkApi).signInMagicLink({ body: { email, callbackURL: CALLBACK, errorCallbackURL: '/sign-up?reason=link' }, headers: hdrs });
+      // The magic-link plugin's endpoints are not on `platformAuth().api`'s type (see CLAUDE.md); the runtime has them.
+      await (platformAuth().api as unknown as MagicLinkApi).signInMagicLink({ body: { email, callbackURL: CALLBACK, errorCallbackURL: '/sign-up?reason=link' }, headers: hdrs });
     }
   } catch (e) {
     // Never log the email, link or token.

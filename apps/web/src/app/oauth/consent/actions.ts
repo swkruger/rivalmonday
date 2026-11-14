@@ -1,9 +1,10 @@
 'use server';
 import { verifyOAuthQueryParams } from '@better-auth/oauth-provider';
+import { mcpOrigin } from '@cs/db';
 import { consentIdFor } from '@cs/tools';
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { auth } from '@/server/auth';
+import { mcpAuth } from '@/server/auth';
 import { getViewer } from '@/server/current-viewer';
 import { dbs } from '@/server/db';
 import { webEnv } from '@/server/env';
@@ -13,15 +14,16 @@ import { bindConsent, consentOptions, pickConsent } from '@/server/oauth-consent
 const EXPIRED = 'This request has expired. Start again from your AI app.';
 
 /**
- * Ruling R6: accept/deny through the plugin's own handler (its `auth().api.oauth2Consent` throws without a request).
+ * Ruling R6: accept/deny through the plugin's own handler (its `api.oauth2Consent` throws without a request).
  * The session cookie is forwarded so the plugin acts for the signed-in user; returns the client redirect URL or null.
  */
 async function pluginConsent(oauthQuery: string, accept: boolean): Promise<string | null> {
-  const { appUrl } = webEnv();
+  // 13a1: the OAuth provider exists only on the MCP host's instance (the consent page is served there).
+  const origin = mcpOrigin(webEnv().hostEnv);
   const h = await headers();
-  const res = await auth().handler(new Request(`${appUrl}/api/auth/oauth2/consent`, {
+  const res = await mcpAuth().handler(new Request(`${origin}/api/auth/oauth2/consent`, {
     method: 'POST',
-    headers: { cookie: h.get('cookie') ?? '', origin: appUrl, 'content-type': 'application/json' },
+    headers: { cookie: h.get('cookie') ?? '', origin, 'content-type': 'application/json' },
     body: JSON.stringify({ accept, oauth_query: oauthQuery }),
   }));
   if (!res.ok) return null;

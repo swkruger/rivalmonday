@@ -4,7 +4,7 @@ const m = vi.hoisted(() => ({
   start: vi.fn(), magic: vi.fn(), social: vi.fn(), turnstile: vi.fn(), cookieSet: vi.fn(), pending: vi.fn(), headerIp: '203.0.113.9, 10.0.0.1', turnstileCfg: {} as { siteKey?: string; secretKey?: string },
 }));
 vi.mock('@cs/tools', async (orig) => ({ ...(await orig<typeof import('@cs/tools')>()), startAgencySignup: (...a: unknown[]) => m.start(...a) }));
-vi.mock('@/server/auth', () => ({ auth: () => ({ api: { signInMagicLink: (a: unknown) => m.magic(a), signInSocial: (a: unknown) => m.social(a) } }) }));
+vi.mock('@/server/auth', () => ({ platformAuth: () => ({ api: { signInMagicLink: (a: unknown) => m.magic(a), signInSocial: (a: unknown) => m.social(a) } }) }));
 vi.mock('@/server/db', () => ({ dbs: () => ({ service: 'svc' }) }));
 vi.mock('@/server/dev-guard', () => ({ activeEnvName: () => 'dev' }));
 vi.mock('@/server/env', () => ({ webEnv: () => ({ authSecret: 's'.repeat(40), google: { clientId: 'g', clientSecret: 'g' }, turnstile: m.turnstileCfg }) }));

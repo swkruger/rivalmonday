@@ -36,7 +36,7 @@ vi.mock('@/server/branding', async (importOriginal) => ({
   },
 }));
 vi.mock('@/server/db', () => ({ dbs: () => ({ service: {}, app: {} }) }));
-vi.mock('@/server/env', () => ({ webEnv: () => ({ appUrl: 'https://app.example', authSecret: 's'.repeat(40), google: null, defaultAgencyId: null }) }));
+vi.mock('@/server/env', () => ({ webEnv: () => ({ appUrl: 'https://app.example', hostEnv: { appUrl: 'https://app.example', neutralDomain: 'neutral.example', extraPlatformHosts: [] }, authSecret: 's'.repeat(40), google: null, defaultAgencyId: null }) }));
 vi.mock('@/server/tools', () => {
   const callTool = async (_ctx: unknown, name: string, input?: { query?: string }) => {
     if (name === 'list_help_guides') return { guides: [{ helpKey: 'page:client.overview', title: 'Overview', articleId: '00000000-0000-4000-8000-0000000000b1' }] };

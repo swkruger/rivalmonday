@@ -17,7 +17,7 @@ afterAll(async () => {
 // prints — never edit 0035 or 0041.
 it('migrations 0035 (core) and 0041 (oauth-provider) match what Better Auth expects (no pending auth migrations)', async () => {
   const env: WebEnv = { appUrl: 'http://localhost:3000', hostEnv: { appUrl: 'http://localhost:3000', neutralDomain: 'localhost', extraPlatformHosts: [] }, appDatabaseUrl: '', serviceDatabaseUrl: '', queueDatabaseUrl: '', authSecret: 's'.repeat(40), linkSecrets: ['l'.repeat(40)], emailFrom: 'x@y.co', google: null, defaultAgencyId: null, webMonitoring: false, kbImport: false, platformAdmins: [], askFakeAi: false, setupFakeLookup: false, webhookFakeSend: false, siteOrigins: [] };
-  const opts = buildAuthOptions({ env, service: dbs.service, pool, sendEmail: async () => {}, runInBackground: () => {}, branding: async () => resolveBranding('x', null) });
+  const opts = buildAuthOptions({ env, host: { origin: 'http://localhost:3000', info: { kind: 'mcp' } }, service: dbs.service, pool, sendEmail: async () => {}, runInBackground: () => {}, branding: async () => resolveBranding('x', null) });
   const warnings: string[] = [];
   const m = await getMigrations({ ...opts, logger: { log: (level, message) => void (level === 'warn' || level === 'error' ? warnings.push(message) : undefined) } }, { throwOnUnsafe: false });
   expect({

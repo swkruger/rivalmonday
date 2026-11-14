@@ -25,9 +25,9 @@ vi.mock('next/navigation', () => ({
 }));
 vi.mock('@/server/current-viewer', () => ({ getViewer: async () => m.viewer }));
 vi.mock('@/server/db', () => ({ dbs: () => ({ app: dbs.app, service: dbs.service }) }));
-vi.mock('@/server/env', () => ({ webEnv: () => ({ appUrl: 'https://app.example', authSecret: 's'.repeat(40) }) }));
+vi.mock('@/server/env', () => ({ webEnv: () => ({ appUrl: 'https://app.example', hostEnv: { appUrl: 'https://app.example', neutralDomain: 'neutral.example', extraPlatformHosts: [] }, authSecret: 's'.repeat(40) }) }));
 vi.mock('@/server/auth', () => ({
-  auth: () => ({
+  mcpAuth: () => ({
     handler: async (req: Request) => {
       const body = (await req.json()) as { accept: boolean };
       m.requests.push({ url: req.url, cookie: req.headers.get('cookie'), origin: req.headers.get('origin'), body });
@@ -81,7 +81,7 @@ describe('decideConsent', () => {
   it('binding exists before the redirect: plugin accept → bind → redirect', async () => {
     expect(await run({ decision: 'allow', membershipId, scope: 'feedback' })).toBe('redirected');
     expect(m.calls).toEqual(['accept', 'bind', 'redirect:http://127.0.0.1:33418/cb?code=c0de&state=s']);
-    expect(m.requests).toEqual([{ url: 'https://app.example/api/auth/oauth2/consent', cookie: 'better-auth.session_token=abc', origin: 'https://app.example', body: { accept: true, oauth_query: QUERY } }]);
+    expect(m.requests).toEqual([{ url: 'https://mcp.neutral.example/api/auth/oauth2/consent', cookie: 'better-auth.session_token=abc', origin: 'https://mcp.neutral.example', body: { accept: true, oauth_query: QUERY } }]);
     expect(await bindings()).toMatchObject([{ consentId: 'consent-1', oauthClientId: 'oc1', userId: 'u1', agencyId: IDS.agencyA, clientId: null, scope: 'feedback', revokedAt: null }]);
   });
 

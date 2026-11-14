@@ -4,11 +4,12 @@ import { SignOutButton } from '@/components/sign-out-button';
 import { authBranding, authTitle } from '@/server/branding';
 import { dbs } from '@/server/db';
 import { webEnv } from '@/server/env';
+import { requestHost } from '@/server/request-host';
 
 export const dynamic = 'force-dynamic';
 
 /** 15a §2.10: the host agency's card, else neutral (the link's own agency is not shown to another account). */
-const branding = () => authBranding(dbs().service, webEnv(), null);
+const branding = async () => authBranding(dbs().service, webEnv(), null, (await requestHost()).info);
 
 export async function generateMetadata(): Promise<Metadata> {
   return { title: authTitle('Different account', await branding()) };

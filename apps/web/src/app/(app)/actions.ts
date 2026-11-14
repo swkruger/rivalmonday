@@ -2,7 +2,7 @@
 import { endOpenSessionFor } from '@cs/tools';
 import { cookies, headers } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { auth } from '@/server/auth';
+import { requestAuth } from '@/server/auth';
 import { requireContext } from '@/server/current-viewer';
 import { dbs } from '@/server/db';
 import { clearSessionCookies } from '@/server/sign-out';
@@ -29,7 +29,7 @@ export async function endSession(): Promise<void> {
   // Sign-out never depends on the database: a failure to end the support row is logged (class only) and the cookies
   // are cleared regardless (the row then ends at expiry or on the next start).
   try {
-    const s = await auth().api.getSession({ headers: await headers() });
+    const s = await (await requestAuth()).api.getSession({ headers: await headers() });
     if (s) await endOpenSessionFor(dbs().service, s.user.id);
   } catch (e) {
     console.error('sign-out: could not end the support session', e instanceof Error ? e.name : typeof e);

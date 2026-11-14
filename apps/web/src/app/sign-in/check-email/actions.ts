@@ -3,7 +3,7 @@ import { createLogger } from '@cs/core/server';
 import { cookies, headers } from 'next/headers';
 import { z } from 'zod';
 import { keepNext } from '@/lib/keep-next';
-import { auth } from '@/server/auth';
+import { requestAuth } from '@/server/auth';
 import { dbs } from '@/server/db';
 import { webEnv } from '@/server/env';
 import { PENDING_EMAIL_COOKIE, pendingEmailCookieOptions, signPendingEmail, takeResendSlot, verifyPendingEmail } from '@/server/pending-email';
@@ -52,8 +52,8 @@ export async function resendEmailAction(_prev: ResendState, _fd: FormData): Prom
       if (await takeResendSlot(dbs().service, pending.email)) {
         const signup = pending.flow === 'signup';
         const next = safeNext(pending.next);
-        // The magic-link plugin's endpoints are not on `auth().api`'s type (see CLAUDE.md); the runtime has them.
-        await (auth().api as unknown as MagicLinkApi).signInMagicLink({
+        // The magic-link plugin's endpoints are not on the instance's `api` type (see CLAUDE.md); the runtime has them.
+        await ((await requestAuth()).api as unknown as MagicLinkApi).signInMagicLink({
           body: {
             email: pending.email,
             callbackURL: signup ? SIGNUP_CALLBACK : next,

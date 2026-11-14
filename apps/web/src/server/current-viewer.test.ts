@@ -25,7 +25,7 @@ vi.mock('next/navigation', () => ({
     throw Object.assign(new Error('NEXT_REDIRECT'), { url });
   },
 }));
-vi.mock('@/server/auth', () => ({ auth: () => ({ api: { getSession: async () => (m.user ? { user: m.user } : null) } }) }));
+vi.mock('@/server/auth', () => ({ requestAuth: async () => ({ api: { getSession: async () => (m.user ? { user: m.user } : null) } }) }));
 vi.mock('@/server/db', () => ({ dbs: () => m.dbs }));
 vi.mock('@/server/env', () => ({ webEnv: () => ({ authSecret: SECRET, linkSecrets: ['l'.repeat(40)], appUrl: 'http://localhost:3000' }) }));
 vi.mock('@/server/runtime-env', () => ({ platformAdmins: () => m.admins }));

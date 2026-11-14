@@ -6,6 +6,7 @@ import { authBranding, authHintFromNext, authTitle } from '@/server/branding';
 import { getViewer } from '@/server/current-viewer';
 import { dbs } from '@/server/db';
 import { webEnv } from '@/server/env';
+import { requestHost } from '@/server/request-host';
 import { oauthResumePath } from '@/server/oauth-consent';
 import { safeNext } from '@/server/safe-next';
 import { SignInForm } from './sign-in-form';
@@ -18,8 +19,8 @@ type Params = Record<string, string | string[] | undefined>;
  * 15a §2.10: a `next=/c/<id>/…` (client invites, signed email links, `/go/` links) brands the page with that client's
  * agency. An OAuth resume (signed authorize query, no `next`) carries no client, so it is neutral or the host's agency.
  */
-const brandingFor = (params: Params) =>
-  authBranding(dbs().service, webEnv(), typeof params.sig === 'string' ? null : authHintFromNext(safeNext(typeof params.next === 'string' ? params.next : undefined)));
+const brandingFor = async (params: Params) =>
+  authBranding(dbs().service, webEnv(), typeof params.sig === 'string' ? null : authHintFromNext(safeNext(typeof params.next === 'string' ? params.next : undefined)), (await requestHost()).info);
 
 export async function generateMetadata({ searchParams }: { searchParams: Promise<Params> }): Promise<Metadata> {
   return { title: authTitle('Sign in', await brandingFor(await searchParams)) };
@@ -40,9 +41,11 @@ export default async function SignInPage({ searchParams }: { searchParams: Promi
   const emailHint = typeof params.email === 'string' ? params.email : null;
   const viewer = await getViewer();
   if (viewer && viewer.kind !== 'guest') redirect(target);
+  // 13a1: the Google provider exists only on the platform's Better Auth instance.
+  const { info } = await requestHost();
   return (
     <AuthCard branding={await brandingFor(params)} title="Sign in">
-      <SignInForm next={target} googleEnabled={env.google !== null} error={reason} emailHint={emailHint} />
+      <SignInForm next={target} googleEnabled={env.google !== null && info.kind === 'platform'} error={reason} emailHint={emailHint} />
     </AuthCard>
   );
 }

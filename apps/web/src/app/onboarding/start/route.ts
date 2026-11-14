@@ -1,6 +1,6 @@
 import { headers } from 'next/headers';
 import { NextResponse } from 'next/server';
-import { auth } from '@/server/auth';
+import { platformAuth } from '@/server/auth';
 import { dbs } from '@/server/db';
 import { webEnv } from '@/server/env';
 import { onboardingStartTarget } from '@/server/onboarding-start';
@@ -15,7 +15,7 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   const env = webEnv();
   const at = (path: string) => new URL(path, env.appUrl);
-  const session = await auth().api.getSession({ headers: await headers() });
+  const session = await platformAuth().api.getSession({ headers: await headers() });
   if (!session) return NextResponse.redirect(at('/sign-in'));
   const target = await onboardingStartTarget(dbs().service, { id: session.user.id, email: session.user.email }, new Date());
   const res = NextResponse.redirect(at(target.path));

@@ -1,6 +1,6 @@
 import { headers } from 'next/headers';
 import { NextResponse } from 'next/server';
-import { auth } from '@/server/auth';
+import { requestAuth } from '@/server/auth';
 import { dbs } from '@/server/db';
 import { webEnv } from '@/server/env';
 import { GUEST_COOKIE, GUEST_TTL_SECONDS, signGuest } from '@/server/guest';
@@ -19,7 +19,7 @@ export const dynamic = 'force-dynamic';
 export async function GET(_req: Request, { params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
   const env = webEnv();
-  const session = await auth().api.getSession({ headers: await headers() });
+  const session = await (await requestAuth()).api.getSession({ headers: await headers() });
   const outcome = await openLink({ service: dbs().service, token, secrets: env.linkSecrets, sessionUserId: session?.user.id ?? null });
   const at = (path: string) => new URL(path, env.appUrl);
   const secure = process.env.NODE_ENV === 'production';

@@ -4,6 +4,7 @@ import { AuthCard } from '@/components/auth-card';
 import { authBranding, authHintFromNext, authTitle, defaultBranding } from '@/server/branding';
 import { dbs } from '@/server/db';
 import { webEnv } from '@/server/env';
+import { requestHost } from '@/server/request-host';
 import { safeNext } from '@/server/safe-next';
 import { ResendButton } from './resend-button';
 
@@ -13,8 +14,8 @@ type Params = Record<string, string | string[] | undefined>;
 const nextOf = (params: Params) => (typeof params.next === 'string' ? safeNext(params.next) : null);
 
 /** 15a §2.10: sign-in's check-email brands by the `next` client's agency (or is neutral); sign-up's is agency-facing (P4). */
-const brandingFor = (params: Params) =>
-  params.for === 'signup' ? defaultBranding(dbs().service, webEnv()) : authBranding(dbs().service, webEnv(), authHintFromNext(nextOf(params)));
+const brandingFor = async (params: Params) =>
+  params.for === 'signup' ? defaultBranding(dbs().service, webEnv()) : authBranding(dbs().service, webEnv(), authHintFromNext(nextOf(params)), (await requestHost()).info);
 
 export async function generateMetadata({ searchParams }: { searchParams: Promise<Params> }): Promise<Metadata> {
   const params = await searchParams;

@@ -8,6 +8,7 @@ import { authBranding, authTitle } from '@/server/branding';
 import { getViewer } from '@/server/current-viewer';
 import { dbs } from '@/server/db';
 import { webEnv } from '@/server/env';
+import { requestHost } from '@/server/request-host';
 import { consentOptions, oauthClientName, oauthQueryFrom, redirectHostOf } from '@/server/oauth-consent';
 import { safeNext } from '@/server/safe-next';
 import { ConsentForm } from './consent-form';
@@ -29,7 +30,7 @@ const loadConsent = cache(async (oauthQuery: string, userId: string) => {
   const app = valid ? await oauthClientName(service, q.get('client_id') ?? '') : null;
   const options = app ? await consentOptions(service, userId, q.get('scope')) : [];
   const agencies = [...new Set(options.map((o) => o.agencyId))];
-  const branding = await authBranding(service, env, agencies.length === 1 ? { agencyId: agencies[0]! } : null);
+  const branding = await authBranding(service, env, agencies.length === 1 ? { agencyId: agencies[0]! } : null, (await requestHost()).info);
   return { q, app, options, branding };
 });
 

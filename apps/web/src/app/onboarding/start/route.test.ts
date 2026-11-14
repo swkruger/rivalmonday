@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const m = vi.hoisted(() => ({ session: null as null | { user: { id: string; email: string } }, target: vi.fn() }));
 vi.mock('next/headers', () => ({ headers: async () => new Headers() }));
-vi.mock('@/server/auth', () => ({ auth: () => ({ api: { getSession: async () => m.session } }) }));
+vi.mock('@/server/auth', () => ({ platformAuth: () => ({ api: { getSession: async () => m.session } }) }));
 vi.mock('@/server/db', () => ({ dbs: () => ({ service: 'svc' }) }));
 vi.mock('@/server/env', () => ({ webEnv: () => ({ appUrl: 'http://localhost:3000' }) }));
 vi.mock('@/server/onboarding-start', () => ({ onboardingStartTarget: (...a: unknown[]) => m.target(...a) }));

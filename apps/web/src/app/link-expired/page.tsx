@@ -4,6 +4,7 @@ import { AuthCard } from '@/components/auth-card';
 import { authBranding, authTitle } from '@/server/branding';
 import { dbs } from '@/server/db';
 import { webEnv } from '@/server/env';
+import { requestHost } from '@/server/request-host';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,7 +12,7 @@ export const dynamic = 'force-dynamic';
  * 15a §2.10: no hint — the token that sent the visitor here may be tampered or unknown (Review Focus 3: same page for
  * all), so the card is the host agency's or neutral, never Rival Monday.
  */
-const branding = () => authBranding(dbs().service, webEnv(), null);
+const branding = async () => authBranding(dbs().service, webEnv(), null, (await requestHost()).info);
 
 export async function generateMetadata(): Promise<Metadata> {
   return { title: authTitle('Link expired', await branding()) };

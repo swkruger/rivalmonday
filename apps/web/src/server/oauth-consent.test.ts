@@ -29,7 +29,7 @@ const links: string[] = [];
 const background: Promise<unknown>[] = [];
 const flush = () => Promise.all(background.splice(0));
 const auth = betterAuth(buildAuthOptions({
-  env, service: dbs.service, pool, branding: async () => resolveBranding('Rival Monday', null),
+  env, host: { origin: APP, info: { kind: 'mcp' } }, service: dbs.service, pool, branding: async () => resolveBranding('Rival Monday', null),
   runInBackground: (task) => void background.push(task), sendEmail: async () => {}, onMagicLink: (_e, url) => void links.push(url),
 }));
 const verifyOAuth = createVerifyOAuth({ context: () => auth.$context, service: dbs.service, appUrl: APP });

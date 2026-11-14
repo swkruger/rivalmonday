@@ -1,7 +1,7 @@
 import 'server-only';
 import type { EnvName } from '@cs/db';
 import type { McpHandlerDeps } from '@cs/mcp';
-import { auth } from './auth';
+import { mcpAuth } from './auth';
 import { dbs } from './db';
 import { webEnv } from './env';
 import { perEnv } from './env-cache';
@@ -14,6 +14,6 @@ const handlerDeps = perEnv((name: EnvName): McpHandlerDeps => ({
   registry: registry(name),
   deps: toolDeps(name),
   appUrl: webEnv().appUrl,
-  verifyOAuth: createVerifyOAuth({ context: () => auth(name).$context, service: dbs(name).service, appUrl: webEnv().appUrl }),
+  verifyOAuth: createVerifyOAuth({ context: () => mcpAuth(name).$context, service: dbs(name).service, appUrl: webEnv().appUrl }),
 }));
 export const mcpDeps = (name?: EnvName): McpHandlerDeps => handlerDeps(name);
