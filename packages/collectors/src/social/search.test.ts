@@ -3,7 +3,7 @@ import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers'
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ScClient, ScCompany, ScFbProfile } from './client';
-import { discoverSocialAccounts } from './search';
+import { discoverSocialAccounts, pickCandidate } from './search';
 
 const dbs = openTestDbs();
 afterAll(() => dbs.closeAll());
@@ -106,11 +106,55 @@ describe('discoverSocialAccounts', () => {
     await dbs.owner
       .insert(socialAccount)
       .values({ competitorId: IDS.competitorX, network: 'facebook', handle: 'glowdentalco', url: 'https://www.facebook.com/glowdentalco', status: 'rejected' });
-    const { sc } = fakeSc([row({})], [profile({ website: 'https://other.com' })]);
+    const { sc, facebookProfile } = fakeSc([row({})], []);
+    expect(await discoverSocialAccounts(dbs.service, sc, comp())).toEqual({ credits: 1 });
+    expect(facebookProfile).not.toHaveBeenCalled();
+    expect(await rows()).toHaveLength(1);
+  });
+
+  it('rejected candidate is skipped at pick time and the next match is used', async () => {
+    await dbs.owner
+      .insert(socialAccount)
+      .values({ competitorId: IDS.competitorX, network: 'facebook', handle: 'glowdentalco', url: 'https://www.facebook.com/glowdentalco', status: 'rejected' });
+    const { sc, facebookProfile } = fakeSc([row({}), row({ page_id: '2', page_alias: 'glowdentalaustin', ig_username: null })], [profile()]);
+    const res = await discoverSocialAccounts(dbs.service, sc, comp());
+    expect(res.facebook).toMatchObject({ handle: 'glowdentalaustin', status: 'confirmed' });
+    expect(facebookProfile).toHaveBeenCalledTimes(1);
+    expect(facebookProfile).toHaveBeenCalledWith('https://www.facebook.com/glowdentalaustin');
+  });
+
+  it('rejected handle matches case-insensitively and by facebook profile id', async () => {
+    await dbs.owner
+      .insert(socialAccount)
+      .values({ competitorId: IDS.competitorX, network: 'facebook', handle: 'GlowDentalCo', url: 'https://www.facebook.com/GlowDentalCo', status: 'rejected' });
+    const a = fakeSc([row({})], []);
+    expect(await discoverSocialAccounts(dbs.service, a.sc, comp())).toEqual({ credits: 1 });
+    // A different alias for the same profile id is caught at upsert.
+    await dbs.owner
+      .insert(socialAccount)
+      .values({ competitorId: IDS.competitorX, network: 'facebook', handle: 'oldalias', externalId: '100064175676130', url: 'https://www.facebook.com/oldalias', status: 'rejected' });
+    await dbs.owner.delete(socialAccount).where(eq(socialAccount.handle, 'GlowDentalCo'));
+    const b = fakeSc([row({ page_alias: 'newalias', ig_username: null })], [profile()]);
+    const res = await discoverSocialAccounts(dbs.service, b.sc, comp());
+    expect(res.facebook).toBeUndefined();
+    expect((await rows()).filter((r) => r.status !== 'rejected')).toHaveLength(0);
+  });
+
+  it('rejected FB row never lets its Instagram auto-confirm', async () => {
+    await dbs.owner
+      .insert(socialAccount)
+      .values({ competitorId: IDS.competitorX, network: 'facebook', handle: 'oldalias', externalId: '100064175676130', url: 'https://www.facebook.com/oldalias', status: 'rejected' });
+    const { sc } = fakeSc([row({ page_alias: 'newalias' })], [profile()]);
     const res = await discoverSocialAccounts(dbs.service, sc, comp());
     expect(res.facebook).toBeUndefined();
-    expect(res.instagram).toMatchObject({ status: 'suggested' });
-    expect((await rows()).find((r) => r.network === 'facebook')?.status).toBe('rejected');
+    expect(res.instagram).toMatchObject({ status: 'suggested', confirmedBy: null });
+  });
+
+  it('instagram handle found only in facebook links is suggested and lower-cased', async () => {
+    const { sc } = fakeSc([row({ ig_username: null })], [profile({ links: ['https://www.instagram.com/GlowDental_Co/'] })]);
+    const res = await discoverSocialAccounts(dbs.service, sc, comp());
+    expect(res.facebook?.status).toBe('confirmed');
+    expect(res.instagram).toMatchObject({ handle: 'glowdental_co', status: 'suggested' });
   });
 
   it('no search result → nothing, 1 credit', async () => {
@@ -132,9 +176,36 @@ describe('discoverSocialAccounts', () => {
   it('never downgrades a confirmed row and demotes to suggested when another account is confirmed', async () => {
     await discoverSocialAccounts(dbs.service, fakeSc([row({})], [profile()]).sc, comp());
     const again = await discoverSocialAccounts(dbs.service, fakeSc([row({})], [profile({ website: 'https://other.com' })]).sc, comp());
-    expect(again.facebook?.status).toBe('confirmed');
-    const other = await discoverSocialAccounts(dbs.service, fakeSc([row({ page_alias: 'glowdental2', ig_username: null })], [profile()]).sc, comp());
+    expect(again.facebook).toMatchObject({ status: 'confirmed', confirmedBy: 'website' });
+    const other = await discoverSocialAccounts(dbs.service, fakeSc([row({ page_alias: 'glowdental2', ig_username: null })], [profile({ id: '999' })]).sc, comp());
     expect(other.facebook).toMatchObject({ handle: 'glowdental2', status: 'suggested' });
     expect(await rows()).toHaveLength(3);
+  });
+});
+
+describe('pickCandidate', () => {
+  const c = (name: string, o: Partial<ScCompany> = {}) => row({ name, page_alias: name, ...o });
+  const me = (name: string, metaPageIds: string[] = []) => ({ id: IDS.competitorX, name, domain: null, metaPageIds });
+
+  it('"Aire Serv" matches "Aire Serv of Granbury"', () => {
+    expect(pickCandidate([c('Aire Serv of Granbury')], me('Aire Serv'))).not.toBeNull();
+  });
+  it('"Glow" does not match "Glow Dental Co"', () => {
+    expect(pickCandidate([c('Glow Dental Co')], me('Glow'))).toBeNull();
+  });
+  it('a sibling brand sharing a long first word does not match', () => {
+    expect(pickCandidate([c('Comfort Masters Plumbing')], me('Comfort Masters Heating'))).toBeNull();
+  });
+  it('the first matching result wins (prefix with >= 2 tokens)', () => {
+    const r = pickCandidate([c('Cool Air Conditioning Co', { page_id: '1' }), c('Cool Air', { page_id: '2' })], me('Cool Air'));
+    expect(r?.page_id).toBe('1');
+  });
+  it('deleted meta page skipped', () => {
+    const r = pickCandidate([c('Other Name', { page_id: '777', page_is_deleted: true }), c('Glow Dental Co.', { page_id: '2' })], me('Glow Dental Co.', ['777']));
+    expect(r?.page_id).toBe('2');
+  });
+  it('a live meta page id wins over an earlier name match', () => {
+    const r = pickCandidate([c('Glow Dental Co.', { page_id: '1' }), c('Different', { page_id: '777' })], me('Glow Dental Co.', ['777']));
+    expect(r?.page_id).toBe('777');
   });
 });

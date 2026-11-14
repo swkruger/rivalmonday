@@ -86,7 +86,7 @@ export async function scSearchCompanies(ctx: ScContext, q: string): Promise<ScCo
 
 const isPrivateBody = (b: Record<string, unknown>): boolean =>
   b.isPrivate === true ||
-  (typeof b.account_status === 'string' && /private/i.test(b.account_status)) ||
+  (typeof b.account_status === 'string' && /^private$|is private/i.test(b.account_status.trim())) ||
   [b.message, b.error].some((m) => typeof m === 'string' && m.includes('Profile is private'));
 
 /** `gated` retries with `include_gated_profile=true` (followers only). A private profile without it resolves `{ private: true }`. */
