@@ -1,0 +1,225 @@
+{
+ "success": true,
+ "credits_charged": 0,
+ "data": {
+  "user": {
+   "username": "glowdentalco",
+   "full_name": "Glow Dental Co.",
+   "external_url": "https://glowdentalco.com/",
+   "is_business_account": false,
+   "is_private": false,
+   "edge_followed_by": {
+    "count": 997
+   },
+   "edge_owner_to_timeline_media": {
+    "count": 297,
+    "edges": [
+     {
+      "node": {
+       "id": "4018758026809056983",
+       "shortcode": "DfFfyISNB7X",
+       "is_video": true,
+       "taken_at_timestamp": 1793293355,
+       "edge_media_to_caption": {
+        "edges": [
+         {
+          "node": {
+           "text": "Pulling a problem tooth might feel like the quickest and most affordable fix, but empty spaces can trigger shifting teeth and costly corrective work later on. Preserving your natural tooth with treatm"
+          }
+         }
+        ]
+       }
+      }
+     },
+     {
+      "node": {
+       "id": "4018033427990474598",
+       "shortcode": "DfC7B1DBG9m",
+       "is_video": true,
+       "taken_at_timestamp": 1793206981,
+       "edge_media_to_caption": {
+        "edges": [
+         {
+          "node": {
+           "text": "A standard dental visit evaluates far more than just surface-level cavities and cleanings. Your soft tissues and mouth offer vital clues about whole-body conditions like diabetes, sleep apnea, and ove"
+          }
+         }
+        ]
+       }
+      }
+     },
+     {
+      "node": {
+       "id": "4011690705692681818",
+       "shortcode": "DesY3EljGZa",
+       "is_video": true,
+       "taken_at_timestamp": 1792450850,
+       "edge_media_to_caption": {
+        "edges": [
+         {
+          "node": {
+           "text": "Schedule a consultation to explore individualized treatment plans and transparent pricing tailored to your unique dental goals."
+          }
+         }
+        ]
+       }
+      }
+     },
+     {
+      "node": {
+       "id": "4010965957803112735",
+       "shortcode": "Dep0EmhCfkf",
+       "is_video": true,
+       "taken_at_timestamp": 1792364454,
+       "edge_media_to_caption": {
+        "edges": [
+         {
+          "node": {
+           "text": "Understanding whether alignment, bonding, or veneers best address your dental needs helps create a tailored plan for your ideal smile makeover."
+          }
+         }
+        ]
+       }
+      }
+     },
+     {
+      "node": {
+       "id": "4010241252678845909",
+       "shortcode": "DenPSwRikXV",
+       "is_video": true,
+       "taken_at_timestamp": 1792278062,
+       "edge_media_to_caption": {
+        "edges": [
+         {
+          "node": {
+           "text": "Debunking common social media myths shows that veneer preparation is personalized to preserve as much natural tooth structure as possible."
+          }
+         }
+        ]
+       }
+      }
+     },
+     {
+      "node": {
+       "id": "4009516582249194744",
+       "shortcode": "DekqhaWAGT4",
+       "is_video": true,
+       "taken_at_timestamp": 1792191674,
+       "edge_media_to_caption": {
+        "edges": [
+         {
+          "node": {
+           "text": "Designing a stunning smile involves tailoring tooth proportions, shape, and translucency to complement your unique facial features seamlessly."
+          }
+         }
+        ]
+       }
+      }
+     },
+     {
+      "node": {
+       "id": "4008793917856474747",
+       "shortcode": "DeiGNQrlOZ7",
+       "is_video": true,
+       "taken_at_timestamp": 1792105527,
+       "edge_media_to_caption": {
+        "edges": [
+         {
+          "node": {
+           "text": "Exploring options like professional whitening, clear aligners, or custom veneers helps tailor the ideal solution for your cosmetic dental goals."
+          }
+         }
+        ]
+       }
+      }
+     },
+     {
+      "node": {
+       "id": "3996291015115639547",
+       "shortcode": "Dd1rYFHDYr7",
+       "is_video": true,
+       "taken_at_timestamp": 1790615080,
+       "edge_media_to_caption": {
+        "edges": [
+         {
+          "node": {
+           "text": "Stick to clear liquids and plain foods for 48 hours after treatment to keep your enamel from absorbing stubborn stains."
+          }
+         }
+        ]
+       }
+      }
+     },
+     {
+      "node": {
+       "id": "3995565780679166476",
+       "shortcode": "DdzGeh6FooM",
+       "is_video": true,
+       "taken_at_timestamp": 1790528615,
+       "edge_media_to_caption": {
+        "edges": [
+         {
+          "node": {
+           "text": "Consult a healthcare professional to check for underlying airway issues before jumping on the mouth taping trend."
+          }
+         }
+        ]
+       }
+      }
+     },
+     {
+      "node": {
+       "id": "3994840981048263956",
+       "shortcode": "DdwhrTpjgUU",
+       "is_video": true,
+       "taken_at_timestamp": 1790442213,
+       "edge_media_to_caption": {
+        "edges": [
+         {
+          "node": {
+           "text": "Ensure proper magnesium intake to support vitamin D activation, strengthen tooth enamel, and prevent decay from the inside out."
+          }
+         }
+        ]
+       }
+      }
+     },
+     {
+      "node": {
+       "id": "3994117712866610826",
+       "shortcode": "Ddt9OXqgo6K",
+       "is_video": true,
+       "taken_at_timestamp": 1790356008,
+       "edge_media_to_caption": {
+        "edges": [
+         {
+          "node": {
+           "text": "Avoid using nail files on your teeth, as removing enamel causes permanent damage that can lead to increased staining and fractures."
+          }
+         }
+        ]
+       }
+      }
+     },
+     {
+      "node": {
+       "id": "3993391999759496770",
+       "shortcode": "DdrYN2qjTZC",
+       "is_video": true,
+       "taken_at_timestamp": 1790269488,
+       "edge_media_to_caption": {
+        "edges": [
+         {
+          "node": {
+           "text": "Managing stress through regular meditation can lower cortisol levels and significantly protect your gum health."
+          }
+         }
+        ]
+       }
+      }
+     }
+    ]
+   }
+  }
+ }
+}

@@ -1,0 +1,225 @@
+{
+ "success": true,
+ "credits_charged": 0,
+ "data": {
+  "user": {
+   "username": "granburyparkdentaltx",
+   "full_name": "Granbury Park Dental",
+   "external_url": "https://linktr.ee/granburyparkdental",
+   "is_business_account": false,
+   "is_private": false,
+   "edge_followed_by": {
+    "count": 26
+   },
+   "edge_owner_to_timeline_media": {
+    "count": null,
+    "edges": [
+     {
+      "node": {
+       "id": "4018748113661848921",
+       "shortcode": "DfFdh38le1Z",
+       "is_video": false,
+       "taken_at_timestamp": 1793292129,
+       "edge_media_to_caption": {
+        "edges": [
+         {
+          "node": {
+           "text": "Who said dental offices can’t have a little fun? 😂🌼 Granbury Park Dental is giving us ALL the Mrs. Roper vibes, and we’re here for it! 🧡🪩"
+          }
+         }
+        ]
+       }
+      }
+     },
+     {
+      "node": {
+       "id": "3997711255917701959",
+       "shortcode": "Dd6uTTbjitH",
+       "is_video": false,
+       "taken_at_timestamp": 1790784341,
+       "edge_media_to_caption": {
+        "edges": [
+         {
+          "node": {
+           "text": "It is with the deepest sympathy that we share the passing of Dr. Joel Martin.\n\nWe know Dr. Martin was loved and known by so many of our patients and members of the Granbury Park Dental family, and we "
+          }
+         }
+        ]
+       }
+      }
+     },
+     {
+      "node": {
+       "id": "3970831530905665461",
+       "shortcode": "DcbOj0ujX-1",
+       "is_video": false,
+       "taken_at_timestamp": 1787580027,
+       "edge_media_to_caption": {
+        "edges": [
+         {
+          "node": {
+           "text": "Your summer smile is calling! 😁 Get professional Zoom teeth whitening at Granbury Park Dental. In-office only ($249) or deluxe bundle with take-home kit ($399). Valid now through Labor Day—your brigh"
+          }
+         }
+        ]
+       }
+      }
+     },
+     {
+      "node": {
+       "id": "3968083271284088648",
+       "shortcode": "DcRdrYgDt9I",
+       "is_video": false,
+       "taken_at_timestamp": 1787252410,
+       "edge_media_to_caption": {
+        "edges": [
+         {
+          "node": {
+           "text": "⏰ Don't miss out! Labor Day is the deadline for our Zoom whitening special. Get your smile summer-ready: $249 in-office or $399 with take-home kit. Book your appointment before it's gone! 🦷"
+          }
+         }
+        ]
+       }
+      }
+     },
+     {
+      "node": {
+       "id": "3961439487548833021",
+       "shortcode": "Db53Dmujbz9",
+       "is_video": false,
+       "taken_at_timestamp": 1786460409,
+       "edge_media_to_caption": {
+        "edges": [
+         {
+          "node": {
+           "text": "$399 Bundle Want the ultimate smile upgrade? Get professional in-office whitening PLUS our take-home kit for just $399—maintain your bright smile all summer long and beyond! 🌟 Limited-time offer ends"
+          }
+         }
+        ]
+       }
+      }
+     },
+     {
+      "node": {
+       "id": "3955701665525363661",
+       "shortcode": "DblebTjD3PN",
+       "is_video": false,
+       "taken_at_timestamp": 1785776407,
+       "edge_media_to_caption": {
+        "edges": [
+         {
+          "node": {
+           "text": "$249 In-Office Professional whitening results in ONE visit! 💎 Zoom in-office whitening at Granbury Park Dental—just $249. \n\nLimited-time offer through Labor Day. Schedule now! 📞"
+          }
+         }
+        ]
+       }
+      }
+     },
+     {
+      "node": {
+       "id": "3953465493470705885",
+       "shortcode": "Dbdh-uCFfjd",
+       "is_video": false,
+       "taken_at_timestamp": 1785509835,
+       "edge_media_to_caption": {
+        "edges": [
+         {
+          "node": {
+           "text": "Shine bright this summer! ✨ Get your smile ready with Zoom teeth whitening at Granbury Park Dental.\n Choose your perfect option: $249 in-office or $399 in-office + take-home kit. Offer valid now throu"
+          }
+         }
+        ]
+       }
+      }
+     },
+     {
+      "node": {
+       "id": "3951383638399245055",
+       "shortcode": "DbWInvaE9r_",
+       "is_video": false,
+       "taken_at_timestamp": 1785261658,
+       "edge_media_to_caption": {
+        "edges": [
+         {
+          "node": {
+           "text": "Thank you to Granbury Oral and Facial Surgery! 🍋"
+          }
+         }
+        ]
+       }
+      }
+     },
+     {
+      "node": {
+       "id": "3930983320511139354",
+       "shortcode": "DaNqIC1DU4a",
+       "is_video": false,
+       "taken_at_timestamp": 1782829750,
+       "edge_media_to_caption": {
+        "edges": [
+         {
+          "node": {
+           "text": "Thank you to Granbury Endo and Epic Ortho for the treats for July 4th! 💙"
+          }
+         }
+        ]
+       }
+      }
+     },
+     {
+      "node": {
+       "id": "3854898581946536417",
+       "shortcode": "DV_WdYOFJHh",
+       "is_video": false,
+       "taken_at_timestamp": 1773759743,
+       "edge_media_to_caption": {
+        "edges": [
+         {
+          "node": {
+           "text": "Spring is coming!🍀🌸🌤\nYour smile needs a spring cleaning, too! Contact us to schedule your next cleaning! Thank you @trinityendotx  for the goodies as always!"
+          }
+         }
+        ]
+       }
+      }
+     },
+     {
+      "node": {
+       "id": "3836285508256015149",
+       "shortcode": "DU9OVgglCMt",
+       "is_video": false,
+       "taken_at_timestamp": 1771540891,
+       "edge_media_to_caption": {
+        "edges": [
+         {
+          "node": {
+           "text": "Buccal up...Dr. Paul is 55! 🥳🦷\n\nWe hope you had an amazing birthday!"
+          }
+         }
+        ]
+       }
+      }
+     },
+     {
+      "node": {
+       "id": "3831729651577138425",
+       "shortcode": "DUtCdEVliz5",
+       "is_video": false,
+       "taken_at_timestamp": 1770997791,
+       "edge_media_to_caption": {
+        "edges": [
+         {
+          "node": {
+           "text": "We hope you all have a wonderful Valentine's Day! Thank you to Dr. Gillespie and wonderful staff for the Valentine's goodies. Y’all sure know our love language. 💖"
+          }
+         }
+        ]
+       }
+      }
+     }
+    ]
+   }
+  }
+ }
+}

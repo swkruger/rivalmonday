@@ -65,3 +65,5 @@ export { alsoFoundOn, type CitationBiz, cityFromAddress, isCategoryTitle, type L
 export * from './citations/search';
 export * from './tripadvisor/parse';
 export * from './tripadvisor/search';
+export * from './social/client';
+export { confirmsDomain, siteHost as socialSiteHost } from './social/host';

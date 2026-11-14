@@ -1,5 +1,11 @@
 import { createHash, randomUUID } from 'node:crypto';
 import type { LedgerSink } from '@cs/core';
+import fbPostsFx from '../social/__fixtures__/fb-posts.json';
+import fbPrivateFx from '../social/__fixtures__/fb-profile-private.json';
+import fbProfileFx from '../social/__fixtures__/fb-profile.json';
+import igFx from '../social/__fixtures__/ig-profile.json';
+import searchComfortFx from '../social/__fixtures__/search-comfort.json';
+import searchFx from '../social/__fixtures__/search-companies.json';
 
 /**
  * 7c2 rehearsal (`VENDOR_FAKE_MODE=fixtures`): a `fetch` that answers the paid vendor APIs (DataForSEO live + sandbox,
@@ -308,6 +314,18 @@ export function createFixtureFetch(opts: { latencyMs?: () => number } = {}): typ
       if (url.pathname === '/v1/facebook/adLibrary/search/ads') {
         const name = url.searchParams.get('query') ?? '';
         return json({ success: true, credits_charged: 0, credits_remaining: 0, searchResultsCount: 2, cursor: '', searchResults: metaAds(metaPageIdFor(name), name) });
+      }
+      // 18e social: served from the sanitised real-shape fixtures (credits 0 in rehearsal).
+      if (url.pathname === '/v1/facebook/adLibrary/search/companies') {
+        return json(/comfort/i.test(url.searchParams.get('query') ?? '') ? searchComfortFx : searchFx);
+      }
+      if (url.pathname === '/v1/facebook/profile') {
+        const gated = url.searchParams.get('include_gated_profile') === 'true';
+        return json(/private/i.test(url.searchParams.get('url') ?? '') && !gated ? fbPrivateFx : fbProfileFx);
+      }
+      if (url.pathname === '/v1/facebook/profile/posts') return json({ ...fbPostsFx, cursor: '' });
+      if (url.pathname === '/v1/instagram/profile') {
+        return /^missing/i.test(url.searchParams.get('handle') ?? '') ? json({ success: false }, 404) : json(igFx);
       }
       return null;
     }

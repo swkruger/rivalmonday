@@ -1,0 +1,48 @@
+{
+ "success": true,
+ "credits_charged": 1,
+ "searchResults": [
+  {
+   "page_id": "312373389787",
+   "category": "Heating, Ventilating & Air Conditioning Service",
+   "likes": 926,
+   "verification": "NOT_VERIFIED",
+   "name": "Comfort Masters Plumbing, Heating & Air Conditioning, Inc.",
+   "country": null,
+   "entity_type": "PERSON_PROFILE",
+   "ig_username": "comfortmasterslbk",
+   "ig_followers": 459,
+   "ig_verification": false,
+   "page_alias": "ComfortMasters",
+   "page_is_deleted": false
+  },
+  {
+   "page_id": "162889857065409",
+   "category": "Heating, Ventilating & Air Conditioning Service",
+   "likes": 4917,
+   "verification": "NOT_VERIFIED",
+   "name": "Collins Comfort Masters Air Conditioning and Heating Contractor",
+   "country": null,
+   "entity_type": "PERSON_PROFILE",
+   "ig_username": "collins_comfort_masters",
+   "ig_followers": 3842,
+   "ig_verification": false,
+   "page_alias": "CollinsComfort",
+   "page_is_deleted": false
+  },
+  {
+   "page_id": "486708258023488",
+   "category": "Heating, Ventilating & Air Conditioning Service",
+   "likes": 2479,
+   "verification": "NOT_VERIFIED",
+   "name": "Comfort Masters Heating & Air Conditioning",
+   "country": null,
+   "entity_type": "PERSON_PROFILE",
+   "ig_username": "comfortmastersdfw",
+   "ig_followers": 50,
+   "ig_verification": false,
+   "page_alias": "ComfortMastersDFW",
+   "page_is_deleted": false
+  }
+ ]
+}
