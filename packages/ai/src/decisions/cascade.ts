@@ -39,6 +39,8 @@ export class CascadingDecisionProvider {
     private readonly primary: DecisionProvider,
     private readonly fallback: DecisionProvider | null,
     private readonly thresholds: ConfidenceThresholds,
+    /** `escalateLowConfidence: false` (Jev-only mode): below-threshold keys go to review; the fallback only covers a primary failure. */
+    private readonly options: { escalateLowConfidence?: boolean } = {},
   ) {}
 
   async decide<K extends string>(state: unknown, questions: Record<K, DecisionQuestion>, opts: { shadow?: boolean; images?: readonly DecisionImage[] } = {}): Promise<DecisionResult<K>> {
@@ -54,7 +56,7 @@ export class CascadingDecisionProvider {
       const first = await this.primary.decide(state, questions, callOpts);
       trace.primary = { provider: this.primary.id, model: first.model, answers: first.answers };
       for (const k of keys) answers[k] = { ...first.answers[k], provider: this.primary.id } as ResolvedAnswer;
-      escalate = keys.filter(isLow);
+      escalate = this.options.escalateLowConfidence === false ? [] : keys.filter(isLow);
     } catch (err) {
       if (!this.fallback) throw err;
       escalate = keys;

@@ -1,4 +1,4 @@
-import type { AiGuard, CallScope, DecisionSampleSink, LedgerSink, LlmCallRecord } from '@cs/core';
+import type { AiDecisionMode, AiGuard, CallScope, DecisionSampleSink, LedgerSink, LlmCallRecord } from '@cs/core';
 import type { BatchItemResult, BatchProvider, BatchRequest } from './anthropic-batch';
 import type { ChatMessage, ChatProvider, ChatResult, ChatTool, JsonSchemaFormat } from './chat';
 import { type AiConfig, type CallTiming, type ConfidenceThresholds, type TaskConfig, timingOf } from './config';
@@ -15,6 +15,9 @@ async function safeRecord(ledger: LedgerSink, record: LlmCallRecord): Promise<vo
     console.error('[ai] ledger write failed', err);
   }
 }
+
+/** Phase 18e: most re-evaluation shadow LLM calls (`llm_decisions:reeval`) per UTC day. */
+export const REEVAL_DAILY_CALL_CAP = 2000;
 
 export const EMBED_BATCH = 64;
 export const EMBED_MAX_CHARS = 8000;
@@ -50,7 +53,20 @@ export interface AiDeps {
    * ledger row. Absent in worker CLIs (`*-once`).
    */
   guard?: AiGuard;
+  /**
+   * Phase 18e: the platform's `ai_decision_mode` (cached reader, fails to cascade). Absent = cascade. `jev_only` stops
+   * below-threshold escalation of Jev-primary tasks (not `ask_guard_decisions`); a future `reevalUntil` also shadows
+   * every call while `reevalCallsToday()` is under `REEVAL_DAILY_CALL_CAP`.
+   */
+  decisionMode?: () => Promise<AiDecisionMode>;
+  /** Today's (UTC) `llm_decisions:reeval` ledger rows; absent counts as 0. */
+  reevalCallsToday?: () => Promise<number>;
 }
+
+/** The injection gate always cascades, whatever the platform mode. */
+const ALWAYS_CASCADE_TASKS: ReadonlySet<string> = new Set(['ask_guard_decisions']);
+
+const CASCADE_MODE: AiDecisionMode = { mode: 'cascade', reevalUntil: null };
 
 export function createAi(config: AiConfig, deps: AiDeps): Ai {
   const now = deps.now ?? Date.now;
@@ -58,18 +74,37 @@ export function createAi(config: AiConfig, deps: AiDeps): Ai {
 
   /** Best-effort: a failed sample write is logged and never changes the decision. */
   async function keepSample<K extends string>(
-    name: string, scope: CallScope, state: unknown, questions: Record<K, DecisionQuestion>, result: DecisionResult<K>, sampled: boolean,
+    name: string, scope: CallScope, state: unknown, questions: Record<K, DecisionQuestion>, result: DecisionResult<K>, shadowKind: 'shadow' | 'reeval' | null,
   ): Promise<DecisionResult<K>> {
-    if (!deps.samples || (!sampled && result.needsReview.length === 0)) return result;
+    if (!deps.samples || (!shadowKind && result.needsReview.length === 0)) return result;
     try {
       const sampleId = await deps.samples.recordDecisionSample({
-        ...scope, task: name, reason: sampled ? 'shadow' : 'review', state, questions,
+        ...scope, task: name, reason: shadowKind ?? 'review', state, questions,
         primary: result.trace?.primary ?? null, fallback: result.trace?.fallback ?? null, final: result.answers, needsReview: result.needsReview,
       });
       return { ...result, sampleId };
     } catch (err) {
       console.error('[ai] decision sample write failed', err);
       return { ...result, sampleId: null };
+    }
+  }
+
+  /** A failed mode read means cascade (today's behaviour). */
+  async function readMode(): Promise<AiDecisionMode> {
+    try {
+      return await deps.decisionMode!();
+    } catch {
+      return CASCADE_MODE;
+    }
+  }
+
+  /** Re-evaluation window open (a future `reevalUntil`) and today's reeval calls under the cap. */
+  async function reevalOpen(mode: AiDecisionMode): Promise<boolean> {
+    if (!deps.decisionMode || !mode.reevalUntil || !(Date.parse(mode.reevalUntil) > now())) return false;
+    try {
+      return ((await deps.reevalCallsToday?.()) ?? 0) < REEVAL_DAILY_CALL_CAP;
+    } catch {
+      return false;
     }
   }
 
@@ -165,8 +200,14 @@ export function createAi(config: AiConfig, deps: AiDeps): Ai {
       if (t.provider === 'jev') {
         thresholds = t.min_confidence;
         rate = deps.shadowRateOverride ?? t.shadow_rate;
-        const sampled = !hasImages && deps.samples !== undefined && deps.jev !== null && t.escalate_to !== undefined && rate > 0 && random() < rate;
-        const escalation = t.escalate_to ? llmDecisions(t.escalate_to, scope, sampled ? `${t.escalate_to}:shadow` : t.escalate_to, timingOf(t)) : null;
+        const mode = deps.jev && deps.decisionMode && !ALWAYS_CASCADE_TASKS.has(name) ? await readMode() : CASCADE_MODE;
+        const jevOnly = mode.mode === 'jev_only';
+        const sampled = !jevOnly && !hasImages && deps.samples !== undefined && deps.jev !== null && t.escalate_to !== undefined && rate > 0 && random() < rate;
+        const reeval = !hasImages && deps.samples !== undefined && deps.jev !== null && t.escalate_to !== undefined && !ALWAYS_CASCADE_TASKS.has(name) && (await reevalOpen(mode));
+        const shadow = sampled || reeval;
+        const shadowKind = reeval ? 'reeval' : sampled ? 'shadow' : null;
+        const suffix = reeval ? 'reeval' : sampled ? 'shadow' : jevOnly ? 'jev_down' : null;
+        const escalation = t.escalate_to ? llmDecisions(t.escalate_to, scope, suffix ? `${t.escalate_to}:${suffix}` : t.escalate_to, timingOf(t)) : null;
         if (deps.jev) {
           primary = recording(deps.jev(t.model, timingOf(t)), name, scope, t.model);
           fallback = escalation;
@@ -175,12 +216,12 @@ export function createAi(config: AiConfig, deps: AiDeps): Ai {
         } else {
           throw new Error(`Task ${name} needs Jev but OPENROUTER_API_KEY is not configured`);
         }
-        const result = await new CascadingDecisionProvider(primary, fallback, thresholds).decide(state, questions, { shadow: sampled, images: opts?.images });
-        return hasImages ? result : keepSample(name, scope, state, questions, result, sampled);
+        const result = await new CascadingDecisionProvider(primary, fallback, thresholds, { escalateLowConfidence: !jevOnly }).decide(state, questions, { shadow, images: opts?.images });
+        return hasImages ? result : keepSample(name, scope, state, questions, result, shadowKind);
       }
       primary = llmDecisions(name, scope);
       const result = await new CascadingDecisionProvider(primary, null, thresholds).decide(state, questions, { images: opts?.images });
-      return hasImages ? result : keepSample(name, scope, state, questions, result, false);
+      return hasImages ? result : keepSample(name, scope, state, questions, result, null);
     },
 
     async embed(name, texts, scope) {
