@@ -53,6 +53,8 @@ const tool = async (_ctx: unknown, name: string, input: Record<string, unknown>)
     case 'list_tracked_pages': return { items: [{ id: 'p1', url: 'https://smithhvac.com/prices', pageType: 'pricing', source: 'sitemap', pinned: false, active: true, cadence: 'weekly', lastCapturedAt: null }] };
     case 'get_competitor_ad_matches': return { matched: [], pending: [] };
     case 'get_topic_benchmark': return { windowDays: 90, from: '', to: '', topics: [], businesses: [] };
+    case 'get_social_activity': return { businesses: [] };
+    case 'list_social_accounts': return { accounts: [] };
     // Pricing
     case 'get_price_matrix':
       return m.empty
@@ -89,7 +91,7 @@ vi.mock('@/server/env', () => ({ webEnv: () => ({ webMonitoring: true }) }));
 vi.mock('@/app/(app)/kb/actions', () => ({ loadPageGuide: vi.fn() }));
 vi.mock('./competitors/actions', () => ({
   requestSuggestionsAction: vi.fn(), acceptSuggestionsAction: vi.fn(), dismissSuggestionAction: vi.fn(), addCompetitorAction: vi.fn(), removeCompetitorAction: vi.fn(), searchStatusAction: vi.fn(),
-  setPinAction: vi.fn(), addPageAction: vi.fn(), confirmAdMatchAction: vi.fn(), removeAdMatchAction: vi.fn(),
+  setPinAction: vi.fn(), addPageAction: vi.fn(), confirmAdMatchAction: vi.fn(), removeAdMatchAction: vi.fn(), confirmSocialAction: vi.fn(), findSocialAction: vi.fn(),
 }));
 vi.mock('./rankings/actions', () => ({ saveRankSettings: vi.fn(), requestRankScan: vi.fn() }));
 vi.mock('next/navigation', () => ({

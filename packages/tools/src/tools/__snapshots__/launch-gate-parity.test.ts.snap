@@ -3172,6 +3172,43 @@ exports[`launch-gate 6b output parity: client runbook (snapshot recorded before 
       {
         "businessAreaIds": null,
         "content": {
+          "effort": "L",
+          "impact": "M",
+          "template": "Post on Facebook and Instagram every week: a recent job, a team photo or an offer.",
+          "title": "Post every week where customers scroll",
+          "trigger": "social_gap",
+        },
+        "customised": false,
+        "dismissedUpstreamVersion": null,
+        "enabled": true,
+        "key": "play:post_weekly",
+        "kind": "play",
+        "parent": {
+          "content": {
+            "effort": "L",
+            "impact": "M",
+            "template": "Post on Facebook and Instagram every week: a recent job, a team photo or an offer.",
+            "title": "Post every week where customers scroll",
+            "trigger": "social_gap",
+          },
+          "version": 1,
+        },
+        "state": "in_sync",
+        "upstreamSnapshot": {
+          "content": {
+            "effort": "L",
+            "impact": "M",
+            "template": "Post on Facebook and Instagram every week: a recent job, a team photo or an offer.",
+            "title": "Post every week where customers scroll",
+            "trigger": "social_gap",
+          },
+        },
+        "upstreamVersion": 1,
+        "version": 1,
+      },
+      {
+        "businessAreaIds": null,
+        "content": {
           "template": "{{competitor}} cut {{service}} to {{new_price}}. Rather than matching, offer {{service}} at a comparable price bundled with a visible extra (e.g. filter replacement or priority scheduling) and promote it on your Google Business Profile and in ads covering the affected ZIP codes.",
           "title": "Answer a price cut with a value bundle",
           "trigger": "price_change",
@@ -3731,6 +3768,52 @@ exports[`launch-gate 6b output parity: client runbook (snapshot recorded before 
             "playbook": "consider_search_ads",
             "strength": false,
             "weight": 0.6,
+          },
+        },
+        "upstreamVersion": 1,
+        "version": 1,
+      },
+      {
+        "businessAreaIds": null,
+        "content": {
+          "id": "social_gap",
+          "params": {
+            "min_rival_posts": 4,
+            "min_rivals": 2,
+          },
+          "playbook": "post_weekly",
+          "strength": false,
+          "weight": 0.4,
+        },
+        "customised": false,
+        "dismissedUpstreamVersion": null,
+        "enabled": true,
+        "key": "self_rule:social_gap",
+        "kind": "self_rule",
+        "parent": {
+          "content": {
+            "id": "social_gap",
+            "params": {
+              "min_rival_posts": 4,
+              "min_rivals": 2,
+            },
+            "playbook": "post_weekly",
+            "strength": false,
+            "weight": 0.4,
+          },
+          "version": 1,
+        },
+        "state": "in_sync",
+        "upstreamSnapshot": {
+          "content": {
+            "id": "social_gap",
+            "params": {
+              "min_rival_posts": 4,
+              "min_rivals": 2,
+            },
+            "playbook": "post_weekly",
+            "strength": false,
+            "weight": 0.4,
           },
         },
         "upstreamVersion": 1,
@@ -4295,6 +4378,43 @@ exports[`launch-gate 6b output parity: client runbook (snapshot recorded before 
       {
         "businessAreaIds": null,
         "content": {
+          "effort": "L",
+          "impact": "M",
+          "template": "Post on Facebook and Instagram every week: a recent job, a team photo or an offer.",
+          "title": "Post every week where customers scroll",
+          "trigger": "social_gap",
+        },
+        "customised": false,
+        "dismissedUpstreamVersion": null,
+        "enabled": true,
+        "key": "play:post_weekly",
+        "kind": "play",
+        "parent": {
+          "content": {
+            "effort": "L",
+            "impact": "M",
+            "template": "Post on Facebook and Instagram every week: a recent job, a team photo or an offer.",
+            "title": "Post every week where customers scroll",
+            "trigger": "social_gap",
+          },
+          "version": 1,
+        },
+        "state": "in_sync",
+        "upstreamSnapshot": {
+          "content": {
+            "effort": "L",
+            "impact": "M",
+            "template": "Post on Facebook and Instagram every week: a recent job, a team photo or an offer.",
+            "title": "Post every week where customers scroll",
+            "trigger": "social_gap",
+          },
+        },
+        "upstreamVersion": 1,
+        "version": 1,
+      },
+      {
+        "businessAreaIds": null,
+        "content": {
           "template": "{{competitor}} cut {{service}} to {{new_price}}. Rather than matching, offer {{service}} at a comparable price bundled with a visible extra (e.g. filter replacement or priority scheduling) and promote it on your Google Business Profile and in ads covering the affected ZIP codes.",
           "title": "Answer a price cut with a value bundle",
           "trigger": "price_change",
@@ -4854,6 +4974,52 @@ exports[`launch-gate 6b output parity: client runbook (snapshot recorded before 
             "playbook": "consider_search_ads",
             "strength": false,
             "weight": 0.6,
+          },
+        },
+        "upstreamVersion": 1,
+        "version": 1,
+      },
+      {
+        "businessAreaIds": null,
+        "content": {
+          "id": "social_gap",
+          "params": {
+            "min_rival_posts": 4,
+            "min_rivals": 2,
+          },
+          "playbook": "post_weekly",
+          "strength": false,
+          "weight": 0.4,
+        },
+        "customised": false,
+        "dismissedUpstreamVersion": null,
+        "enabled": true,
+        "key": "self_rule:social_gap",
+        "kind": "self_rule",
+        "parent": {
+          "content": {
+            "id": "social_gap",
+            "params": {
+              "min_rival_posts": 4,
+              "min_rivals": 2,
+            },
+            "playbook": "post_weekly",
+            "strength": false,
+            "weight": 0.4,
+          },
+          "version": 1,
+        },
+        "state": "in_sync",
+        "upstreamSnapshot": {
+          "content": {
+            "id": "social_gap",
+            "params": {
+              "min_rival_posts": 4,
+              "min_rivals": 2,
+            },
+            "playbook": "post_weekly",
+            "strength": false,
+            "weight": 0.4,
           },
         },
         "upstreamVersion": 1,

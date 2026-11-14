@@ -115,6 +115,7 @@ const EMPTY_ANSWERS = (): Record<string, unknown> => ({
     settings: { creditsPerUsd: 100, clientMonthlyLimitUsd: 15, clientPausePercent: 130, spikeWarnPercent: 100, spikePausePercent: 200, spikeFloorUsdPerDay: 5, spikeFloorUsdPerClientDay: 0.5, spikeSnoozeHours: 24 },
     state: { state: 'ok' }, scopes: [], pausedClients: [], events: [],
   },
+  get_ai_decision_mode: { mode: 'jev_only', reevalUntil: null, window: null },
   get_client_limits: { defaultLimitUsd: 15, pausePercent: 130, items: [] },
   list_catalog_review: { verticals: [], areas: [], count: 0 },
   list_verticals: { verticals: [] },

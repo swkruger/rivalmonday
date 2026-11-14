@@ -1,11 +1,11 @@
 import { createHash, randomUUID } from 'node:crypto';
 import type { LedgerSink } from '@cs/core';
-import fbPostsFx from '../social/__fixtures__/fb-posts.json';
-import fbPrivateFx from '../social/__fixtures__/fb-profile-private.json';
-import fbProfileFx from '../social/__fixtures__/fb-profile.json';
-import igFx from '../social/__fixtures__/ig-profile.json';
-import searchComfortFx from '../social/__fixtures__/search-comfort.json';
-import searchFx from '../social/__fixtures__/search-companies.json';
+import fbPostsFx from '../social/__fixtures__/fb-posts.json' with { type: 'json' };
+import fbPrivateFx from '../social/__fixtures__/fb-profile-private.json' with { type: 'json' };
+import fbProfileFx from '../social/__fixtures__/fb-profile.json' with { type: 'json' };
+import igFx from '../social/__fixtures__/ig-profile.json' with { type: 'json' };
+import searchComfortFx from '../social/__fixtures__/search-comfort.json' with { type: 'json' };
+import searchFx from '../social/__fixtures__/search-companies.json' with { type: 'json' };
 
 /**
  * 7c2 rehearsal (`VENDOR_FAKE_MODE=fixtures`): a `fetch` that answers the paid vendor APIs (DataForSEO live + sandbox,

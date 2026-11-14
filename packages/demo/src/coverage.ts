@@ -379,7 +379,7 @@ const SCREEN_ENTRIES: readonly ScreenCoverage[] = [
       { tool: 'get_signup_funnel', input: () => ({ days: 30 }), path: 'open.signups' },
     ],
   },
-  { route: '/platform/costs', as: 'operator', calls: [{ tool: 'list_platform_costs', input: none, path: 'services' }, { tool: 'get_spend_guard', input: none, path: 'settings' }] },
+  { route: '/platform/costs', as: 'operator', calls: [{ tool: 'list_platform_costs', input: none, path: 'services' }, { tool: 'get_spend_guard', input: none, path: 'settings' }, { tool: 'get_ai_decision_mode', input: none, path: 'mode' }] },
   { route: '/platform/leads', as: 'operator', calls: [{ tool: 'list_pool_leads', input: none, path: 'leads' }, { tool: 'list_pool_leads', input: none, path: 'agencies' }] },
   { route: '/platform/waitlist', as: 'operator', calls: [{ tool: 'list_waitlist', input: none, path: 'entries' }, { tool: 'list_pool_leads', input: none, path: 'agencies' }] },
   { route: '/platform/health', as: 'operator', calls: [{ tool: 'get_platform_health', input: none, path: 'sources' }, { tool: 'get_spend_guard', input: none, path: 'settings' }] },

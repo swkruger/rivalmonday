@@ -1,6 +1,6 @@
 import { competitor as competitorTable, type Db, socialAccount } from '@cs/db';
 import { and, eq, ilike, ne } from 'drizzle-orm';
-import { normaliseName } from '../rivals/names';
+import { normaliseName, plainName } from '../rivals/names';
 import type { ScClient, ScCompany, ScFbProfile } from './client';
 import { confirmsDomain, siteHost } from './host';
 
@@ -31,6 +31,9 @@ function namesMatch(a: string[], b: string[]): boolean {
 
 /** Token-equal names after `normaliseName` (the auto-confirm rule; a prefix match only suggests). */
 export const namesEqual = (a: string, b: string): boolean => {
+  // `normaliseName` drops "of <city>"; a location tail on only one side ("Aire Serv" vs "Aire Serv of Granbury") is a different entity, so it only suggests.
+  const tail = (n: string): string => plainName(n).match(/\sof\s.+$/)?.[0] ?? '';
+  if (tail(a) !== tail(b)) return false;
   const x = tokens(a);
   const y = tokens(b);
   return x.length > 0 && x.length === y.length && x.every((t, i) => y[i] === t);

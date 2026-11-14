@@ -168,7 +168,7 @@ describe('pasted-alias Facebook account end to end (I1)', () => {
     for (const [i, d] of [0, 28, 30].entries()) {
       pull = i;
       const r = await pullSocial({ db: dbs.service, store, sc, now: () => day(d) }, IDS.competitorX);
-      await diffVendorCapture({ db: dbs.service }, r.captures[0]!, { now: day(d) });
+      await diffVendorCapture({ db: dbs.service }, r.captures[0]!, { now: new Date(day(d).getTime() + 3_600_000) }); // past the 10-minute settle
     }
     const keys = (await changes()).map((c) => c.blockKey).sort();
     expect(keys).toEqual([`social:facebook:cadence:started:${ACC}`, `social:facebook:followers:${ACC}`, 'social:facebook:post:a1'].sort());
