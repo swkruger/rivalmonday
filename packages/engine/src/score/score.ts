@@ -87,7 +87,7 @@ export function serviceOverlap(serviceId: string | null, clientServices: string[
   const r = pack.scoring.relevance;
   if (clientServices.length === 0) return { value: 1, wholeBusiness: false };
   if (serviceId) return { value: clientServices.includes(serviceId) ? r.matched : r.unmatched, wholeBusiness: false };
-  if (WHOLE_BUSINESS_TYPES.has(changeType) || isPostOffer(changeType, details)) return { value: r.whole_business, wholeBusiness: true };
+  if (WHOLE_BUSINESS_TYPES.has(changeType) || isPostOffer(changeType, details) || details?.surface === 'social') return { value: r.whole_business, wholeBusiness: true };
   return { value: r.unmapped, wholeBusiness: false };
 }
 
@@ -147,7 +147,8 @@ export function scoreForClient(input: ScoreInput, profile: ClientProfile, pack: 
   // Phase 18a-1: profile edits (hours, phone, categories) never page anyone.
   const profileCap = input.changeType === 'profile_change' && route === 'alert';
   if (profileCap) route = 'brief';
-  const briefOnly = BRIEF_ONLY_TYPES.has(input.changeType) && route === 'alert';
+  // 18e: social changes (offers, cadence, follower growth) are brief news only.
+  const briefOnly = (BRIEF_ONLY_TYPES.has(input.changeType) || input.details?.surface === 'social') && route === 'alert';
   if (briefOnly) route = 'brief';
   return {
     score,

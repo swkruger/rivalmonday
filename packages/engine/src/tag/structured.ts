@@ -70,6 +70,14 @@ export function buildStructuredSummary(change: { source: string; beforeText: str
   const after = change.afterText ?? '';
   const adWord = CHANNEL_LABEL[change.source] ? `${CHANNEL_LABEL[change.source]} ad` : 'ad';
   let s: string;
+  if (d.surface === 'social') {
+    // 18e (draft -> copy review): rules-only, no model decision; "Facebook"/"Instagram" only, never the vendor.
+    const net = d.network === 'instagram' ? 'Instagram' : 'Facebook';
+    if (d.changeType === 'audience_growth') s = `${net} followers ${(d.previous ?? 0).toLocaleString('en-US')} → ${(d.followers ?? 0).toLocaleString('en-US')} (+${Math.round(d.pct ?? 0)}%)`;
+    else if (d.changeType === 'promo') s = `Posted an offer on ${net}: "${after.length > 120 ? `${after.slice(0, 120)}…` : after}"`;
+    else s = d.cadence === 'quiet' ? `Went quiet on ${net}: no posts in the last 30 days` : `Started posting regularly on ${net}`;
+    return redactForModel(s, { businessNames });
+  }
   if ((d.changeType === 'promo' || d.changeType === 'content') && d.field === 'post') {
     s = d.postId
       ? `${d.changeType === 'promo' ? 'Posted an offer on Google' : 'Posted on Google'}: "${trunc(after, 80)}"`

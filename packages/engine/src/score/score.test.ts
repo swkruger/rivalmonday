@@ -319,3 +319,16 @@ describe('event_listed scoring (18d D9)', () => {
     expect(r.factors.briefOnly).toBe(true);
   });
 });
+
+describe('social changes (18e)', () => {
+  const social = (changeType: ScoreInput['changeType'], details: ScoreInput['details']) => input({ changeType, facts: [], serviceId: null, details: { changeType, ...details } });
+  const eager = { ...client, thresholds: { alert: 10, brief: 5 } };
+  it('social change never routes to alert, and is whole-business', () => {
+    for (const [t, d] of [['promo', { surface: 'social', network: 'facebook', postId: 'p' }], ['content', { surface: 'social', network: 'facebook', cadence: 'quiet' }], ['audience_growth', { surface: 'social', network: 'facebook', pct: 60 }]] as const) {
+      const r = scoreForClient(social(t, d), eager, pack);
+      expect(r.route).toBe('brief');
+      expect(r.factors).toMatchObject({ wholeBusiness: true, briefOnly: true });
+    }
+    expect(scoreForClient(social('audience_growth', { pct: 60 }), eager, pack).route).toBe('alert');
+  });
+});

@@ -33,6 +33,7 @@ export function factsSignature(facts: NumericChange[]): string {
  * without such numbers (they keep plain cosine novelty).
  */
 export function detailsSignature(changeType: string, d: ChangeDetails): string | null {
+  if (d.surface === 'social') return `social|${changeType}|${d.network ?? ''}|${d.postId ?? d.cadence ?? d.followers ?? ''}`;
   switch (changeType) {
     case 'rating_change':
       return d.platform === 'tripadvisor' ? `rating|tripadvisor|${d.ratingBefore ?? ''}|${d.ratingAfter ?? ''}` : `rating|${d.ratingBefore ?? ''}|${d.ratingAfter ?? ''}`;

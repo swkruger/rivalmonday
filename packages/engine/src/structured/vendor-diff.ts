@@ -9,6 +9,7 @@ import { diffGbpPosts } from './gbp-posts';
 import { diffJobs } from './jobs';
 import { diffAudience } from './meta-page';
 import { diffReviews } from './reviews';
+import { diffSocialCapture } from './social';
 import { diffTripadvisor } from './tripadvisor';
 
 export const VENDOR_DIFF_STAGE = 'vendor_diff';
@@ -59,6 +60,7 @@ const DIFFERS: Record<string, SourceDiffer> = {
   google_jobs: diffJobs,
   google_reviews: diffReviews,
   tripadvisor: diffTripadvisor,
+  social: diffSocialCapture,
 };
 
 export const vendorDiffSources = (): string[] => Object.keys(DIFFERS);

@@ -19,6 +19,28 @@ const DAY_MS = 86_400_000;
 const round1 = (x: number) => Math.round(x * 10) / 10;
 const likesOf = (data: Record<string, unknown>): number | null => (typeof data.likes === 'number' && Number.isFinite(data.likes) ? data.likes : null);
 
+export interface AudienceReading { at: Date; value: number; captureId?: string }
+export type AudienceGrowth = { outcome: 'none' } | { outcome: 'implausible' } | { outcome: 'growth'; before: number; pct: number; base: AudienceReading };
+
+/**
+ * Shared growth rule (Meta page likes, social followers): `after` against the best reading 21-35 days back. The base is the HIGHEST
+ * reading in the window (ties: closest to the target), so a one-off low vendor reading can never fake a rise. Cooldown is the caller's.
+ */
+export function audienceGrowth(after: number, readings: AudienceReading[], atMs: number): AudienceGrowth {
+  const [minDays, maxDays] = AUDIENCE_WINDOW_DAYS;
+  const target = atMs - AUDIENCE_TARGET_DAYS * DAY_MS;
+  const inWindow = readings.filter((r) => r.at.getTime() >= atMs - maxDays * DAY_MS && r.at.getTime() <= atMs - minDays * DAY_MS);
+  const dist = (r: AudienceReading) => Math.abs(r.at.getTime() - target);
+  const base = [...inWindow].sort((x, y) => y.value - x.value || dist(x) - dist(y))[0];
+  if (!base || base.value <= 0) return { outcome: 'none' };
+  const before = base.value;
+  const pct = round1(((after - before) / before) * 100);
+  if (pct < AUDIENCE_MIN_PCT || after - before < AUDIENCE_MIN_GAIN) return { outcome: 'none' };
+  // More than double in about four weeks is a vendor blip (a high current reading), not growth: no event.
+  if (pct > AUDIENCE_MAX_PCT) return { outcome: 'implausible' };
+  return { outcome: 'growth', before, pct, base };
+}
+
 /** Page likes rose >= 15 % (and >= 50) over ~28 days, at most once per 28 days per page. Drops never emit. */
 export const diffAudience: SourceDiffer = async (db, cap) => {
   const pageId = pageIdOf(cap.url);
@@ -33,7 +55,6 @@ export const diffAudience: SourceDiffer = async (db, cap) => {
 
   const at = cap.capturedAt.getTime();
   const [minDays, maxDays] = AUDIENCE_WINDOW_DAYS;
-  const target = at - AUDIENCE_TARGET_DAYS * DAY_MS;
   const readings = await db
     .select({ data: observation.data, captureId: observation.captureId, observedAt: observation.observedAt })
     .from(observation)
@@ -43,18 +64,11 @@ export const diffAudience: SourceDiffer = async (db, cap) => {
         gte(observation.observedAt, new Date(at - maxDays * DAY_MS)), lte(observation.observedAt, new Date(at - minDays * DAY_MS)),
       ),
     );
-  // The base is the HIGHEST reading in the window (ties: closest to the target), so a one-off low vendor reading
-  // can never fake a rise; real growth is close to monotonic, so this barely changes true results.
-  const dist = (r: { observedAt: Date }) => Math.abs(r.observedAt.getTime() - target);
-  const valued = readings.flatMap((r) => { const l = likesOf(r.data); return l === null ? [] : [{ ...r, likes: l }]; });
-  const base = valued.sort((x, y) => y.likes - x.likes || dist(x) - dist(y))[0];
-  const before = base?.likes ?? null;
-  if (!base || before === null || before <= 0) return [];
-
-  const pct = round1(((after - before) / before) * 100);
-  if (pct < AUDIENCE_MIN_PCT || after - before < AUDIENCE_MIN_GAIN) return [];
-  // More than double in about four weeks is a vendor blip (a high current reading), not growth: no event.
-  if (pct > AUDIENCE_MAX_PCT) return { changes: [], implausible: 1, held: 0 };
+  const valued = readings.flatMap((r) => { const l = likesOf(r.data); return l === null ? [] : [{ at: r.observedAt, value: l, captureId: r.captureId }]; });
+  const g = audienceGrowth(after, valued, at);
+  if (g.outcome === 'none') return [];
+  if (g.outcome === 'implausible') return { changes: [], implausible: 1, held: 0 };
+  const { base, before, pct } = g;
 
   const [recent] = await db
     .select({ id: detectedChange.id })
@@ -69,7 +83,7 @@ export const diffAudience: SourceDiffer = async (db, cap) => {
     .limit(1);
   if (recent) return [];
 
-  const days = Math.round((at - base.observedAt.getTime()) / DAY_MS);
+  const days = Math.round((at - base.at.getTime()) / DAY_MS);
   const change: StructuredChange = {
     kind: 'modified', blockKey: `meta:likes:${pageId}`,
     beforeText: `Facebook Page likes: ${before}`, afterText: `Facebook Page likes: ${after}`,

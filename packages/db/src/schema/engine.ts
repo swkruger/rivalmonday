@@ -109,7 +109,13 @@ export interface ChangeDetails {
   top3PointsAfter?: number;
   scanId?: string;
   /** Google page-one change (18b-2): `rank_change` with surface 'organic'; `direction` entered|left, `position` = rank on entry. */
-  surface?: 'organic';
+  surface?: 'organic' | 'social';
+  /** Phase 18e (`surface 'social'`): network, follower reading/previous/window days, and post cadence (`started`|`quiet`). */
+  network?: 'facebook' | 'instagram';
+  followers?: number;
+  previous?: number;
+  window?: number;
+  cadence?: 'started' | 'quiet';
   position?: number;
   /** `tier_change` event: the competitor's tier last week and now. */
   from?: Tier;

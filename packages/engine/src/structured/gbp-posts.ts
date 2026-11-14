@@ -17,7 +17,7 @@ interface PostData { text?: string | null; url?: string | null; postedAt?: strin
 export const isOfferPost = (text: string): boolean => pricesInBlock(text).length > 0 || PROMO.test(text);
 
 /** A competitor no client tracks but some client owns as its own business: self posts make no events (D3). */
-async function isSelfOnly(db: Parameters<SourceDiffer>[0], competitorId: string): Promise<boolean> {
+export async function isSelfOnly(db: Parameters<SourceDiffer>[0], competitorId: string): Promise<boolean> {
   const [tracked] = await db.select({ id: clientCompetitor.competitorId }).from(clientCompetitor).where(eq(clientCompetitor.competitorId, competitorId)).limit(1);
   if (tracked) return false;
   const [own] = await db.select({ id: client.id }).from(client).where(eq(client.selfCompetitorId, competitorId)).limit(1);
