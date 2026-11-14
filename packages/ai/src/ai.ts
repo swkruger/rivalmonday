@@ -16,7 +16,7 @@ async function safeRecord(ledger: LedgerSink, record: LlmCallRecord): Promise<vo
   }
 }
 
-/** Phase 18e: most re-evaluation shadow LLM calls (`llm_decisions:reeval`) per UTC day. */
+/** Phase 18e: most re-evaluation shadow LLM calls (ledgered `<task>:reeval`) per UTC day. */
 export const REEVAL_DAILY_CALL_CAP = 2000;
 
 export const EMBED_BATCH = 64;
@@ -215,7 +215,7 @@ export function createAi(config: AiConfig, deps: AiDeps): Ai {
         const shadow = sampled || reeval;
         const shadowKind = reeval ? 'reeval' : sampled ? 'shadow' : null;
         const suffix = reeval ? 'reeval' : sampled ? 'shadow' : jevOnly ? 'jev_down' : null;
-        const escalation = t.escalate_to ? llmDecisions(t.escalate_to, scope, suffix ? `${t.escalate_to}:${suffix}` : t.escalate_to, timingOf(t)) : null;
+        const escalation = t.escalate_to ? llmDecisions(t.escalate_to, scope, reeval ? `${name}:reeval` : suffix ? `${t.escalate_to}:${suffix}` : t.escalate_to, timingOf(t)) : null;
         if (deps.jev) {
           primary = recording(deps.jev(t.model, timingOf(t)), name, scope, t.model);
           fallback = escalation;

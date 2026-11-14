@@ -1,6 +1,7 @@
 'use client';
 import { Table, TableBody, TableCell, TableFrame, TableHead, TableHeader, TableRow } from '@cs/ui';
 import { formatDate, formatMoney } from '@/lib/format';
+import { DECISION_TASK_LABEL } from '@/lib/labels';
 import { setAiDecisionModeAction } from '../actions';
 import { MiniForm } from '../../_components/mini-form';
 
@@ -24,7 +25,7 @@ export function AiDecisionMode({ data, tz, now = new Date() }: { data: AiDecisio
   return (
     <div className="flex flex-col gap-4">
       <MiniForm action={setAiDecisionModeAction} submit="Save">
-        <fieldset className="flex flex-wrap items-center gap-4 text-sm">
+        <fieldset key={data.mode} className="flex flex-wrap items-center gap-4 text-sm">
           <legend className="sr-only">AI decisions</legend>
           {OPTIONS.map((o) => (
             <label key={o.value} className="flex items-center gap-2">
@@ -40,6 +41,11 @@ export function AiDecisionMode({ data, tz, now = new Date() }: { data: AiDecisio
           <input type="hidden" name="reeval" value={active ? 'stop' : 'start'} />
         </MiniForm>
       </div>
+      {win && (
+        <p className="text-sm text-muted-ink">
+          {`${active ? 'So far, ' : ''}${formatDate(win.from, { tz })} to ${formatDate(win.to, { tz })}`}
+        </p>
+      )}
       {win && win.tasks.length > 0 && (
         <TableFrame>
           <Table>
@@ -55,7 +61,7 @@ export function AiDecisionMode({ data, tz, now = new Date() }: { data: AiDecisio
             <TableBody>
               {win.tasks.map((t) => (
                 <TableRow key={t.task}>
-                  <TableCell>{t.task}</TableCell>
+                  <TableCell>{DECISION_TASK_LABEL[t.task] ?? t.task}</TableCell>
                   <TableCell numeric>{t.samples}</TableCell>
                   <TableCell numeric>{pct(t.agreement)}</TableCell>
                   <TableCell numeric>{pct(t.jevBelowTau)}</TableCell>

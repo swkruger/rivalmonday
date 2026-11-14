@@ -1,8 +1,7 @@
 import { DEFAULT_AI_CONFIG_PATH, loadAiConfigFile } from '@cs/ai';
-import { type AccessContext, type AiDecisionMode, ToolError, toolkit } from '@cs/core';
-import { hashInput } from '@cs/core/server';
-import { decisionSample, llmCall, platformAuditLog, readAiDecisionMode, writeAiDecisionMode } from '@cs/db';
-import { and, asc, desc, eq, gte, inArray, like, lt, sql } from 'drizzle-orm';
+import { type AccessContext, ToolError, toolkit } from '@cs/core';
+import { decisionSample, llmCall, readAiDecisionState, updateAiDecisionState } from '@cs/db';
+import { and, eq, gte, like, lt, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import type { ToolDeps } from '../deps';
 import { requirePlatformOperator } from '../platform';
@@ -16,7 +15,6 @@ import { withPlatformAudit } from '../platform/audit';
 const { defineTool } = toolkit<ToolDeps>();
 const DAY_MS = 86_400_000;
 export const REEVAL_WINDOW_MS = 7 * DAY_MS;
-/** The audit row of a `set_ai_decision_mode` call carries only the input hash; the window start/stop are read back by hash. */
 const TOOL = 'set_ai_decision_mode';
 
 async function requireModeOperator(deps: ToolDeps, ctx: AccessContext, min: 'viewer' | 'staff') {
@@ -36,7 +34,7 @@ const TaskRow = z.object({
   agreement: z.number().nullable(),
   /** Share of Jev's answers whose confidence was under the task's threshold (the live ai.yaml `min_confidence`); null without keys or config. */
   jevBelowTau: z.number().nullable(),
-  /** Re-evaluation LLM spend, allocated across tasks by sample share (the ledger row names the shared LLM task, not the Jev task). */
+  /** Re-evaluation LLM spend ledgered as `<task>:reeval` inside the window. */
   llmUsd: z.number(),
 });
 const Window = z.object({ from: z.string(), to: z.string(), tasks: z.array(TaskRow) });
@@ -67,30 +65,6 @@ async function loadTaus(): Promise<Map<string, Thresholds> | null> {
   }
 }
 
-/** Input hashes the audit row of a start/stop call can carry (with or without a mode change alongside). */
-function auditHashes(reeval: 'start' | 'stop'): string[] {
-  return [undefined, 'jev_only', 'cascade'].map((mode) => hashInput(SetInput.parse({ ...(mode ? { mode } : {}), reeval })));
-}
-
-/** The most recent finished window when `reevalUntil` is null (stopped): from the last `start` audit row to its stop or +7 d. */
-async function lastStoppedWindow(deps: ToolDeps): Promise<{ from: Date; to: Date } | null> {
-  const [start] = await deps.service
-    .select({ at: platformAuditLog.createdAt })
-    .from(platformAuditLog)
-    .where(and(eq(platformAuditLog.tool, TOOL), eq(platformAuditLog.outcome, 'ok'), inArray(platformAuditLog.inputHash, auditHashes('start'))))
-    .orderBy(desc(platformAuditLog.createdAt))
-    .limit(1);
-  if (!start) return null;
-  const [stop] = await deps.service
-    .select({ at: platformAuditLog.createdAt })
-    .from(platformAuditLog)
-    .where(and(eq(platformAuditLog.tool, TOOL), eq(platformAuditLog.outcome, 'ok'), inArray(platformAuditLog.inputHash, auditHashes('stop')), gte(platformAuditLog.createdAt, start.at)))
-    .orderBy(asc(platformAuditLog.createdAt))
-    .limit(1);
-  const natural = new Date(start.at.getTime() + REEVAL_WINDOW_MS);
-  return { from: start.at, to: stop && stop.at < natural ? stop.at : natural };
-}
-
 async function windowResults(deps: ToolDeps, from: Date, to: Date): Promise<z.infer<typeof TaskRow>[]> {
   const end = new Date(to.getTime() + 1);
   const [rows, spend, taus] = await Promise.all([
@@ -99,12 +73,13 @@ async function windowResults(deps: ToolDeps, from: Date, to: Date): Promise<z.in
       .from(decisionSample)
       .where(and(eq(decisionSample.reason, 'reeval'), gte(decisionSample.createdAt, from), lt(decisionSample.createdAt, end))),
     deps.service
-      .select({ usd: sql<number>`coalesce(sum(${llmCall.costUsd}), 0)::float8` })
+      .select({ task: llmCall.task, usd: sql<number>`coalesce(sum(${llmCall.costUsd}), 0)::float8` })
       .from(llmCall)
-      .where(and(like(llmCall.task, '%:reeval'), gte(llmCall.createdAt, from), lt(llmCall.createdAt, end))),
+      .where(and(like(llmCall.task, '%:reeval'), gte(llmCall.createdAt, from), lt(llmCall.createdAt, end)))
+      .groupBy(llmCall.task),
     loadTaus(),
   ]);
-  const totalUsd = spend[0]?.usd ?? 0;
+  const usdBy = new Map(spend.map((r) => [r.task.replace(/:reeval$/, ''), r.usd]));
   const by = new Map<string, { samples: number; both: number; agree: number; keys: number; below: number }>();
   for (const r of rows) {
     const a = by.get(r.task) ?? { samples: 0, both: 0, agree: 0, keys: 0, below: 0 };
@@ -113,8 +88,10 @@ async function windowResults(deps: ToolDeps, from: Date, to: Date): Promise<z.in
     const fa = (r.fallback?.answers ?? {}) as Record<string, Answer>;
     const t = taus?.get(r.task);
     for (const [k, p] of Object.entries(pa)) {
-      a.keys += 1;
-      if (t && typeof p?.confidence === 'number' && p.confidence < tauOf(t, p.type)) a.below += 1;
+      if (typeof p?.confidence === 'number') {
+        a.keys += 1;
+        if (t && p.confidence < tauOf(t, p.type)) a.below += 1;
+      }
       const f = fa[k];
       if (f !== undefined) {
         a.both += 1;
@@ -123,7 +100,7 @@ async function windowResults(deps: ToolDeps, from: Date, to: Date): Promise<z.in
     }
     by.set(r.task, a);
   }
-  const all = [...by.values()].reduce((n, a) => n + a.samples, 0);
+  for (const task of usdBy.keys()) if (!by.has(task)) by.set(task, { samples: 0, both: 0, agree: 0, keys: 0, below: 0 });
   return [...by.entries()]
     .sort(([x], [y]) => x.localeCompare(y))
     .map(([task, a]) => ({
@@ -131,7 +108,7 @@ async function windowResults(deps: ToolDeps, from: Date, to: Date): Promise<z.in
       samples: a.samples,
       agreement: a.both === 0 ? null : a.agree / a.both,
       jevBelowTau: !taus || !taus.has(task) || a.keys === 0 ? null : a.below / a.keys,
-      llmUsd: all === 0 ? 0 : (totalUsd * a.samples) / all,
+      llmUsd: usdBy.get(task) ?? 0,
     }));
 }
 
@@ -148,18 +125,18 @@ export const getAiDecisionMode = defineTool({
     const role = await requireModeOperator(deps, ctx, 'viewer');
     return withPlatformAudit(deps, ctx, { tool: 'get_ai_decision_mode', input, role }, async () => {
       const now = new Date();
-      const { mode, reevalUntil } = await readAiDecisionMode(deps.service);
-      let win: { from: Date; to: Date } | null;
-      if (reevalUntil) {
-        const until = new Date(reevalUntil);
-        win = { from: new Date(until.getTime() - REEVAL_WINDOW_MS), to: until > now ? now : until };
+      const st = await readAiDecisionState(deps.service);
+      let win: { from: string; to: string } | null = null;
+      if (st.reevalUntil) {
+        const until = new Date(st.reevalUntil);
+        win = { from: st.reevalFrom ?? new Date(until.getTime() - REEVAL_WINDOW_MS).toISOString(), to: (until > now ? now : until).toISOString() };
       } else {
-        win = await lastStoppedWindow(deps);
+        win = st.lastWindow;
       }
       return {
-        mode,
-        reevalUntil,
-        window: win ? { from: win.from.toISOString(), to: win.to.toISOString(), tasks: await windowResults(deps, win.from, win.to) } : null,
+        mode: st.mode,
+        reevalUntil: st.reevalUntil,
+        window: win ? { ...win, tasks: await windowResults(deps, new Date(win.from), new Date(win.to)) } : null,
       };
     });
   },
@@ -177,13 +154,28 @@ export const setAiDecisionMode = defineTool({
   async handler(ctx: AccessContext, input, deps) {
     const role = await requireModeOperator(deps, ctx, 'staff');
     return withPlatformAudit(deps, ctx, { tool: TOOL, input, role }, async () => {
-      const prev = await readAiDecisionMode(deps.service);
-      const next: AiDecisionMode = {
-        mode: input.mode ?? prev.mode,
-        reevalUntil: input.reeval === 'start' ? new Date(Date.now() + REEVAL_WINDOW_MS).toISOString() : input.reeval === 'stop' ? null : prev.reevalUntil,
-      };
-      await writeAiDecisionMode(deps.service, next, ctx.userId);
-      return next;
+      const now = new Date();
+      const next = await updateAiDecisionState(
+        deps.service,
+        (prev) => {
+          const active = prev.reevalUntil !== null && new Date(prev.reevalUntil) > now;
+          const out = { ...prev, mode: input.mode ?? prev.mode };
+          if (input.reeval === 'start') {
+            out.reevalUntil = new Date(now.getTime() + REEVAL_WINDOW_MS).toISOString();
+            out.reevalFrom = active && prev.reevalFrom ? prev.reevalFrom : now.toISOString();
+          } else if (input.reeval === 'stop') {
+            if (prev.reevalUntil !== null) {
+              const until = new Date(prev.reevalUntil);
+              out.lastWindow = { from: prev.reevalFrom ?? new Date(until.getTime() - REEVAL_WINDOW_MS).toISOString(), to: (until > now ? now : until).toISOString() };
+            }
+            out.reevalFrom = null;
+            out.reevalUntil = null;
+          }
+          return out;
+        },
+        ctx.userId,
+      );
+      return { mode: next.mode, reevalUntil: next.reevalUntil };
     });
   },
 });

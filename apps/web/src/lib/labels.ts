@@ -362,3 +362,16 @@ export const PLAN_MOVE_REASON_LABEL: Record<'on_hold' | 'cancelled' | 'not_found
 
 // PLAN_FEATURES (@cs/core): what a plan version includes
 export const PLAN_FEATURE_LABEL: Record<'ask' | 'mcp', string> = { ask: 'Ask', mcp: 'MCP access' };
+
+// Jev decision tasks (`packages/ai/config/ai.yaml`) as the platform AI-decisions table names them; unknown tasks show their raw name
+export const DECISION_TASK_LABEL: Record<string, string> = {
+  tag_decisions: 'Tags',
+  structured_decisions: 'Structured facts',
+  merge_decisions: 'Merges',
+  page_decisions: 'Pages',
+  review_decisions: 'Reviews',
+  price_decisions: 'Prices',
+  verifier_decisions: 'Claim checks',
+  ask_guard_decisions: 'Ask guard',
+  ask_interpretation_decisions: 'Ask interpretation',
+};

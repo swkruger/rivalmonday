@@ -1,5 +1,5 @@
 import { type AccessContext, createAccessContext } from '@cs/core';
-import { decisionSample, llmCall, platformAdmin, platformAuditLog, readAiDecisionMode, writeAiDecisionMode } from '@cs/db';
+import { decisionSample, llmCall, platformAdmin, platformAuditLog, readAiDecisionMode, readAiDecisionState, writeAiDecisionMode } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
@@ -77,25 +77,38 @@ describe('ai decision mode tools', () => {
       { ...row('tag_decisions', answers('jev', { a: { value: true, confidence: 0.1 } }), null), reason: 'shadow' as const },
     ]);
     const led = (task: string, costUsd: number, createdAt = new Date()) => ({ task, provider: 'openrouter', model: 'm', inputTokens: 1, outputTokens: 1, costUsd, latencyMs: 1, ok: true, createdAt });
-    await dbs.owner.insert(llmCall).values([led('llm_decisions:reeval', 0.5), led('llm_decisions:reeval', 0.3), led('llm_decisions', 9), led('llm_decisions:reeval', 7, new Date(Date.now() - 20 * DAY))]);
+    await dbs.owner.insert(llmCall).values([led('tag_decisions:reeval', 0.5), led('tag_decisions:reeval', 0.25), led('price_decisions:reeval', 0.1), led('tag_decisions', 9), led('tag_decisions:reeval', 7, new Date(Date.now() - 20 * DAY))]);
 
     const r = await call(staff, 'get_ai_decision_mode');
     expect(r.mode).toBe('jev_only');
     expect(r.reevalUntil).toBe(until.toISOString());
     expect(new Date(r.window.from).getTime()).toBe(until.getTime() - 7 * DAY);
     expect(r.window.tasks).toEqual([
-      { task: 'price_decisions', samples: 1, agreement: 1, jevBelowTau: 0, llmUsd: expect.closeTo(0.4, 6) },
-      { task: 'tag_decisions', samples: 1, agreement: 0.5, jevBelowTau: expect.closeTo(1 / 3, 6), llmUsd: expect.closeTo(0.4, 6) },
+      { task: 'price_decisions', samples: 1, agreement: 1, jevBelowTau: 0, llmUsd: expect.closeTo(0.1, 6) },
+      { task: 'tag_decisions', samples: 1, agreement: 0.5, jevBelowTau: expect.closeTo(1 / 3, 6), llmUsd: expect.closeTo(0.75, 6) },
     ]);
   });
 
-  it('after stop the last finished window comes from the audit rows; null when never run', async () => {
-    expect((await call(staff, 'get_ai_decision_mode')).window).toBeNull();
-    await call(staff, 'set_ai_decision_mode', { reeval: 'start' });
+  it('window bounds are stored: a second start keeps reevalFrom, stop records lastWindow and clears the window', async () => {
+    const s1 = await call(staff, 'set_ai_decision_mode', { reeval: 'start' });
+    const st1 = await readAiDecisionState(dbs.service);
+    expect(st1.reevalFrom).not.toBeNull();
+    await new Promise((r) => setTimeout(r, 15));
+    const s2 = await call(staff, 'set_ai_decision_mode', { reeval: 'start', mode: 'cascade' });
+    expect(new Date(s2.reevalUntil).getTime()).toBeGreaterThan(new Date(s1.reevalUntil).getTime());
+    expect((await readAiDecisionState(dbs.service)).reevalFrom).toBe(st1.reevalFrom);
     await call(staff, 'set_ai_decision_mode', { reeval: 'stop' });
+    const st = await readAiDecisionState(dbs.service);
+    expect(st).toMatchObject({ reevalFrom: null, reevalUntil: null, lastWindow: { from: st1.reevalFrom } });
     const r = await call(staff, 'get_ai_decision_mode');
-    expect(r.reevalUntil).toBeNull();
-    expect(r.window).toMatchObject({ tasks: [] });
-    expect(new Date(r.window.to).getTime()).toBeLessThan(new Date(r.window.from).getTime() + DAY);
+    expect(r.window).toMatchObject({ from: st1.reevalFrom, tasks: [] });
+  });
+
+  it('an expired window never stopped reads from reevalFrom to reevalUntil; none ever run is null', async () => {
+    expect((await call(staff, 'get_ai_decision_mode')).window).toBeNull();
+    const from = new Date(Date.now() - 9 * DAY).toISOString();
+    const to = new Date(Date.now() - 2 * DAY).toISOString();
+    await writeAiDecisionMode(dbs.owner, { mode: 'jev_only', reevalUntil: to, reevalFrom: from }, 'seed');
+    expect((await call(staff, 'get_ai_decision_mode')).window).toMatchObject({ from, to });
   });
 });

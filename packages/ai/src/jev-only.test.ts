@@ -89,7 +89,7 @@ describe('re-evaluation window', () => {
     expect(r.trace?.primary).not.toBeNull();
     expect(r.trace?.fallback).not.toBeNull();
     expect(h.samples.map((s) => s.reason)).toEqual(['reeval']);
-    expect(h.ledgerRows.filter((l) => l.provider === 'llm').map((l) => l.task)).toEqual(['llm_decisions:reeval']);
+    expect(h.ledgerRows.filter((l) => l.provider === 'llm').map((l) => l.task)).toEqual(['tag_decisions:reeval']);
   });
   it('window over → no shadow', async () => {
     const h = harness({ mode: { mode: 'jev_only', reevalUntil: PAST } });
@@ -152,7 +152,7 @@ describe('review fixes', () => {
     const h = harness({ mode: { mode: 'cascade', reevalUntil: FUTURE }, random: 1 });
     await h.ai.decide('tag_decisions', {}, q, scope);
     expect(h.samples.map((s) => s.reason)).toEqual(['reeval']);
-    expect(h.ledgerRows.filter((l) => l.provider === 'llm').map((l) => l.task)).toEqual(['llm_decisions:reeval']);
+    expect(h.ledgerRows.filter((l) => l.provider === 'llm').map((l) => l.task)).toEqual(['tag_decisions:reeval']);
   });
   it('mode reader throwing → cascade', async () => {
     const h = harness({ readerThrows: true, jevP: 0.55, random: 1 });

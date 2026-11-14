@@ -11,7 +11,14 @@ export const AI_DECISION_MODE_KEY = 'ai_decision_mode';
 export const AiDecisionModeSchema = z.object({
   mode: z.enum(['jev_only', 'cascade']),
   reevalUntil: z.string().datetime({ offset: true }).nullable(),
+  /** Start of the active (or expired, never stopped) re-evaluation window; absent on rows written before it was kept. */
+  reevalFrom: z.string().datetime({ offset: true }).nullable().optional(),
+  /** The most recent stopped window. */
+  lastWindow: z.object({ from: z.string().datetime({ offset: true }), to: z.string().datetime({ offset: true }) }).nullable().optional(),
 });
+
+/** The stored value including the window bookkeeping the staff card reads (`readAiDecisionMode` stays mode + reevalUntil). */
+export type AiDecisionState = AiDecisionMode & { reevalFrom: string | null; lastWindow: { from: string; to: string } | null };
 
 const CASCADE: AiDecisionMode = { mode: 'cascade', reevalUntil: null };
 
@@ -19,10 +26,27 @@ const CASCADE: AiDecisionMode = { mode: 'cascade', reevalUntil: null };
 export async function readAiDecisionMode(db: Db | Tx): Promise<AiDecisionMode> {
   const [row] = await db.select({ value: platformSetting.value }).from(platformSetting).where(eq(platformSetting.key, AI_DECISION_MODE_KEY));
   const parsed = AiDecisionModeSchema.safeParse(row?.value);
-  return parsed.success ? parsed.data : { ...CASCADE };
+  return parsed.success ? { mode: parsed.data.mode, reevalUntil: parsed.data.reevalUntil } : { ...CASCADE };
 }
 
-export async function writeAiDecisionMode(db: Db | Tx, value: AiDecisionMode, by: string): Promise<void> {
+/** Full stored state (window bounds included); missing row or failed parse: cascade with no window. */
+export async function readAiDecisionState(db: Db | Tx, lock = false): Promise<AiDecisionState> {
+  const q = db.select({ value: platformSetting.value }).from(platformSetting).where(eq(platformSetting.key, AI_DECISION_MODE_KEY));
+  const [row] = await (lock ? q.for('update') : q);
+  const parsed = AiDecisionModeSchema.safeParse(row?.value);
+  return parsed.success ? { ...parsed.data, reevalFrom: parsed.data.reevalFrom ?? null, lastWindow: parsed.data.lastWindow ?? null } : { ...CASCADE, reevalFrom: null, lastWindow: null };
+}
+
+/** Atomic read-modify-write of the stored state (`SELECT ... FOR UPDATE` on the setting row inside one transaction). */
+export async function updateAiDecisionState(db: Db, change: (prev: AiDecisionState) => AiDecisionState, by: string): Promise<AiDecisionState> {
+  return db.transaction(async (tx) => {
+    const next = change(await readAiDecisionState(tx, true));
+    await writeAiDecisionMode(tx, next, by);
+    return next;
+  });
+}
+
+export async function writeAiDecisionMode(db: Db | Tx, value: AiDecisionMode & Partial<Pick<AiDecisionState, 'reevalFrom' | 'lastWindow'>>, by: string): Promise<void> {
   const v = AiDecisionModeSchema.parse(value);
   await db
     .insert(platformSetting)

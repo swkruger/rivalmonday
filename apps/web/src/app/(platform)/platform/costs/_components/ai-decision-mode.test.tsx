@@ -7,7 +7,7 @@ import { AiDecisionMode } from './ai-decision-mode';
 
 afterEach(cleanup);
 const NOW = new Date('2026-11-13T12:00:00Z');
-const tasks = [{ task: 'tag_decisions', samples: 12, agreement: 0.9167, jevBelowTau: 0.25, llmUsd: 0.4 }, { task: 'page_decisions', samples: 0, agreement: null, jevBelowTau: null, llmUsd: 0 }];
+const tasks = [{ task: 'tag_decisions', samples: 12, agreement: 0.9167, jevBelowTau: 0.25, llmUsd: 0.4 }, { task: 'new_decisions', samples: 0, agreement: null, jevBelowTau: null, llmUsd: 0 }];
 
 describe('AiDecisionMode', () => {
   it('shows the mode, the active window date in the viewer zone, the stop button and the results table', () => {
@@ -17,6 +17,9 @@ describe('AiDecisionMode', () => {
     expect(screen.getByText('Re-evaluating until Nov 17')).toBeTruthy(); // 03:00Z is still the 17th in Chicago
     expect(screen.getByRole('button', { name: 'Stop re-evaluation' })).toBeTruthy();
     for (const h of ['Task', 'Samples', 'Agreement', 'Jev unsure', 'LLM cost']) expect(screen.getByRole('columnheader', { name: h })).toBeTruthy();
+    expect(screen.getByText('Tags')).toBeTruthy();
+    expect(screen.getByText('new_decisions')).toBeTruthy();
+    expect(screen.getByText('So far, Nov 10 to Nov 13')).toBeTruthy();
     expect(screen.getByText('92%')).toBeTruthy();
     expect(screen.getByText('25%')).toBeTruthy();
     expect(screen.getByText('$0.40')).toBeTruthy();
