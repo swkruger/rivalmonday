@@ -9,7 +9,7 @@ import { scorecardEvidenceText } from './starting-point';
 const ID = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
 const SELF = ID(1);
 type Vals = Partial<Scorecard['rows'][number]['values']>;
-const vals = (v: Vals): Scorecard['rows'][number]['values'] => ({ rating: null, reviews90d: null, replyRate: null, mapTop3Share: null, adsActive: null, metaAdsActive: null, googlePosts30d: null, listings: null, upcomingEvents: null, tripadvisorRating: null, ...v });
+const vals = (v: Vals): Scorecard['rows'][number]['values'] => ({ rating: null, reviews90d: null, replyRate: null, mapTop3Share: null, adsActive: null, metaAdsActive: null, googlePosts30d: null, listings: null, upcomingEvents: null, tripadvisorRating: null, socialPosts30d: null, ...v });
 const row = (n: number, name: string, v: Vals, self = false): Scorecard['rows'][number] => ({ competitorId: ID(n), name, self, tier: self ? null : 'top', values: vals(v) });
 const card = (rows: Scorecard['rows']): Scorecard => ({ asOf: '2026-10-14T00:00:00Z', baselineBriefId: null, tiles: [] as never, rows, evidenceIds: [], openFirstMoves: [] });
 const topic = (topicId: string, share: number | null, sentiment: number | null): TopicShare =>
@@ -253,5 +253,32 @@ describe('event_gap (18d)', () => {
     expect(text).toContain('Events check: rivals list 3 upcoming events; none found for you.');
     const r = checkSentence(f.fact, { text, captureDates: [], zips: [], competitorNames: ['Alpha', 'Beta', 'Gamma'] }, { trackedCompetitorNames: ['Alpha', 'Beta', 'Gamma'], clientTowns: [], year: 2026 });
     expect(r).toEqual({ ok: true, reasons: [] });
+  });
+});
+
+describe('social_gap (18e)', () => {
+  const sc = (self: number | null, rivals: (number | null)[]) =>
+    card([row(1, 'Me', { socialPosts30d: self }, true), ...rivals.map((n, i) => row(i + 2, `R${i + 2}`, { socialPosts30d: n }))]);
+  const ev = { [ID(2)]: [ID(402)], [ID(3)]: [ID(403)], [ID(4)]: [ID(404)] };
+
+  it('fires with a confirmed account, 0 posts and 2 rivals at >= 4 posts; cites those rivals only', async () => {
+    const input = await base({ scorecard: sc(0, [4, 9, 3]), socialEvidenceByCompetitor: ev });
+    const f = find(evaluateSelfRules(input), 'social_gap')!;
+    expect(f.fact).toBe("2 rivals post weekly on Facebook or Instagram; you haven't posted in 30 days.");
+    expect(f.evidenceIds).toEqual([ID(402), ID(403)]);
+    expect(f.playbookId).toBe('post_weekly');
+    expect(f.score).toBeCloseTo(0.4 * 0.5, 5);
+    const ctx = { trackedCompetitorNames: ['R2', 'R3', 'R4'], clientTowns: [], year: 2026 };
+    expect(checkSentence(f.fact, { text: scorecardEvidenceText(input.scorecard, [f]), captureDates: [], zips: [], competitorNames: ['R2', 'R3', 'R4'] }, ctx).ok).toBe(true);
+  });
+
+  it("doesn't fire with 1 rival, rivals under 4 posts, you posting, no confirmed account, or no evidence", async () => {
+    const run = async (scorecard: Scorecard, e: Record<string, string[]> | null = ev) => find(evaluateSelfRules(await base({ scorecard, socialEvidenceByCompetitor: e ?? undefined })), 'social_gap');
+    expect(await run(sc(0, [9, 3, null]))).toBeUndefined();
+    expect(await run(sc(0, [3, 3, 3]))).toBeUndefined();
+    expect(await run(sc(1, [9, 9, 9]))).toBeUndefined();
+    expect(await run(sc(null, [9, 9, 9]))).toBeUndefined();
+    expect(await run(sc(0, [9, 9, 9]), {})).toBeUndefined();
+    expect(await run(sc(0, [9, 9, 9]), null)).toBeUndefined();
   });
 });

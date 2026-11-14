@@ -10,6 +10,7 @@ import { citationCatalogue, type Directory, type VerticalPack } from '@cs/vertic
 import type { PackLoader } from '../tag/tag-stage';
 import { localClock } from '../delivery/time';
 import { eventsEvidenceIds } from '../listed-events/counts';
+import { socialEvidenceByCompetitor } from '../structured/social';
 import { BRIEF_MAX_ATTEMPTS, BRIEF_STALE_MINUTES, briefErrorMessage, type BriefRunResult } from './generate';
 import { type BriefClient, loadBriefClient } from './gather';
 import { loadClientRunbook } from '../runbook/store';
@@ -17,7 +18,7 @@ import { renderPlaybook } from './playbooks';
 import { checkSentence, type RuleEvidence, splitSentences } from './rules';
 import { safeTimezone } from './schedule';
 import { buildScorecard, median, type Scorecard } from './scorecard';
-import { evaluateSelfRules, type SelfFinding, type SelfRuleInput } from './self-rules';
+import { evaluateSelfRules, type SelfFinding, type SelfRuleInput, socialGapFact } from './self-rules';
 import { supportCheck } from './support';
 import { BRIEF_WRITER_TASK } from './writer';
 
@@ -72,6 +73,7 @@ export function scorecardEvidenceText(sc: Scorecard, findings: SelfFinding[]): s
     if (f.ruleId === 'event_gap' && typeof f.values.total === 'number') {
       lines.push(`Events check: rivals list ${f.values.total} upcoming event${f.values.total === 1 ? '' : 's'}; none found for you.`);
     }
+    if (f.ruleId === 'social_gap' && typeof f.values.rivals === 'number') lines.push(`Social check: ${socialGapFact(f.values.rivals)}`);
     if (typeof f.values.topic === 'string' && typeof f.values.you === 'number' && typeof f.values.median === 'number') {
       lines.push(`Topic ${f.values.topic}: your share ${pct(f.values.you)}; rival median ${pct(f.values.median)}.`);
     }
@@ -254,6 +256,7 @@ export async function generateStartingPoint(deps: { db: Db; ai: Ai; packs: PackL
     const findings = evaluateSelfRules({
       citations: await loadSelfCitations(deps.db, clientId, row.selfCompetitorId, citationCatalogue(pack), audited.rivalIds),
       events: await selfEvents(deps.db, scorecard),
+      socialEvidenceByCompetitor: await socialEvidenceByCompetitor(deps.db, scorecard.rows.flatMap((r) => (r.competitorId && !r.self ? [r.competitorId] : []))),
       scorecard, topics, profile: await selfProfile(deps.db, row.selfCompetitorId), rules: runbook.selfRules, playbooks: runbook.plays,
       rankHasEvidence: rankEvidenceIds.length > 0, audienceNoun: pack.audience_noun, rankEvidenceIds,
       evidenceByCompetitor: Object.fromEntries(trend.businesses.map((b) => [b.competitorId, b.evidenceIds])),

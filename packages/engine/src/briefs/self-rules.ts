@@ -50,10 +50,17 @@ export interface SelfRuleInput {
    * `rivals` = measured rivals only. Evidence = the newest measured events capture of you and the rivals named.
    */
   events: { selfCount: number | null; rivals: { competitorId: string; name: string; count: number }[]; evidenceIds: string[] } | null;
+  /**
+   * Phase 18e (P7): evidence ids of each business's newest ok social captures, keyed by `competitorId` (`social_gap` cites the qualifying rivals'). Absent = rule skipped.
+   */
+  socialEvidenceByCompetitor?: Record<string, string[]>;
 }
 
 export const SELF_FINDINGS_MAX = 5;
 const EVIDENCE_PER_FINDING = 12;
+
+/** `social_gap` fact (draft for copy review); also the scorecard evidence line the rule checker reads. */
+export const socialGapFact = (n: number) => `${n} ${n === 1 ? 'rival posts' : 'rivals post'} weekly on Facebook or Instagram; you haven't posted in 30 days.`;
 
 const pct = (x: number) => Math.round(x * 100);
 const r2 = (x: number) => Math.round(x * 100) / 100;
@@ -206,6 +213,18 @@ export function evaluateSelfRules(input: SelfRuleInput): SelfFinding[] {
         // Fact copy: draft for copy review (Task 12 fix ruling 1). Verb and noun agree in number.
         push(rule, score(rule, total, 6), `${names} ${named.length === 1 ? 'lists' : 'list'} ${total} upcoming event${total === 1 ? '' : 's'}; none found for you.`, { total, rivalNames: names },
           e.evidenceIds.slice(0, EVIDENCE_PER_FINDING));
+        break;
+      }
+      case 'social_gap': {
+        // You have a confirmed account (count not null) but no post in 30 days, while enough rivals post at least weekly.
+        if (you('socialPosts30d') !== 0) break;
+        const minPosts = param(rule, 'min_rival_posts', 4);
+        const posting = input.scorecard.rows.filter((r) => !r.self && r.competitorId && (r.values.socialPosts30d ?? 0) >= minPosts);
+        const n = posting.length;
+        if (n < param(rule, 'min_rivals', 2)) break;
+        const evidenceIds = [...new Set(posting.flatMap((r) => input.socialEvidenceByCompetitor?.[r.competitorId!] ?? []))];
+        // Fact copy: draft for copy review (18e Task 8).
+        push(rule, score(rule, n, 4), socialGapFact(n), { rivals: n }, evidenceIds.slice(0, EVIDENCE_PER_FINDING));
         break;
       }
       case 'profile_gap': {

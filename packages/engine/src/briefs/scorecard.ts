@@ -6,10 +6,11 @@ import { ratingTrend } from '../reviews/rating-trend';
 import { competitorMatcher, rankMetrics } from '../structured/rank';
 import { postCounts30d, postsEvidenceIds } from '../structured/gbp-posts';
 import { eventsEvidenceIds, upcomingEvents } from '../listed-events/counts';
+import { socialEvidenceByCompetitor, socialPostCounts30d } from '../structured/social';
 import { safeTimezone } from './schedule';
 import type { PackLoader } from '../tag/tag-stage';
 
-export const ScorecardMetric = z.enum(['rating', 'reviews90d', 'replyRate', 'mapTop3Share', 'adsActive', 'metaAdsActive', 'googlePosts30d', 'listings', 'upcomingEvents', 'tripadvisorRating']);
+export const ScorecardMetric = z.enum(['rating', 'reviews90d', 'replyRate', 'mapTop3Share', 'adsActive', 'metaAdsActive', 'googlePosts30d', 'listings', 'upcomingEvents', 'tripadvisorRating', 'socialPosts30d']);
 export type ScorecardMetric = z.infer<typeof ScorecardMetric>;
 export const Scorecard = z.object({
   asOf: z.string(), baselineBriefId: z.uuid().nullable(), // null on the starting point itself
@@ -17,11 +18,11 @@ export const Scorecard = z.object({
   rows: z.array(z.object({
     competitorId: z.uuid().nullable(), name: z.string(), self: z.boolean(), tier: z.enum(['top', 'watch', 'minor']).nullable(),
     // Exhaustive object (not a record/preprocess) so the MCP access-marks walker can read it; keep in sync with `ScorecardMetric`.
-    // Scorecards stored before 18b lack `googlePosts30d`, before 18c-2 `listings`, before 18d the events/Tripadvisor keys: they parse as not measured (null).
+    // Scorecards stored before 18b lack `googlePosts30d`, before 18c-2 `listings`, before 18d the events/Tripadvisor keys, before 18e `socialPosts30d`: they parse as not measured (null).
     values: z.object({
       rating: z.number().nullable(), reviews90d: z.number().nullable(), replyRate: z.number().nullable(), mapTop3Share: z.number().nullable(),
       adsActive: z.number().nullable(), metaAdsActive: z.number().nullable(), googlePosts30d: z.number().nullable().default(null), listings: z.number().nullable().default(null),
-      upcomingEvents: z.number().nullable().default(null), tripadvisorRating: z.number().nullable().default(null),
+      upcomingEvents: z.number().nullable().default(null), tripadvisorRating: z.number().nullable().default(null), socialPosts30d: z.number().nullable().default(null),
     }),
   })),
   evidenceIds: z.array(z.uuid()),
@@ -141,6 +142,7 @@ export async function buildScorecard(
   const postCounts = await postCounts30d(deps.db, ids, now);
   const eventCounts = await upcomingEvents(deps.db, ids, now, safeTimezone(c.timezone));
   const taRatings = await tripadvisorRatings(deps.db, ids, now);
+  const socialCounts = await socialPostCounts30d(deps.db, ids, now);
 
   const catalogueHosts = new Set(citationCatalogue(await deps.packs(c.verticalId)).map((d) => d.host));
   const { counts: listingCounts, captureIds: listingCaptures } = await listedCounts(deps.db, ids, catalogueHosts);
@@ -157,6 +159,7 @@ export async function buildScorecard(
           listings: listingCounts.get(b.competitorId) ?? null,
           upcomingEvents: eventCounts.get(b.competitorId) ?? null,
           tripadvisorRating: taRatings.get(b.competitorId)?.rating ?? null,
+          socialPosts30d: socialCounts.get(b.competitorId) ?? null,
         } satisfies Record<ScorecardMetric, number | null>,
       };
     })
@@ -182,6 +185,7 @@ export async function buildScorecard(
   for (const b of trend.businesses) b.gbpEvidenceIds.forEach(add);
   (await postsEvidenceIds(deps.db, ids)).forEach(add);
   (await eventsEvidenceIds(deps.db, ids)).forEach(add);
+  Object.values(await socialEvidenceByCompetitor(deps.db, ids)).forEach((e) => e.forEach(add));
   const taCaptures = [...taRatings.values()].map((t) => t.captureId);
   if (taCaptures.length > 0) {
     const ev = await deps.db.select({ id: evidence.id, captureId: evidence.captureId }).from(evidence).where(inArray(evidence.captureId, taCaptures)).orderBy(asc(evidence.id));

@@ -23,6 +23,8 @@ const SHORT: Record<string, { short: string; key: string }> = {
   // 18d: both keys are drafts (draft for copy review).
   'Upcoming events': { short: 'Events', key: 'Events: upcoming events you and your rivals list' },
   'Tripadvisor rating': { short: 'Tripadvisor', key: 'Tripadvisor: Tripadvisor rating' },
+  // 18e: draft for copy review.
+  'Social posts (30 days)': { short: 'Social', key: 'Social: Facebook and Instagram posts in the last 30 days' },
 };
 
 /** Four tiles then a compact scorecard table (one real table with fixed widths, like `trend-table.tsx`). Trend colour is always paired with its text. */

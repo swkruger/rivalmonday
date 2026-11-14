@@ -1,8 +1,8 @@
 /**
  * Raise after any change to how a brief or report PDF looks. The version is part of the stored file name, so a PDF
  * rendered with an older layout no longer counts as stored and is rendered again the next time it is opened.
- * Version 1 is the unversioned `<id>.pdf`; version 2 is the single-table trend table (2026-10-06); version 3 adds the starting-point/quiet scorecard (2026-10-15); version 4 has the larger email text (2026-11-02); version 5 has 16 px scorecard/trend-table cells and short scorecard headers with a key (2026-11-03); version 6 is the weekly report (cover, summary, topic sections; 2026-11-09); version 7 adds the events and Tripadvisor scorecard columns (dropped when empty; 2026-11-12).
+ * Version 1 is the unversioned `<id>.pdf`; version 2 is the single-table trend table (2026-10-06); version 3 adds the starting-point/quiet scorecard (2026-10-15); version 4 has the larger email text (2026-11-02); version 5 has 16 px scorecard/trend-table cells and short scorecard headers with a key (2026-11-03); version 6 is the weekly report (cover, summary, topic sections; 2026-11-09); version 7 adds the events and Tripadvisor scorecard columns (dropped when empty; 2026-11-12). Version 8 adds the social posts scorecard column (dropped when empty; 2026-11-13).
  */
-export const PDF_LAYOUT_VERSION = 7;
+export const PDF_LAYOUT_VERSION = 8;
 export const PDF_KEY_SUFFIX = `.v${PDF_LAYOUT_VERSION}.pdf`;
 export const isCurrentPdfKey = (key: string) => key.endsWith(PDF_KEY_SUFFIX);

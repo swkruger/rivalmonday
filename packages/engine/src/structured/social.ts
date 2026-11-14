@@ -1,6 +1,6 @@
 import { socialCaptureUrl } from '@cs/collectors';
-import { capture, type Db, detectedChange, observation, type SocialNetwork, socialAccount, socialPost } from '@cs/db';
-import { and, eq, gte, inArray, ne, sql } from 'drizzle-orm';
+import { capture, type Db, detectedChange, evidence, observation, type SocialNetwork, socialAccount, socialPost } from '@cs/db';
+import { and, asc, desc, eq, gte, inArray, ne, sql } from 'drizzle-orm';
 import { isOfferPost, isSelfOnly, POST_MAX_AGE_DAYS, POST_MAX_SINGLE } from './gbp-posts';
 import { AUDIENCE_COOLDOWN_DAYS, AUDIENCE_WINDOW_DAYS, audienceGrowth } from './meta-page';
 import type { CaptureRow, SourceDiffer, StructuredChange } from './vendor-diff';
@@ -164,3 +164,34 @@ export const diffSocialCapture: SourceDiffer = async (db, cap, prev, older) => {
     posts, accountId, followers, followersHistory, priorChanges,
   });
 };
+
+const SCORECARD_DAYS = 30;
+
+/**
+ * Scorecard `socialPosts30d` and `social_gap` (18e P7): posts of each business's currently confirmed accounts posted in the last 30 days.
+ * `null` = no confirmed account (never 0); a confirmed account with no recent post is 0. Suggested and rejected accounts never count.
+ */
+export async function socialPostCounts30d(db: Db, competitorIds: string[], now: Date): Promise<Map<string, number | null>> {
+  const out = new Map<string, number | null>(competitorIds.map((id) => [id, null]));
+  if (competitorIds.length === 0) return out;
+  const confirmed = await db.selectDistinct({ id: socialAccount.competitorId }).from(socialAccount)
+    .where(and(inArray(socialAccount.competitorId, competitorIds), eq(socialAccount.status, 'confirmed')));
+  for (const c of confirmed) out.set(c.id, 0);
+  const posts = await socialPostsOfConfirmedAccounts(db, competitorIds, new Date(now.getTime() - SCORECARD_DAYS * DAY_MS));
+  for (const p of posts) out.set(p.competitorId, (out.get(p.competitorId) ?? 0) + 1);
+  return out;
+}
+
+/** The evidence ids of each business's newest ok social capture per account (they list the counted posts; no evidence, no claim), keyed by competitor. */
+export async function socialEvidenceByCompetitor(db: Db, competitorIds: string[]): Promise<Record<string, string[]>> {
+  if (competitorIds.length === 0) return {};
+  const rows = await db
+    .selectDistinctOn([capture.competitorId, capture.url], { competitorId: capture.competitorId, id: evidence.id })
+    .from(evidence)
+    .innerJoin(capture, eq(capture.id, evidence.captureId))
+    .where(and(inArray(capture.competitorId, competitorIds), eq(capture.source, 'social'), eq(capture.status, 'ok')))
+    .orderBy(capture.competitorId, capture.url, desc(capture.capturedAt), asc(evidence.kind), asc(evidence.id));
+  const out: Record<string, string[]> = {};
+  for (const r of rows) (out[r.competitorId] ??= []).push(r.id);
+  return out;
+}

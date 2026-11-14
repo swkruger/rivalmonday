@@ -12,8 +12,8 @@ const sc = (over: Partial<Scorecard> = {}): Scorecard => ({
     { metric: 'mapTop3Share', you: null, rivalMedian: 0.5, deltaSinceStart: null },
   ],
   rows: [
-    { competitorId: id, name: 'A1 HVAC', self: true, tier: null, values: { rating: 4.6, reviews90d: 12, replyRate: 0.314, mapTop3Share: null, adsActive: null, metaAdsActive: 2, googlePosts30d: null, listings: null, upcomingEvents: null, tripadvisorRating: null } },
-    { competitorId: id, name: 'Smith', self: false, tier: 'top', values: { rating: 4.45, reviews90d: 30, replyRate: 0.5, mapTop3Share: 0.5, adsActive: 3, metaAdsActive: 0, googlePosts30d: 4, listings: 8, upcomingEvents: null, tripadvisorRating: null } },
+    { competitorId: id, name: 'A1 HVAC', self: true, tier: null, values: { rating: 4.6, reviews90d: 12, replyRate: 0.314, mapTop3Share: null, adsActive: null, metaAdsActive: 2, googlePosts30d: null, listings: null, upcomingEvents: null, tripadvisorRating: null, socialPosts30d: null } },
+    { competitorId: id, name: 'Smith', self: false, tier: 'top', values: { rating: 4.45, reviews90d: 30, replyRate: 0.5, mapTop3Share: 0.5, adsActive: 3, metaAdsActive: 0, googlePosts30d: 4, listings: 8, upcomingEvents: null, tripadvisorRating: null, socialPosts30d: null } },
   ],
   evidenceIds: [], openFirstMoves: [{ recommendationId: id, title: 'Reply to reviews' }], ...over,
 });

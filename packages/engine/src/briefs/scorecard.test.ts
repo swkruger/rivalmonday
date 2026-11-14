@@ -1,4 +1,4 @@
-import { ad, capture, citationListing, gbpPost, listedEvent, stageRun, client, clientCompetitor, competitor, competitorSignal, evidence, observation, rankScan, rankSnapshot, review, vendorTask } from '@cs/db';
+import { ad, capture, citationListing, socialAccount, socialPost, gbpPost, listedEvent, stageRun, client, clientCompetitor, competitor, competitorSignal, evidence, observation, rankScan, rankSnapshot, review, vendorTask } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
@@ -91,8 +91,8 @@ describe('buildScorecard', () => {
     await snap(cur!.id, 2, [res('PB', 1), res('PSELF', 5)], cap.id);
     const sc = await buildScorecard(deps(), IDS.clientA1, { now: NOW });
     const row = (n: string) => sc.rows.find((r) => r.name === n)!.values;
-    expect(row('A1 HVAC')).toEqual({ rating: null, reviews90d: 2, replyRate: 0.5, mapTop3Share: 0.5, adsActive: null, metaAdsActive: null, googlePosts30d: null, listings: null, upcomingEvents: null, tripadvisorRating: null });
-    expect(row('Rival A')).toEqual({ rating: null, reviews90d: 1, replyRate: 1, mapTop3Share: 0.5, adsActive: 3, metaAdsActive: null, googlePosts30d: null, listings: null, upcomingEvents: null, tripadvisorRating: null });
+    expect(row('A1 HVAC')).toEqual({ rating: null, reviews90d: 2, replyRate: 0.5, mapTop3Share: 0.5, adsActive: null, metaAdsActive: null, googlePosts30d: null, listings: null, upcomingEvents: null, tripadvisorRating: null, socialPosts30d: null });
+    expect(row('Rival A')).toEqual({ rating: null, reviews90d: 1, replyRate: 1, mapTop3Share: 0.5, adsActive: 3, metaAdsActive: null, googlePosts30d: null, listings: null, upcomingEvents: null, tripadvisorRating: null, socialPosts30d: null });
     expect(row('Rival B')).toMatchObject({ reviews90d: 3, replyRate: 0, mapTop3Share: 0.5, adsActive: 1, metaAdsActive: 2 });
     expect(sc.tiles).toEqual([
       { metric: 'rating', you: null, rivalMedian: null, deltaSinceStart: null },
@@ -301,5 +301,52 @@ describe('Events listed and Tripadvisor rating (18d)', () => {
     for (const r of old.rows) { delete r.values.upcomingEvents; delete r.values.tripadvisorRating; }
     const parsed = Scorecard.parse(old);
     expect([parsed.rows[0]!.values.upcomingEvents, parsed.rows[0]!.values.tripadvisorRating]).toEqual([null, null]);
+  });
+
+  describe('socialPosts30d (18e)', () => {
+    const account = (competitorId: string, status: 'confirmed' | 'suggested' | 'rejected', handle = 'acme') =>
+      dbs.owner.insert(socialAccount).values({ competitorId, network: 'facebook', handle, url: `https://facebook.com/${handle}`, status });
+    const posts = async (competitorId: string, n: number, handle = 'acme', daysAgo = 3) => {
+      const c = await vendorCapture(competitorId, 'social', `social:facebook:${handle}`, ago(1));
+      for (let i = 0; i < n; i++) {
+        await dbs.owner.insert(socialPost).values({ competitorId, network: 'facebook', postId: randomUUID(), postedAt: ago(daysAgo + i), text: 't', url: 'https://fb.example/p', firstCaptureId: c.captureId, firstSeenAt: ago(1) });
+      }
+      return c;
+    };
+
+    it('suggested account never counted in socialPosts30d', async () => {
+      const r = await addRival('Rival Social', 'top');
+      await account(r, 'suggested');
+      await posts(r, 5);
+      const sc = await buildScorecard(deps(), IDS.clientA1, { now: NOW });
+      expect(sc.rows.find((x) => x.name === 'Rival Social')!.values.socialPosts30d).toBeNull();
+    });
+
+    it('counts confirmed-account posts of the last 30 days; a confirmed account with none is 0', async () => {
+      const r = await addRival('Rival Social', 'top');
+      await account(r, 'confirmed');
+      const cap = await posts(r, 4, 'acme', 2);
+      await dbs.owner.insert(socialPost).values({ competitorId: r, network: 'facebook', postId: 'old', postedAt: ago(40), text: 't', url: 'u', firstCaptureId: cap.captureId, firstSeenAt: ago(1) });
+      await account(selfId, 'confirmed', 'me');
+      const sc = await buildScorecard(deps(), IDS.clientA1, { now: NOW });
+      const v = (n: string) => sc.rows.find((x) => x.name === n)!.values;
+      expect([v('Rival Social').socialPosts30d, v('A1 HVAC').socialPosts30d]).toEqual([4, 0]);
+      expect(sc.evidenceIds).toContain(cap.evidenceId);
+      expect(scorecardModel(sc, { clientName: 'A1 HVAC' }).table.headers).toContain('Social posts (30 days)');
+    });
+
+    it('no confirmed account → null, column dropped', async () => {
+      await addRival('Rival Quiet', 'top');
+      const sc = await buildScorecard(deps(), IDS.clientA1, { now: NOW });
+      expect(sc.rows.every((x) => x.values.socialPosts30d === null)).toBe(true);
+      expect(scorecardModel(sc, { clientName: 'A1 HVAC' }).table.headers).not.toContain('Social posts (30 days)');
+    });
+
+    it('a scorecard stored before 18e (no socialPosts30d key) still parses as null', async () => {
+      const sc = await buildScorecard(deps(), IDS.clientA1, { now: NOW });
+      const old = JSON.parse(JSON.stringify(sc));
+      for (const r of old.rows) delete r.values.socialPosts30d;
+      expect(Scorecard.parse(old).rows[0]!.values.socialPosts30d).toBeNull();
+    });
   });
 });
