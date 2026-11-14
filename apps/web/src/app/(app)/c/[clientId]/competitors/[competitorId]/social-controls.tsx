@@ -14,8 +14,8 @@ function Result({ state }: { state: FormResult }) {
   return null;
 }
 
-/** "Confirm" and "Not them" for one suggested account (agency roles; the parent decides). */
-export function SuggestedActions({ clientId, competitorId, accountId, handle }: { clientId: string; competitorId: string; accountId: string; handle: string }) {
+/** "Confirm" and "Not them" for one suggested account, or "Not them" only for a confirmed one (agency roles; the parent decides). */
+export function SuggestedActions({ clientId, competitorId, accountId, handle, confirmed = false }: { clientId: string; competitorId: string; accountId: string; handle: string; confirmed?: boolean }) {
   const [state, action, pending] = useActionState(confirmSocialAction, INITIAL);
   return (
     <WriteGuard>
@@ -23,7 +23,7 @@ export function SuggestedActions({ clientId, competitorId, accountId, handle }: 
         <input type="hidden" name="clientId" value={clientId} />
         <input type="hidden" name="competitorId" value={competitorId} />
         <input type="hidden" name="accountId" value={accountId} />
-        <Button type="submit" name="decision" value="confirm" variant="outline" disabled={pending} aria-label={`Confirm ${handle}`}>Confirm</Button>
+        {!confirmed && <Button type="submit" name="decision" value="confirm" variant="outline" disabled={pending} aria-label={`Confirm ${handle}`}>Confirm</Button>}
         <Button type="submit" name="decision" value="reject" variant="outline" disabled={pending} aria-label={`${handle} is not them`}>Not them</Button>
         <Result state={state} />
       </form>

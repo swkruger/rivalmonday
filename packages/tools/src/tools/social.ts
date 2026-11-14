@@ -1,6 +1,6 @@
 import { canAccessClient, SPEND_PAUSED_COPY, toolkit, ToolError } from '@cs/core';
 import { hashInput } from '@cs/core/server';
-import { socialCaptureUrl } from '@cs/collectors';
+import { socialCaptureUrl, socialProfileKey } from '@cs/collectors';
 import { agencyServiceable, auditLog, capture, client, clientCompetitor, clientWorkAllowed, evidence, observation, type SocialNetwork, socialAccount, withTenant } from '@cs/db';
 import { isOfferPost, socialPostsOfConfirmedAccounts } from '@cs/engine';
 import { and, asc, desc, eq, gt, inArray, isNull, ne, or, sql } from 'drizzle-orm';
@@ -26,8 +26,6 @@ const uuid = z.string().uuid();
 /** (draft → copy review) */
 const ACCOUNT_URL_COPY = 'That link is not a Facebook page or Instagram profile. Paste the page link itself, like facebook.com/yourrival or instagram.com/yourrival (not a post, group or section).';
 
-/** `<network>:<id>`, the key of an account's `social_profile` observations (the capture url minus `social:`). */
-const profileKey = (a: { network: string; handle: string; externalId: string | null }): string => socialCaptureUrl(a).slice('social:'.length);
 
 /** The latest follower count per profile key, and the latest one at least 90 days old (the base of the change). */
 async function followerReadings(db: ToolDeps['service'], competitorIds: string[], now: Date): Promise<Map<string, { latest: number | null; base: number | null }>> {
@@ -99,9 +97,8 @@ export const getSocialActivity = defineTool({
           name: forChannel(meta, b.name, names),
           self: b.self,
           accounts: own.map((a) => {
-            const key = profileKey(a);
-            const r = readings.get(`${a.competitorId}|${key}`);
-            const mine = ownPosts.filter((p) => p.network === a.network && key === `${p.network}:${p.accountId}`);
+            const r = readings.get(`${a.competitorId}|${socialProfileKey(a)}`);
+            const mine = ownPosts.filter((p) => p.accountId === a.id);
             const last = mine.reduce<Date | null>((m, p) => (m === null || p.postedAt > m ? p.postedAt : m), null);
             return {
               network: a.network, handle: a.handle, url: a.url,
@@ -184,7 +181,7 @@ export const listSocialAccounts = defineTool({
     return {
       accounts: rows.map((a) => ({
         id: a.id, network: a.network, handle: a.handle, url: a.url, status: a.status, confirmedBy: a.confirmedBy,
-        followers: readings.get(`${competitorId}|${profileKey(a)}`)?.latest ?? null, lastPulledAt: a.lastPulledAt?.toISOString() ?? null,
+        followers: readings.get(`${competitorId}|${socialProfileKey(a)}`)?.latest ?? null, lastPulledAt: a.lastPulledAt?.toISOString() ?? null,
       })),
     };
   },

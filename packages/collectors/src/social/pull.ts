@@ -19,7 +19,6 @@ interface NewPost {
   comments: number | null;
 }
 interface Pulled {
-  accountId: string;
   profile: Record<string, unknown>;
   followers: number | null;
   likes?: number | null;
@@ -47,8 +46,9 @@ async function pullFacebook(deps: PullDeps, a: Account, tick: () => void): Promi
     p = await deps.sc.facebookProfile(a.url, { gated: true });
     if ('private' in p) throw new Error('Facebook profile private even with the gated retry');
   }
+  // The profile id is only for the posts call; the account identity everywhere else is `social_account.id`.
   const profileId = a.externalId ?? p.id;
-  const base = { accountId: profileId, profile: p as unknown as Record<string, unknown>, followers: p.followerCount, likes: p.likeCount };
+  const base = { profile: p as unknown as Record<string, unknown>, followers: p.followerCount, likes: p.likeCount };
   if (gated) return { ...base, posts: [], rawPosts: [], gated: true };
 
   const [newest] = await deps.db
@@ -117,12 +117,15 @@ async function pullInstagram(deps: PullDeps, a: Account, tick: () => void): Prom
         ],
   );
   const { posts: rawPosts, ...profile } = p;
-  return { accountId: a.handle, profile, followers: p.followers, postsCount: p.postsCount, posts, rawPosts };
+  return { profile, followers: p.followers, postsCount: p.postsCount, posts, rawPosts };
 }
 
 /** The capture url of an account (one history per account): `social:facebook:<external_id or handle>` / `social:instagram:<handle>`. */
 export const socialCaptureUrl = (a: { network: string; handle: string; externalId?: string | null }): string =>
   `social:${a.network}:${a.network === 'facebook' ? (a.externalId ?? a.handle) : a.handle}`;
+
+/** The key of an account's `social_profile` observations: `<network>:<social_account.id>` (one identity, whatever the capture url uses). */
+export const socialProfileKey = (a: { network: string; id: string }): string => `${a.network}:${a.id}`;
 
 /** Weekly pull of one competitor's confirmed accounts: one `vendor_json` capture per account, new `social_post` rows, one `social_profile` observation. */
 export async function pullSocial(deps: PullDeps, competitorId: string): Promise<{ captures: string[]; credits: number }> {
@@ -157,7 +160,7 @@ export async function pullSocial(deps: PullDeps, competitorId: string): Promise<
       const rec = await recordVendorCapture(deps, {
         ...base,
         status: 'ok',
-        payload: { network: a.network, accountId: pl.accountId, profile: pl.profile, posts: pl.rawPosts },
+        payload: { network: a.network, accountId: a.id, profile: pl.profile, posts: pl.rawPosts },
       });
       captures.push(rec.captureId);
       const at = now();
@@ -168,12 +171,12 @@ export async function pullSocial(deps: PullDeps, competitorId: string): Promise<
             .values(pl.posts.map((p) => ({ ...p, competitorId, network: a.network, firstCaptureId: rec.captureId, firstSeenAt: at })))
             .onConflictDoNothing({ target: [socialPost.network, socialPost.postId] });
         }
-        const data: Record<string, unknown> = { network: a.network, accountId: pl.accountId, followers: pl.followers };
+        const data: Record<string, unknown> = { network: a.network, accountId: a.id, followers: pl.followers };
         if (pl.likes != null) data.likes = pl.likes;
         if (pl.postsCount != null) data.postsCount = pl.postsCount;
         await tx
           .insert(observation)
-          .values({ competitorId, captureId: rec.captureId, kind: 'social_profile', key: `${a.network}:${pl.accountId}`, data, observedAt: at });
+          .values({ competitorId, captureId: rec.captureId, kind: 'social_profile', key: socialProfileKey(a), data, observedAt: at });
         await tx
           .update(socialAccount)
           .set({ lastPulledAt: at, ...(pl.gated ? { gated: true } : {}) })

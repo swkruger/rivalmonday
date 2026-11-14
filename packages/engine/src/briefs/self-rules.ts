@@ -216,13 +216,16 @@ export function evaluateSelfRules(input: SelfRuleInput): SelfFinding[] {
         break;
       }
       case 'social_gap': {
-        // A rival counts only with citable evidence, so n matches the citations. You have a confirmed account (count not null) but no post in 30 days, while enough rivals post at least weekly.
+        // A rival counts only with citable evidence, so n matches the citations. You are measured (an account pulled ok in the last 8 days, count not null) with no post in 30 days,
+        // while enough rivals post at least weekly. Your own newest social capture is cited for the "none" (I2).
         if (you('socialPosts30d') !== 0) break;
+        const selfEvidence = selfId ? (input.socialEvidenceByCompetitor?.[selfId] ?? []) : [];
+        if (selfEvidence.length === 0) break;
         const minPosts = param(rule, 'min_rival_posts', 4);
         const posting = input.scorecard.rows.filter((r) => !r.self && r.competitorId && (r.values.socialPosts30d ?? 0) >= minPosts && (input.socialEvidenceByCompetitor?.[r.competitorId] ?? []).length > 0);
         const n = posting.length;
         if (n < param(rule, 'min_rivals', 2)) break;
-        const evidenceIds = [...new Set(posting.flatMap((r) => input.socialEvidenceByCompetitor?.[r.competitorId!] ?? []))];
+        const evidenceIds = [...new Set([...selfEvidence.slice(0, 1), ...posting.flatMap((r) => input.socialEvidenceByCompetitor?.[r.competitorId!] ?? []), ...selfEvidence])];
         // Fact copy: draft for copy review (18e Task 8).
         push(rule, score(rule, n, 4), socialGapFact(n), { rivals: n }, evidenceIds.slice(0, EVIDENCE_PER_FINDING));
         break;

@@ -1,8 +1,8 @@
-import { type Db, socialAccount } from '@cs/db';
-import { and, eq } from 'drizzle-orm';
+import { competitor as competitorTable, type Db, socialAccount } from '@cs/db';
+import { and, eq, ilike, ne } from 'drizzle-orm';
 import { normaliseName } from '../rivals/names';
 import type { ScClient, ScCompany, ScFbProfile } from './client';
-import { confirmsDomain } from './host';
+import { confirmsDomain, siteHost } from './host';
 
 export type AccountRow = typeof socialAccount.$inferSelect;
 export interface SocialCompetitor {
@@ -27,6 +27,23 @@ function namesMatch(a: string[], b: string[]): boolean {
   if (short.length === 0) return false;
   if (!short.every((t, i) => long[i] === t)) return false;
   return short.length === long.length || short.length >= 2 || short.join(' ').length >= 10;
+}
+
+/** Token-equal names after `normaliseName` (the auto-confirm rule; a prefix match only suggests). */
+export const namesEqual = (a: string, b: string): boolean => {
+  const x = tokens(a);
+  const y = tokens(b);
+  return x.length > 0 && x.length === y.length && x.every((t, i) => y[i] === t);
+};
+
+/** True when another `competitor` row (other id) has the same domain host: a franchise or multi-location brand, whose site proves nothing about which location owns a page. */
+async function hostShared(db: Db, competitorId: string, domain: string | null): Promise<boolean> {
+  const host = siteHost(domain);
+  if (!host) return false;
+  const like = `%${host.replace(/[\\%_]/g, (m) => `\\${m}`)}%`;
+  const others = await db.select({ domain: competitorTable.domain }).from(competitorTable)
+    .where(and(ne(competitorTable.id, competitorId), ilike(competitorTable.domain, like)));
+  return others.some((o) => siteHost(o.domain) === host);
 }
 
 /** Stored Meta page id (live) wins; else the first live result whose name matches. Results whose handles were rejected are skipped. */
@@ -114,7 +131,7 @@ async function upsertAccount(db: Db, competitorId: string, c: Candidate, allowCo
   }
 }
 
-/** Search (1 credit) -> pick -> Facebook profile (1; gated retry only when private) -> upsert Facebook + Instagram rows. IG inherits the Facebook status (same search row). */
+/** Search (1 credit) -> pick -> Facebook profile (1; gated retry only when private) -> upsert Facebook + Instagram rows. IG inherits the Facebook status (same search row) only when FB auto-confirmed under the franchise guard. */
 export async function discoverSocialAccounts(
   db: Db,
   sc: ScClient,
@@ -146,7 +163,9 @@ export async function discoverSocialAccounts(
   if (!matched && fb && competitor.metaPageIds.includes(pick.page_id)) {
     console.warn('social: meta page website mismatch', { competitorId: competitor.id, pageId: pick.page_id });
   }
-  const status: Status = matched ? 'confirmed' : 'suggested';
+  // Franchise guard: the website confirms only with token-equal names and a domain host no other competitor row shares; otherwise the agency decides.
+  const confirm = matched && pick.name !== null && namesEqual(pick.name, competitor.name) && !(await hostShared(db, competitor.id, competitor.domain));
+  const status: Status = confirm ? 'confirmed' : 'suggested';
 
   const out: { facebook?: AccountRow; instagram?: AccountRow; credits: number } = { credits };
   out.facebook = await upsertAccount(db, competitor.id, {

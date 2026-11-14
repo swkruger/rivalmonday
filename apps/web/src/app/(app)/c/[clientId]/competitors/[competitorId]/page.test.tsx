@@ -243,6 +243,18 @@ describe('CompetitorProfilePage', () => {
       expect(tryCallTool.mock.calls.find((c) => c[1] === 'list_social_accounts')?.[2]).toEqual({ competitorId: 'x' });
     });
 
+    it('agency sees "Not them" (no Confirm) on a confirmed row, rejecting by its account id (I4)', async () => {
+      role = 'agency_admin';
+      const CONF = '22222222-2222-4222-8222-222222222222';
+      social(activity, { accounts: [...listed.accounts, { id: CONF, network: 'facebook', handle: 'smithhvac', url: 'https://www.facebook.com/smithhvac', status: 'confirmed', confirmedBy: 'website', followers: 1840, lastPulledAt: null }] });
+      await renderPage();
+      const fb = within(screen.getByRole('list', { name: 'Social accounts' })).getAllByRole('listitem')[0]!;
+      const reject = within(fb).getByRole('button', { name: 'smithhvac is not them' });
+      expect(reject.getAttribute('value')).toBe('reject');
+      expect(within(fb).queryByRole('button', { name: 'Confirm smithhvac' })).toBeNull();
+      expect((fb.querySelector('input[name="accountId"]') as HTMLInputElement).value).toBe(CONF);
+    });
+
     it('a client viewer sees the confirmed account read-only: no controls, no suggested row, no list call', async () => {
       social(activity, listed);
       await renderPage();

@@ -1,4 +1,4 @@
-import { socialCaptureUrl } from '@cs/collectors';
+import { socialCaptureUrl, socialProfileKey } from '@cs/collectors';
 import { capture, observation, type SocialNetwork, socialAccount, socialPost } from '@cs/db';
 import type { SeedContext } from './context';
 import { putEvidence } from './evidence';
@@ -32,21 +32,23 @@ export async function seedSocial(ctx: SeedContext): Promise<void> {
   for (const [rival, a, by] of accounts) {
     const url = `https://www.${a.network}.com/${a.handle}`;
     const at = ctx.clock.daysAgo(1);
-    await ctx.db.insert(socialAccount).values({ competitorId: rival!.id, network: a.network, handle: a.handle, url, status: 'confirmed', confirmedBy: by, lastPulledAt: at });
-    const key = `${a.network}:${a.handle}`;
+    const [acct] = await ctx.db.insert(socialAccount).values({ competitorId: rival!.id, network: a.network, handle: a.handle, url, status: 'confirmed', confirmedBy: by, lastPulledAt: at })
+      .returning({ id: socialAccount.id, network: socialAccount.network });
+    // One account identity, as the weekly pull writes it: observation key and payload `accountId` = `social_account.id`.
+    const key = socialProfileKey(acct!);
     const [cap] = await ctx.db.insert(capture).values({
       competitorId: rival!.id, source: 'social', url: socialCaptureUrl(a), status: 'ok', collectorVersion: DEMO_COLLECTOR, capturedAt: at,
     }).returning({ id: capture.id });
     await putEvidence(ctx, {
       captureId: cap!.id, competitorId: rival!.id, kind: 'vendor_json', contentType: 'application/json',
-      body: new TextEncoder().encode(JSON.stringify({ network: a.network, accountId: a.handle, profile: { followers: a.followers }, posts: a.posts.map((p) => ({ id: p.id, text: p.text })) }, null, 2)),
+      body: new TextEncoder().encode(JSON.stringify({ network: a.network, accountId: acct!.id, profile: { followers: a.followers }, posts: a.posts.map((p) => ({ id: p.id, text: p.text })) }, null, 2)),
     });
-    await ctx.db.insert(observation).values({ competitorId: rival!.id, captureId: cap!.id, kind: 'social_profile', key, data: { network: a.network, accountId: a.handle, followers: a.followers }, observedAt: at });
+    await ctx.db.insert(observation).values({ competitorId: rival!.id, captureId: cap!.id, kind: 'social_profile', key, data: { network: a.network, accountId: acct!.id, followers: a.followers }, observedAt: at });
     if (a.olderFollowers !== null) {
       // An older reading (its own capture; one observation per capture and key) gives the 90-day follower change.
       const old = ctx.clock.daysAgo(100);
       const [oldCap] = await ctx.db.insert(capture).values({ competitorId: rival!.id, source: 'social', url: socialCaptureUrl(a), status: 'ok', collectorVersion: DEMO_COLLECTOR, capturedAt: old }).returning({ id: capture.id });
-      await ctx.db.insert(observation).values({ competitorId: rival!.id, captureId: oldCap!.id, kind: 'social_profile', key, data: { network: a.network, accountId: a.handle, followers: a.olderFollowers }, observedAt: old });
+      await ctx.db.insert(observation).values({ competitorId: rival!.id, captureId: oldCap!.id, kind: 'social_profile', key, data: { network: a.network, accountId: acct!.id, followers: a.olderFollowers }, observedAt: old });
     }
     await ctx.db.insert(socialPost).values(a.posts.map((p) => ({
       competitorId: rival!.id, network: a.network, postId: `demo:${p.id}`, postedAt: ctx.clock.daysAgo(p.agoDays), text: p.text,

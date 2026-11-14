@@ -32,16 +32,16 @@ async function pull(url: string, competitorId = X, kinds: Array<'text' | 'vendor
 }
 const post = (captureId: string, id: string, text: string, days: number, network: 'facebook' | 'instagram' = 'facebook', competitorId = X) =>
   dbs.owner.insert(socialPost).values({ competitorId, network, postId: id, postedAt: ago(days), text, url: `https://fb.example/${id}`, firstCaptureId: captureId, firstSeenAt: ago(days) });
-const followers = (captureId: string, n: number, days: number, key = 'facebook:smithhvac', competitorId = X) =>
+const followers = (captureId: string, n: number, days: number, key: string, competitorId = X) =>
   dbs.owner.insert(observation).values({ competitorId, captureId, kind: 'social_profile', key, data: { followers: n }, observedAt: ago(days) });
 
 beforeEach(resetWorkspace);
 
 describe('get_social_activity (18e)', () => {
   it('shows confirmed accounts only: suggested and rejected accounts (and their posts) never count', async () => {
-    await account();
+    const fb = await account();
     await account({ network: 'instagram', handle: 'smith_ig', url: 'https://www.instagram.com/smith_ig', status: 'suggested', confirmedBy: null });
-    await account({ handle: 'oldpage', url: 'https://www.facebook.com/oldpage', status: 'rejected' });
+    const old = await account({ handle: 'oldpage', url: 'https://www.facebook.com/oldpage', status: 'rejected' });
     const good = await pull('social:facebook:smithhvac', X, ['vendor_json', 'text']);
     const bad = await pull('social:facebook:oldpage');
     const sug = await pull('social:instagram:smith_ig');
@@ -49,9 +49,9 @@ describe('get_social_activity (18e)', () => {
     await post(good.captureId, 'g2', 'We hired a tech', 9);
     await post(bad.captureId, 'b1', 'Old page post', 2);
     await post(sug.captureId, 's1', 'Suggested post', 2, 'instagram');
-    await followers(good.captureId, 1200, 1);
-    await followers((await pull('social:facebook:smithhvac')).captureId, 1000, 100);
-    await followers(bad.captureId, 99, 1, 'facebook:oldpage');
+    await followers(good.captureId, 1200, 1, `facebook:${fb.id}`);
+    await followers((await pull('social:facebook:smithhvac')).captureId, 1000, 100, `facebook:${fb.id}`);
+    await followers(bad.captureId, 99, 1, `facebook:${old.id}`);
 
     const r = await activity();
     const smith = r.businesses.find((b) => b.competitorId === X)!;
@@ -69,12 +69,23 @@ describe('get_social_activity (18e)', () => {
 
   it('a business with no confirmed account is listed with none; followers90dChange is null without an older reading', async () => {
     const self = await seedSelf();
-    await account({ competitorId: self, handle: 'a1hvac', url: 'https://www.facebook.com/a1hvac' });
+    const a = await account({ competitorId: self, handle: 'a1hvac', url: 'https://www.facebook.com/a1hvac' });
     const c = await pull('social:facebook:a1hvac', self);
-    await followers(c.captureId, 50, 2, 'facebook:a1hvac', self);
+    await followers(c.captureId, 50, 2, `facebook:${a.id}`, self);
     const r = await activity();
     expect(r.businesses.map((b) => [b.name, b.self, b.accounts.length])).toEqual([['A1 HVAC', true, 1], ['Smith HVAC', false, 0]]);
     expect(r.businesses[0]!.accounts[0]).toMatchObject({ followers: 50, followers90dChange: null, posts30d: 0, lastPostAt: null });
+  });
+
+  it('a pasted-alias Facebook account (no external_id) shows followers, posts and offers (I1)', async () => {
+    const fb = await account({ handle: 'smithalias', externalId: null, url: 'https://www.facebook.com/smithalias' });
+    const c = await pull('social:facebook:smithalias');
+    await post(c.captureId, 'o1', 'Spring tune-up $79', 3);
+    await followers(c.captureId, 700, 1, `facebook:${fb.id}`);
+    const smith = (await activity()).businesses.find((b) => b.competitorId === X)!;
+    expect(smith.accounts[0]).toMatchObject({ handle: 'smithalias', followers: 700, posts30d: 1 });
+    expect(smith.offers).toHaveLength(1);
+    expect((await accounts()).accounts[0]).toMatchObject({ handle: 'smithalias', followers: 700 });
   });
 
   it('out-of-scope client → not_found', async () => {

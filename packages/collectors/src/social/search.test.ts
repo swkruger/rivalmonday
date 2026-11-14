@@ -1,4 +1,4 @@
-import { socialAccount } from '@cs/db';
+import { competitor, socialAccount } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -180,6 +180,31 @@ describe('discoverSocialAccounts', () => {
     const other = await discoverSocialAccounts(dbs.service, fakeSc([row({ page_alias: 'glowdental2', ig_username: null })], [profile({ id: '999' })]).sc, comp());
     expect(other.facebook).toMatchObject({ handle: 'glowdental2', status: 'suggested' });
     expect(await rows()).toHaveLength(3);
+  });
+});
+
+describe('discoverSocialAccounts franchise guard (I3)', () => {
+  it('"Aire Serv" vs page "Aire Serv of Granbury" with a matching host → suggested', async () => {
+    const { sc } = fakeSc([row({ name: 'Aire Serv of Granbury', page_alias: 'aireservgranbury', ig_username: 'aireservgranbury' })], [profile({ website: 'https://www.aireserv.com/granbury/' })]);
+    const res = await discoverSocialAccounts(dbs.service, sc, comp({ name: 'Aire Serv', domain: 'aireserv.com' }));
+    expect(res.facebook).toMatchObject({ status: 'suggested', confirmedBy: null });
+    expect(res.instagram).toMatchObject({ status: 'suggested', confirmedBy: null });
+  });
+
+  it('a domain host shared with another competitor row → suggested', async () => {
+    await dbs.owner.insert(competitor).values({ name: 'Glow Dental Co. Granbury', domain: 'https://www.glowdentalco.com/granbury' });
+    const { sc } = fakeSc([row({})], [profile()]);
+    const res = await discoverSocialAccounts(dbs.service, sc, comp());
+    expect(res.facebook).toMatchObject({ status: 'suggested', confirmedBy: null });
+    expect(res.instagram).toMatchObject({ status: 'suggested', confirmedBy: null });
+  });
+
+  it('exact name and a unique host → confirmed', async () => {
+    await dbs.owner.insert(competitor).values({ name: 'Glow Dental Elsewhere', domain: 'glowdentalco.net' });
+    const { sc } = fakeSc([row({ name: 'GLOW DENTAL CO' })], [profile()]);
+    const res = await discoverSocialAccounts(dbs.service, sc, comp());
+    expect(res.facebook).toMatchObject({ status: 'confirmed', confirmedBy: 'website' });
+    expect(res.instagram).toMatchObject({ status: 'confirmed', confirmedBy: 'website' });
   });
 });
 

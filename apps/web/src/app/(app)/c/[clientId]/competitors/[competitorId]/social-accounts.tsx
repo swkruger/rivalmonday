@@ -14,7 +14,7 @@ type Listed = SocialAccountsView['accounts'][number];
 
 /**
  * The "Social accounts" block of the competitor page. Everyone sees the confirmed accounts (from `get_social_activity`);
- * agency roles also see suggested accounts with "Confirm" / "Not them" and the find / add-link controls (`list_social_accounts`).
+ * agency roles also see suggested accounts with "Confirm" / "Not them", "Not them" on confirmed accounts and the find / add-link controls (`list_social_accounts`).
  */
 export function SocialAccountsSection({ clientId, competitorId, activity, listed, agency, tz }: {
   clientId: string;
@@ -28,8 +28,10 @@ export function SocialAccountsSection({ clientId, competitorId, activity, listed
   const rows = (['facebook', 'instagram'] as const).flatMap((network) => {
     const confirmed = activity.find((a) => a.network === network);
     const suggested = agency ? (listed ?? []).filter((a) => a.network === network && a.status === 'suggested') : [];
+    // The confirmed row's id (agency only) lets the agency reject a wrong confirmed account.
+    const confirmedId = agency ? ((listed ?? []).find((a) => a.network === network && a.status === 'confirmed')?.id ?? null) : null;
     return [
-      ...(confirmed ? [{ key: `c:${network}`, network, status: 'confirmed' as const, handle: confirmed.handle, url: confirmed.url, followers: confirmed.followers, lastPostAt: confirmed.lastPostAt, accountId: null as string | null }] : []),
+      ...(confirmed ? [{ key: `c:${network}`, network, status: 'confirmed' as const, handle: confirmed.handle, url: confirmed.url, followers: confirmed.followers, lastPostAt: confirmed.lastPostAt, accountId: confirmedId }] : []),
       ...suggested.map((a) => ({ key: a.id, network, status: 'suggested' as const, handle: a.handle, url: a.url, followers: a.followers, lastPostAt: null as string | null, accountId: a.id })),
     ];
   });
@@ -59,7 +61,7 @@ export function SocialAccountsSection({ clientId, competitorId, activity, listed
                     </div>
                   </dl>
                   <StatusChip tone={status.tone}>{status.label}</StatusChip>
-                  {r.accountId && agency && <SuggestedActions clientId={clientId} competitorId={competitorId} accountId={r.accountId} handle={r.handle} />}
+                  {r.accountId && agency && <SuggestedActions clientId={clientId} competitorId={competitorId} accountId={r.accountId} handle={r.handle} confirmed={r.status === 'confirmed'} />}
                 </li>
               );
             })}

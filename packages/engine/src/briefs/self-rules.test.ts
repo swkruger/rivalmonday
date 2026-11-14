@@ -259,13 +259,13 @@ describe('event_gap (18d)', () => {
 describe('social_gap (18e)', () => {
   const sc = (self: number | null, rivals: (number | null)[]) =>
     card([row(1, 'Me', { socialPosts30d: self }, true), ...rivals.map((n, i) => row(i + 2, `R${i + 2}`, { socialPosts30d: n }))]);
-  const ev = { [ID(2)]: [ID(402)], [ID(3)]: [ID(403)], [ID(4)]: [ID(404)] };
+  const ev = { [ID(1)]: [ID(401)], [ID(2)]: [ID(402)], [ID(3)]: [ID(403)], [ID(4)]: [ID(404)] };
 
-  it('fires with a confirmed account, 0 posts and 2 rivals at >= 4 posts; cites those rivals only', async () => {
+  it('fires with a measured account, 0 posts and 2 rivals at >= 4 posts; cites your capture and those rivals only', async () => {
     const input = await base({ scorecard: sc(0, [4, 9, 3]), socialEvidenceByCompetitor: ev });
     const f = find(evaluateSelfRules(input), 'social_gap')!;
     expect(f.fact).toBe("2 rivals post weekly on Facebook or Instagram; you haven't posted in 30 days.");
-    expect(f.evidenceIds).toEqual([ID(402), ID(403)]);
+    expect(f.evidenceIds).toEqual([ID(401), ID(402), ID(403)]);
     expect(f.playbookId).toBe('post_weekly');
     expect(f.score).toBeCloseTo(0.4 * 0.5, 5);
     const ctx = { trackedCompetitorNames: ['R2', 'R3', 'R4'], clientTowns: [], year: 2026 };
@@ -273,9 +273,9 @@ describe('social_gap (18e)', () => {
   });
 
   it('a rival without citable evidence is not counted', async () => {
-    const f = find(evaluateSelfRules(await base({ scorecard: sc(0, [4, 9, 9]), socialEvidenceByCompetitor: { [ID(2)]: [ID(402)], [ID(3)]: [ID(403)] } })), 'social_gap')!;
+    const f = find(evaluateSelfRules(await base({ scorecard: sc(0, [4, 9, 9]), socialEvidenceByCompetitor: { [ID(1)]: [ID(401)], [ID(2)]: [ID(402)], [ID(3)]: [ID(403)] } })), 'social_gap')!;
     expect(f.fact).toContain('2 rivals');
-    expect(find(evaluateSelfRules(await base({ scorecard: sc(0, [4, 9, 9]), socialEvidenceByCompetitor: { [ID(2)]: [ID(402)] } })), 'social_gap')).toBeUndefined();
+    expect(find(evaluateSelfRules(await base({ scorecard: sc(0, [4, 9, 9]), socialEvidenceByCompetitor: { [ID(1)]: [ID(401)], [ID(2)]: [ID(402)] } })), 'social_gap')).toBeUndefined();
   });
 
   it("doesn't fire with 1 rival, rivals under 4 posts, you posting, no confirmed account, or no evidence", async () => {
@@ -286,5 +286,10 @@ describe('social_gap (18e)', () => {
     expect(await run(sc(null, [9, 9, 9]))).toBeUndefined();
     expect(await run(sc(0, [9, 9, 9]), {})).toBeUndefined();
     expect(await run(sc(0, [9, 9, 9]), null)).toBeUndefined();
+  });
+
+  it('never fires without your own social capture evidence (I2: the "none" needs evidence)', async () => {
+    const { [ID(1)]: _self, ...rivalsOnly } = ev;
+    expect(find(evaluateSelfRules(await base({ scorecard: sc(0, [9, 9, 9]), socialEvidenceByCompetitor: rivalsOnly })), 'social_gap')).toBeUndefined();
   });
 });

@@ -1,4 +1,4 @@
-import { socialCaptureUrl } from '@cs/collectors';
+import { socialCaptureUrl, socialProfileKey } from '@cs/collectors';
 import { capture, type Db, detectedChange, evidence, observation, type SocialNetwork, socialAccount, socialPost } from '@cs/db';
 import { and, asc, desc, eq, gte, inArray, ne, sql } from 'drizzle-orm';
 import { isOfferPost, isSelfOnly, POST_MAX_AGE_DAYS, POST_MAX_SINGLE } from './gbp-posts';
@@ -16,6 +16,7 @@ const DAY_MS = 86_400_000;
 const AFTER_TEXT_MAX = 300;
 
 export type SocialPostRow = typeof socialPost.$inferSelect;
+/** `accountId` = the `social_account.id` whose capture first saw the post. */
 export type ConfirmedSocialPost = SocialPostRow & { accountId: string };
 
 /**
@@ -25,7 +26,7 @@ export type ConfirmedSocialPost = SocialPostRow & { accountId: string };
 export async function socialPostsOfConfirmedAccounts(db: Db, competitorIds: string[], since: Date): Promise<ConfirmedSocialPost[]> {
   if (competitorIds.length === 0) return [];
   const rows = await db
-    .select({ post: socialPost, captureUrl: capture.url, handle: socialAccount.handle, externalId: socialAccount.externalId })
+    .select({ post: socialPost, captureUrl: capture.url, id: socialAccount.id, handle: socialAccount.handle, externalId: socialAccount.externalId })
     .from(socialPost)
     .innerJoin(capture, eq(capture.id, socialPost.firstCaptureId))
     .innerJoin(
@@ -33,10 +34,10 @@ export async function socialPostsOfConfirmedAccounts(db: Db, competitorIds: stri
       and(eq(socialAccount.competitorId, socialPost.competitorId), eq(socialAccount.network, socialPost.network), eq(socialAccount.status, 'confirmed')),
     )
     .where(and(inArray(socialPost.competitorId, competitorIds), gte(socialPost.postedAt, since)));
-  return rows.flatMap((r) => {
-    const url = socialCaptureUrl({ network: r.post.network, handle: r.handle, externalId: r.externalId });
-    return r.captureUrl === url ? [{ ...r.post, accountId: url.slice(`social:${r.post.network}:`.length) }] : [];
-  });
+  // `accountId` = `social_account.id`, the one account identity (observation keys, payloads, reader joins).
+  return rows.flatMap((r) =>
+    r.captureUrl === socialCaptureUrl({ network: r.post.network, handle: r.handle, externalId: r.externalId }) ? [{ ...r.post, accountId: r.id }] : [],
+  );
 }
 
 export type Cadence = 'started' | 'quiet';
@@ -61,7 +62,10 @@ export interface SocialDiffCtx {
   olderCapture?: CaptureRow | null;
   /** Every stored post of this competitor and network. */
   posts: SocialPostRow[];
+  /** `social_account.id`. */
   accountId: string;
+  /** The account is age-gated (followers only, no posts read): no cadence change. */
+  gated?: boolean;
   /** Followers read on `capture`, when the profile read gave a number. */
   followers: number | null;
   followersHistory: { at: Date; followers: number; captureId?: string }[];
@@ -109,7 +113,7 @@ export function diffSocial(ctx: SocialDiffCtx): StructuredChange[] {
   }
 
   // Cadence: the same state on this and the previous pull, a flip from the pull before that (none = baseline, silent), and no change of the kind in 30 days.
-  const state = socialCadence(ctx.posts, cap.capturedAt);
+  const state = ctx.gated ? null : socialCadence(ctx.posts, cap.capturedAt);
   if (state && socialCadence(ctx.posts, prev.capturedAt) === state && !!ctx.olderCapture && socialCadence(ctx.posts, ctx.olderCapture.capturedAt) !== state) {
     const key = `social:${network}:cadence:${state}:${ctx.accountId}`;
     if (!ctx.priorChanges.some((c) => c.blockKey === key && c.detectedAt.getTime() >= at - CADENCE_COOLDOWN_DAYS * DAY_MS)) {
@@ -121,18 +125,23 @@ export function diffSocial(ctx: SocialDiffCtx): StructuredChange[] {
 
 const NETWORKS = new Set<string>(['facebook', 'instagram']);
 
-/** `DIFFERS['social']`: reads the capture's account (`social:<network>:<id>`), its posts and follower readings, then `diffSocial`. */
+/** `DIFFERS['social']`: resolves the capture's confirmed account (capture url = `socialCaptureUrl`), reads its posts and follower readings, then `diffSocial`. A capture of no confirmed account (rejected since) makes no change. */
 export const diffSocialCapture: SourceDiffer = async (db, cap, prev, older) => {
   const network = /^social:([a-z]+):/.exec(cap.url ?? '')?.[1];
   if (!network || !NETWORKS.has(network)) return [];
   const net = network as SocialNetwork;
   if (await isSelfOnly(db, cap.competitorId)) return [];
+  const confirmed = await db.select().from(socialAccount)
+    .where(and(eq(socialAccount.competitorId, cap.competitorId), eq(socialAccount.network, net), eq(socialAccount.status, 'confirmed')));
+  const account = confirmed.find((a) => socialCaptureUrl(a) === cap.url);
+  if (!account) return [];
+  const accountId = account.id;
+  const key = socialProfileKey(account);
   const [profile] = await db
-    .select({ key: observation.key, data: observation.data })
+    .select({ data: observation.data })
     .from(observation)
-    .where(and(eq(observation.captureId, cap.id), eq(observation.kind, 'social_profile')))
+    .where(and(eq(observation.captureId, cap.id), eq(observation.kind, 'social_profile'), eq(observation.key, key)))
     .limit(1);
-  const accountId = profile ? profile.key.slice(net.length + 1) : (cap.url ?? '').slice(`social:${net}:`.length);
   const f = profile?.data.followers;
   const followers = typeof f === 'number' && Number.isFinite(f) ? f : null;
   const at = cap.capturedAt.getTime();
@@ -144,7 +153,7 @@ export const diffSocialCapture: SourceDiffer = async (db, cap, prev, older) => {
         .from(observation)
         .where(
           and(
-            eq(observation.competitorId, cap.competitorId), eq(observation.kind, 'social_profile'), eq(observation.key, profile.key),
+            eq(observation.competitorId, cap.competitorId), eq(observation.kind, 'social_profile'), eq(observation.key, key),
             gte(observation.observedAt, new Date(at - AUDIENCE_WINDOW_DAYS[1] * DAY_MS)), ne(observation.captureId, cap.id),
           ),
         )
@@ -161,42 +170,66 @@ export const diffSocialCapture: SourceDiffer = async (db, cap, prev, older) => {
     );
   return diffSocial({
     competitorId: cap.competitorId, network: net, capture: cap, prevCapture: prev, olderCapture: older[0] ?? null,
-    posts, accountId, followers, followersHistory, priorChanges,
+    posts, accountId, gated: account.gated, followers, followersHistory, priorChanges,
   });
 };
 
 const SCORECARD_DAYS = 30;
+/** An account is measured only with an ok social capture this recent (one weekly pull plus a day). */
+export const SOCIAL_MEASURED_DAYS = 8;
 
 /**
- * Scorecard `socialPosts30d` and `social_gap` (18e P7): posts of each business's currently confirmed accounts posted in the last 30 days.
- * `null` = no confirmed account (never 0); a confirmed account with no recent post is 0. Suggested and rejected accounts never count.
+ * Accounts whose posts can be counted (18e I2): confirmed, not age-gated, and with an ok capture at their `socialCaptureUrl` in the last 8 days.
+ * Each carries its newest such capture id. A never-pulled, gated or failing account is not measured.
+ */
+async function measuredSocialAccounts(db: Db, competitorIds: string[], now: Date): Promise<{ id: string; competitorId: string; captureId: string }[]> {
+  if (competitorIds.length === 0) return [];
+  const accounts = await db.select().from(socialAccount)
+    .where(and(inArray(socialAccount.competitorId, competitorIds), eq(socialAccount.status, 'confirmed'), eq(socialAccount.gated, false)));
+  if (accounts.length === 0) return [];
+  const caps = await db
+    .selectDistinctOn([capture.competitorId, capture.url], { competitorId: capture.competitorId, url: capture.url, id: capture.id })
+    .from(capture)
+    .where(and(
+      inArray(capture.competitorId, competitorIds), eq(capture.source, 'social'), eq(capture.status, 'ok'),
+      inArray(capture.url, accounts.map((a) => socialCaptureUrl(a))), gte(capture.capturedAt, new Date(now.getTime() - SOCIAL_MEASURED_DAYS * DAY_MS)),
+    ))
+    .orderBy(capture.competitorId, capture.url, desc(capture.capturedAt), desc(capture.id));
+  return accounts.flatMap((a) => {
+    const c = caps.find((x) => x.competitorId === a.competitorId && x.url === socialCaptureUrl(a));
+    return c ? [{ id: a.id, competitorId: a.competitorId, captureId: c.id }] : [];
+  });
+}
+
+/**
+ * Scorecard `socialPosts30d` and `social_gap` (18e P7, I2): posts of each business's measured accounts (`measuredSocialAccounts`) posted in the last 30 days.
+ * `null` = no measured account (never 0); a measured account with no recent post is 0. Suggested, rejected, gated and unpulled accounts never count.
  */
 export async function socialPostCounts30d(db: Db, competitorIds: string[], now: Date): Promise<Map<string, number | null>> {
   const out = new Map<string, number | null>(competitorIds.map((id) => [id, null]));
-  if (competitorIds.length === 0) return out;
-  const confirmed = await db.selectDistinct({ id: socialAccount.competitorId }).from(socialAccount)
-    .where(and(inArray(socialAccount.competitorId, competitorIds), eq(socialAccount.status, 'confirmed')));
-  for (const c of confirmed) out.set(c.id, 0);
+  const measured = await measuredSocialAccounts(db, competitorIds, now);
+  if (measured.length === 0) return out;
+  for (const a of measured) out.set(a.competitorId, 0);
+  const ids = new Set(measured.map((a) => a.id));
   const posts = await socialPostsOfConfirmedAccounts(db, competitorIds, new Date(now.getTime() - SCORECARD_DAYS * DAY_MS));
-  for (const p of posts) out.set(p.competitorId, (out.get(p.competitorId) ?? 0) + 1);
+  for (const p of posts) if (ids.has(p.accountId)) out.set(p.competitorId, (out.get(p.competitorId) ?? 0) + 1);
   return out;
 }
 
-/** The evidence ids of each business's newest ok social capture per account (they list the counted posts; no evidence, no claim), keyed by competitor. */
-export async function socialEvidenceByCompetitor(db: Db, competitorIds: string[]): Promise<Record<string, string[]>> {
-  if (competitorIds.length === 0) return {};
-  // Only a currently confirmed account's capture (url = `socialCaptureUrl`, as in `socialPostsOfConfirmedAccounts`) is ever cited.
-  const accounts = await db.select({ competitorId: socialAccount.competitorId, network: socialAccount.network, handle: socialAccount.handle, externalId: socialAccount.externalId })
-    .from(socialAccount).where(and(inArray(socialAccount.competitorId, competitorIds), eq(socialAccount.status, 'confirmed')));
-  const urls = new Set(accounts.map((a) => `${a.competitorId}|${socialCaptureUrl(a)}`));
-  if (urls.size === 0) return {};
+/** The evidence ids of each business's newest ok social capture per measured account (they list the counted posts; no evidence, no claim), keyed by competitor. */
+export async function socialEvidenceByCompetitor(db: Db, competitorIds: string[], now: Date = new Date()): Promise<Record<string, string[]>> {
+  // Only a measured account's own capture (url = `socialCaptureUrl`, as in `socialPostsOfConfirmedAccounts`) is ever cited.
+  const measured = await measuredSocialAccounts(db, competitorIds, now);
+  if (measured.length === 0) return {};
   const rows = await db
-    .selectDistinctOn([capture.competitorId, capture.url], { competitorId: capture.competitorId, url: capture.url, id: evidence.id })
+    .selectDistinctOn([evidence.captureId], { captureId: evidence.captureId, id: evidence.id })
     .from(evidence)
-    .innerJoin(capture, eq(capture.id, evidence.captureId))
-    .where(and(inArray(capture.competitorId, competitorIds), eq(capture.source, 'social'), eq(capture.status, 'ok')))
-    .orderBy(capture.competitorId, capture.url, desc(capture.capturedAt), asc(evidence.kind), asc(evidence.id));
+    .where(inArray(evidence.captureId, measured.map((a) => a.captureId)))
+    .orderBy(evidence.captureId, asc(evidence.kind), asc(evidence.id));
   const out: Record<string, string[]> = {};
-  for (const r of rows) if (r.url !== null && urls.has(`${r.competitorId}|${r.url}`)) (out[r.competitorId] ??= []).push(r.id);
+  for (const a of measured) {
+    const e = rows.find((r) => r.captureId === a.captureId);
+    if (e) (out[a.competitorId] ??= []).push(e.id);
+  }
   return out;
 }

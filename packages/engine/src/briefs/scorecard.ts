@@ -188,7 +188,7 @@ export async function buildScorecard(
   for (const b of trend.businesses) b.gbpEvidenceIds.forEach(add);
   (await postsEvidenceIds(deps.db, ids)).forEach(add);
   (await eventsEvidenceIds(deps.db, ids)).forEach(add);
-  const socialEvidence = await socialEvidenceByCompetitor(deps.db, ids);
+  const socialEvidence = await socialEvidenceByCompetitor(deps.db, ids, now);
   opts.onSocialEvidence?.(socialEvidence);
   Object.values(socialEvidence).forEach((e) => e.forEach(add));
   const taCaptures = [...taRatings.values()].map((t) => t.captureId);

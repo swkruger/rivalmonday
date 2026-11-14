@@ -57,7 +57,7 @@ const account = (network: 'facebook' | 'instagram', o: Partial<typeof socialAcco
     status: 'confirmed',
     confirmedBy: 'website',
     ...o,
-  });
+  }).returning().then((r) => r[0]!);
 const posts = () => dbs.owner.select().from(socialPost).where(eq(socialPost.competitorId, IDS.competitorX));
 const seedStored = async (postId: string, ageDays: number) => {
   const [cap] = await dbs.owner.insert(capture).values({ competitorId: IDS.competitorX, source: 'social', status: 'ok', collectorVersion: 'social/1' }).returning();
@@ -108,8 +108,8 @@ describe('pullSocial facebook', () => {
 
   it('capture per account with evidence', async () => {
     const facebookPosts = pages([fbPost('a', 1, { isVideo: true, text: null })]);
-    await account('instagram');
-    await account('facebook');
+    const ig = await account('instagram');
+    const fbA = await account('facebook');
     const res = await pullSocial(deps(sc({ facebookPosts })), IDS.competitorX);
     expect(res.captures).toHaveLength(2);
     const caps = await dbs.owner.select().from(capture).where(eq(capture.source, 'social'));
@@ -118,9 +118,9 @@ describe('pullSocial facebook', () => {
     const ev = await dbs.owner.select().from(evidence);
     expect(ev.map((e) => e.kind)).toEqual(['vendor_json', 'vendor_json']);
     const obs = await dbs.owner.select().from(observation).where(eq(observation.kind, 'social_profile'));
-    expect(obs.map((o) => o.key).sort()).toEqual(['facebook:100064175676130', 'instagram:glowdentalco']);
-    expect(obs.find((o) => o.key.startsWith('facebook'))!.data).toEqual({ network: 'facebook', accountId: '100064175676130', followers: 1600, likes: 1558 });
-    expect(obs.find((o) => o.key.startsWith('instagram'))!.data).toEqual({ network: 'instagram', accountId: 'glowdentalco', followers: 900, postsCount: 50 });
+    expect(obs.map((o) => o.key).sort()).toEqual([`facebook:${fbA.id}`, `instagram:${ig.id}`]);
+    expect(obs.find((o) => o.key.startsWith('facebook'))!.data).toEqual({ network: 'facebook', accountId: fbA.id, followers: 1600, likes: 1558 });
+    expect(obs.find((o) => o.key.startsWith('instagram'))!.data).toEqual({ network: 'instagram', accountId: ig.id, followers: 900, postsCount: 50 });
     const fb = (await posts()).find((p) => p.network === 'facebook')!;
     expect(fb).toMatchObject({ isVideo: true, text: '', firstSeenAt: NOW });
     expect(res.captures).toContain(fb.firstCaptureId);
@@ -150,7 +150,7 @@ describe('pullSocial eligibility and failures', () => {
   });
 
   it('gated → observation only', async () => {
-    await account('facebook');
+    const fbA = await account('facebook');
     const facebookProfile = vi.fn(async (_u: string, o?: { gated?: boolean }) => (o?.gated ? fbProfile({ likeCount: null }) : { private: true as const }));
     const client = sc({ facebookProfile });
     const res = await pullSocial(deps(client), IDS.competitorX);
@@ -161,7 +161,7 @@ describe('pullSocial eligibility and failures', () => {
     const [acct] = await dbs.owner.select().from(socialAccount);
     expect(acct!.gated).toBe(true);
     const [obs] = await dbs.owner.select().from(observation);
-    expect(obs!.data).toEqual({ network: 'facebook', accountId: '100064175676130', followers: 1600 });
+    expect(obs!.data).toEqual({ network: 'facebook', accountId: fbA.id, followers: 1600 });
   });
 
   it('vendor error → vendor_error capture, next account continues', async () => {
@@ -209,7 +209,7 @@ describe('pullSocial fix round 1', () => {
 
   it('db error in one account continues with the next', async () => {
     await account('facebook');
-    await account('instagram');
+    const ig = await account('instagram');
     const facebookPosts = pages([fbPost('a', 1, { text: 'bad text' })]);
     const res = await pullSocial(deps(sc({ facebookPosts })), IDS.competitorX);
     expect(res.captures).toHaveLength(2);
@@ -217,7 +217,7 @@ describe('pullSocial fix round 1', () => {
     expect(all.filter((p) => p.network === 'facebook')).toHaveLength(0);
     expect(all.filter((p) => p.network === 'instagram')).toHaveLength(12);
     const obs = await dbs.owner.select().from(observation);
-    expect(obs.map((o) => o.key)).toEqual(['instagram:glowdentalco']);
+    expect(obs.map((o) => o.key)).toEqual([`instagram:${ig.id}`]);
   });
 
   it('null publishTime skipped', async () => {
@@ -236,5 +236,19 @@ describe('pullSocial fix round 1', () => {
     expect(facebookProfile).toHaveBeenCalledWith(expect.any(String), { gated: true });
     expect(client.facebookPosts).not.toHaveBeenCalled();
     expect(res.credits).toBe(1);
+  });
+});
+
+describe('pullSocial account identity (I1)', () => {
+  it('a pasted-alias Facebook account (no external_id) keys its observation and payload by social_account.id', async () => {
+    const fbA = await account('facebook', { handle: 'glowalias', externalId: null, url: 'https://www.facebook.com/glowalias' });
+    const facebookPosts = pages([fbPost('a', 1)]);
+    await pullSocial(deps(sc({ facebookPosts })), IDS.competitorX);
+    expect(facebookPosts).toHaveBeenCalledWith('100064175676130', undefined);
+    const [cap] = await dbs.owner.select().from(capture).where(eq(capture.source, 'social'));
+    expect(cap!.url).toBe('social:facebook:glowalias');
+    const [obs] = await dbs.owner.select().from(observation);
+    expect(obs!.key).toBe(`facebook:${fbA.id}`);
+    expect(obs!.data).toMatchObject({ accountId: fbA.id });
   });
 });

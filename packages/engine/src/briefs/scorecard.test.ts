@@ -304,8 +304,8 @@ describe('Events listed and Tripadvisor rating (18d)', () => {
   });
 
   describe('socialPosts30d (18e)', () => {
-    const account = (competitorId: string, status: 'confirmed' | 'suggested' | 'rejected', handle = 'acme') =>
-      dbs.owner.insert(socialAccount).values({ competitorId, network: 'facebook', handle, url: `https://facebook.com/${handle}`, status });
+    const account = (competitorId: string, status: 'confirmed' | 'suggested' | 'rejected', handle = 'acme', gated = false) =>
+      dbs.owner.insert(socialAccount).values({ competitorId, network: 'facebook', handle, url: `https://facebook.com/${handle}`, status, gated });
     const posts = async (competitorId: string, n: number, handle = 'acme', daysAgo = 3) => {
       const c = await vendorCapture(competitorId, 'social', `social:facebook:${handle}`, ago(1));
       for (let i = 0; i < n; i++) {
@@ -328,6 +328,7 @@ describe('Events listed and Tripadvisor rating (18d)', () => {
       const cap = await posts(r, 4, 'acme', 2);
       await dbs.owner.insert(socialPost).values({ competitorId: r, network: 'facebook', postId: 'old', postedAt: ago(40), text: 't', url: 'u', firstCaptureId: cap.captureId, firstSeenAt: ago(1) });
       await account(selfId, 'confirmed', 'me');
+      await vendorCapture(selfId, 'social', 'social:facebook:me', ago(2));
       const sc = await buildScorecard(deps(), IDS.clientA1, { now: NOW });
       const v = (n: string) => sc.rows.find((x) => x.name === n)!.values;
       expect([v('Rival Social').socialPosts30d, v('A1 HVAC').socialPosts30d]).toEqual([4, 0]);
@@ -344,6 +345,34 @@ describe('Events listed and Tripadvisor rating (18d)', () => {
       const sc = await buildScorecard(deps(), IDS.clientA1, { now: NOW });
       expect(sc.evidenceIds).toContain(right.evidenceId);
       expect(sc.evidenceIds).not.toContain(wrong.evidenceId);
+    });
+
+    it('a confirmed self account never pulled is null, and social_gap cannot cite it (I2)', async () => {
+      await account(selfId, 'confirmed', 'me');
+      const r = await addRival('Rival Social', 'top');
+      await account(r, 'confirmed');
+      await posts(r, 5);
+      let ev: Record<string, string[]> = {};
+      const sc = await buildScorecard(deps(), IDS.clientA1, { now: NOW, onSocialEvidence: (e) => { ev = e; } });
+      expect(sc.rows.find((x) => x.name === 'A1 HVAC')!.values.socialPosts30d).toBeNull();
+      expect(ev[selfId]).toBeUndefined();
+    });
+
+    it('a pull older than 8 days is stale → null', async () => {
+      const r = await addRival('Rival Social', 'top');
+      await account(r, 'confirmed');
+      await vendorCapture(r, 'social', 'social:facebook:acme', ago(9));
+      const sc = await buildScorecard(deps(), IDS.clientA1, { now: NOW });
+      expect(sc.rows.find((x) => x.name === 'Rival Social')!.values.socialPosts30d).toBeNull();
+    });
+
+    it('a gated account is null and never cited (I2)', async () => {
+      const r = await addRival('Rival Social', 'top');
+      await account(r, 'confirmed', 'acme', true);
+      const cap = await posts(r, 5);
+      const sc = await buildScorecard(deps(), IDS.clientA1, { now: NOW });
+      expect(sc.rows.find((x) => x.name === 'Rival Social')!.values.socialPosts30d).toBeNull();
+      expect(sc.evidenceIds).not.toContain(cap.evidenceId);
     });
 
     it('no confirmed account → null, column dropped', async () => {
