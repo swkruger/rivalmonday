@@ -241,6 +241,42 @@ Rival events (JSON-LD on their site, Meta ad events, the Google venue Events pan
   GROUP BY cc.client_id ORDER BY upcoming DESC;
   ```
 
+## Social (18e)
+
+Facebook and Instagram accounts of tracked rivals (and the client) feed post cadence, promo posts and follower trend. Opt-in per vertical pack (`social: true`, inherited by DB verticals; an operator can turn a vertical off).
+
+- **What runs:** weekly source `social` per competitor (queue jobs `social-pull`; `social-discover` only for the manual "Find accounts" button). A competitor with no `social_account` rows and no earlier pull is discovered inside its first `social-pull`, then pulled. Retries are off (a retry would pay again).
+- **Confirmation rule:** a search hit is `confirmed` only when its website host matches the competitor's domain; otherwise it is `suggested`. The agency confirms, rejects or pastes a link on the competitor page. A rejected account is never suggested again (case-insensitive). Only confirmed accounts are counted or cited.
+- **Cost:** about 3-5 ScrapeCreators credits per competitor per week (profile calls are free or 1 credit, up to `FB_MAX_PAGES` = 3 post pages). Discovery is at most 2 credits, 3 with the age-gated retry; once per competitor, then only on the button (limit per agency and competitor per 7 days). Missing `SCRAPECREATORS_API_KEY` defers the source without marking it, so the first discovery is not lost. Client text never names the vendor.
+- **Suggested accounts per client:**
+  ```sql
+  SELECT cc.client_id, c.id AS competitor, a.network, a.handle, a.url, a.created_at
+  FROM social_account a JOIN competitor c ON c.id = a.competitor_id JOIN client_competitor cc ON cc.competitor_id = c.id
+  WHERE a.status = 'suggested' ORDER BY cc.client_id, a.created_at DESC;
+  ```
+- **Credits used (vendor ledger, last 7 days):**
+  ```sql
+  SELECT operation, count(*) AS calls, sum(units) AS credits FROM vendor_call
+  WHERE vendor = 'scrapecreators' AND operation IN ('search/companies','facebook/profile','facebook/profile/posts','instagram/profile') AND created_at > now() - interval '7 days'
+  GROUP BY operation ORDER BY credits DESC;
+  ```
+  Add `competitor_id = '<id>'` for one rival. Balance: `/platform/costs` (ScrapeCreators adapter, credits not USD).
+- **Re-run discovery for one competitor:** use "Find accounts" on the competitor page, or delete its non-confirmed rows and clear the source mark so the next weekly pull rediscovers:
+  ```sql
+  DELETE FROM social_account WHERE competitor_id = '<competitor>' AND status = 'suggested';
+  UPDATE competitor_source SET last_run_at = NULL WHERE competitor_id = '<competitor>' AND source = 'social';
+  ```
+  This only works when no confirmed or rejected row remains (discovery runs only for a competitor with no rows). A wrong confirmed account: reject it on the page (its capture history stays, its posts stop counting).
+- **Captures:** `capture.url = social:<network>:<id or handle>` (Facebook uses the profile id), one `vendor_json` capture per account per week.
+
+## AI decision mode (18e)
+
+- **Setting:** `platform_setting` key `ai_decision_mode` = `{ mode, reevalUntil, reevalFrom, lastWindow }`, default `jev_only` (seeded by migration 0110). Staff change it on the `/platform/costs` "AI decisions" card (`set_ai_decision_mode`); the daemon caches it for 30 s.
+- **Jev only:** a decision Jev answers above its threshold stands. Below threshold it goes to the human queue (no LLM step). Jev down or erroring falls back to the LLM, recorded as `:jev_down` in the ledger. `ask_guard_decisions` and `ad_image_decisions` always run the full cascade (Ask safety, person-image triage). `cascade` mode restores Jev, then LLM, then human.
+- **Re-evaluate with all models for 7 days:** the button opens a window (`reevalUntil`). While open, every Jev decision is also run through the LLM as a shadow call (the answer used is still Jev's). Cap 2,000 shadow calls per UTC day (counted from the ledger rows `<task>:reeval`; a missing counter means no re-eval). Samples land in `decision_sample` with reason `reeval`. The window applies in both modes. Stop it early on the same card.
+- **Reading results:** `/platform/costs` AI decisions card shows per task agreement, disagreements, LLM spend of the window and the last window's dates. Spend per task: `SELECT task, count(*), sum(cost_usd) FROM llm_call WHERE task LIKE '%:reeval' AND created_at > now() - interval '7 days' GROUP BY task;`.
+- **One-off CLIs** (`brief-once`, `engine-once`, `collect-once`, evals) are built without the mode source and always run in cascade mode, so cassettes and recordings are unchanged.
+
 ## Gold labels and decision labelling
 
 CLI: `pnpm --filter @cs/worker decisions <report|export|import|reviews|resolve>`.
