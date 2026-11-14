@@ -24,6 +24,7 @@ import { createPlatformStatsJobs } from './jobs/platform-stats';
 import { createProspectJobs } from './jobs/prospects';
 import { createReviewJobs } from './jobs/reviews';
 import { createRivalJobs } from './jobs/rivals';
+import { createSocialJobs } from './jobs/social';
 import { createVendorJobs } from './jobs/vendor';
 import { createWebJobs } from './jobs/web';
 import { enqueue } from './boss';
@@ -111,7 +112,14 @@ export function createJobList(deps: WorkerDeps, boss: PgBoss, opts: { envName: E
     enqueueRivalFinalise: async (runId) => {
       await enqueue(boss, rivals.finalise, { runId, force: false }, { singletonKey: `rival-finalise:${runId}` });
     },
+    enqueueSocialPull: async (competitorId) => {
+      await enqueue(boss, social.pull, { competitorId });
+    },
+    enqueueSocialDiscover: async (competitorId) => {
+      await enqueue(boss, social.discover, { competitorId }, { singletonKey: `social-discover:${competitorId}` });
+    },
   });
+  const social = createSocialJobs(deps);
   const rivals = createRivalJobs(deps, {
     // The forced finalise has its own key: a short queue keeps one *queued* job per key, and this one waits 30 min.
     enqueueFinalise: async (runId, { force, startAfter }) => {
@@ -194,7 +202,7 @@ export function createJobList(deps: WorkerDeps, boss: PgBoss, opts: { envName: E
   });
 
   return [
-    heartbeat, web.schedule, web.capture, web.discover, web.discoverSchedule, vendor.schedule, vendor.collect, vendor.poll, vendor.rankSchedule, vendor.rankScan, rankMap.refresh, prospects.snapshot,
+    heartbeat, web.schedule, web.capture, web.discover, web.discoverSchedule, vendor.schedule, vendor.collect, vendor.poll, vendor.rankSchedule, vendor.rankScan, social.discover, social.pull, rankMap.refresh, prospects.snapshot,
     citations.audit, citations.client, rivals.search, rivals.finalise, rivals.sweep, rivals.signalsWeekly, rivals.monthly, rivals.monthlyClient,
     engine.sweep, engine.diff, engine.rankDiff, engine.tag, engine.score, engine.review, engine.reask, engine.price, engine.adPrice, engine.postPrice, engine.siteFeatures, engine.listedEvents, engine.adImage, engine.adImageRead, reviews.nightly, moves.nightly, moves.client,
     modelOps.batchPoll, platformStats.daily, billing.daily, billingNotices.notices, onboarding.nudges, setup.suggestions, setup.reminders, runbooks.tailor, leads.preview, leads.cleanup, platformCosts.snapshot, spendGuard.guard, ops.readiness, briefs.schedule, briefs.client, startingPoints.schedule, startingPoints.client, ask.starters, kb.embed, kb.importUrl, kb.sync,

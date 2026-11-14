@@ -21,6 +21,9 @@ export function createVendorJobs(
     enqueueRankMap(clientId: string): Promise<void>;
     /** Phase 12a: a discovery review sample landed for this run → non-forced `rival-finalise`. */
     enqueueRivalFinalise?(runId: string): Promise<void>;
+    /** 18e: a claimed `social` source -> `social-pull`; a competitor first activated with no accounts -> `social-discover` (singleton per competitor). */
+    enqueueSocialPull?(competitorId: string): Promise<void>;
+    enqueueSocialDiscover?(competitorId: string): Promise<void>;
   },
 ) {
   let warnedScheduleUnconfigured = false;
@@ -40,7 +43,13 @@ export function createVendorJobs(
       if (linked > 0) workerLog.info(`[vendor-schedule] linked ${linked} client(s) to their own business for review benchmarking`);
       const ta = await deps.syncTripadvisorSources();
       workerLog.debug(`[vendor-schedule] tripadvisor sources: ${ta.active} active, ${ta.inactive} inactive`);
-      const due = await deps.claimDueSources(500);
+      const soc = await deps.syncSocialSources();
+      workerLog.debug(`[vendor-schedule] social sources: ${soc.active} active, ${soc.inactive} inactive`);
+      for (const id of soc.discover) await queue.enqueueSocialDiscover?.(id);
+      const claimed = await deps.claimDueSources(500);
+      // `social` runs as its own job (a ScrapeCreators pull per competitor), never a collect or a batch.
+      for (const d of claimed) if (d.source === 'social') await queue.enqueueSocialPull?.(d.competitorId);
+      const due = claimed.filter((d) => d.source !== 'social');
       const batch = due.filter((d) => BATCH.has(d.source)) as { competitorId: string; source: 'reviews' | 'jobs' | 'gbp_posts' | 'tripadvisor' }[];
       // Enqueue the synchronous collects first: if the batch task_post below throws, those
       // collect jobs are already queued and unaffected by the failure handled below.

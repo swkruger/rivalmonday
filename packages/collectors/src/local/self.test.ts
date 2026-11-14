@@ -23,7 +23,7 @@ describe('ensureSelfCompetitor', () => {
     const id = (r as { competitorId: string }).competitorId;
     expect(await selfOf(IDS.clientA1)).toBe(id);
     expect((await dbs.owner.select().from(competitor).where(eq(competitor.id, id)))[0]).toMatchObject({ name: 'A1 HVAC', placeId: 'place-a1', domain: null });
-    expect((await dbs.owner.select({ s: competitorSource.source }).from(competitorSource).where(eq(competitorSource.competitorId, id))).map((x) => x.s).sort()).toEqual(['ads_google', 'gbp', 'gbp_posts', 'reviews']);
+    expect((await dbs.owner.select({ s: competitorSource.source }).from(competitorSource).where(eq(competitorSource.competitorId, id))).map((x) => x.s).sort()).toEqual(['ads_google', 'gbp', 'gbp_posts', 'reviews', 'social']);
     expect(await ensureSelfCompetitor(dbs.service, IDS.clientA1)).toEqual({ competitorId: id }); // idempotent
   });
 

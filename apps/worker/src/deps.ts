@@ -1,6 +1,6 @@
 import { type Ai, type AiConfig, createAiFromEnv, DEFAULT_AI_CONFIG_PATH, loadAiConfigFile } from '@cs/ai';
 import {
-  capturePage, claimDuePages, claimDueDiscoveries, claimDueSources, collectGbpProfile, computeTrackedSignals, failRivalRun, finaliseRivalSearch, listSignalClients, runRivalSearch, type RivalSearchDeps, sweepRivalRuns, collectGoogleAds, collectMetaAds, collectReadyGbpPosts, collectReadyJobs, collectReadyTripadvisor, postTripadvisorTasks, syncTripadvisorSources, collectReadyReviews,
+  capturePage, claimDuePages, claimDueDiscoveries, claimDueSources, collectGbpProfile, computeTrackedSignals, failRivalRun, finaliseRivalSearch, listSignalClients, runRivalSearch, type RivalSearchDeps, sweepRivalRuns, collectGoogleAds, collectMetaAds, collectReadyGbpPosts, collectReadyJobs, collectReadyTripadvisor, postTripadvisorTasks, syncTripadvisorSources, syncSocialSources, discoverSocialAccounts, pullSocial, makeScClient, collectReadyReviews,
   createDataForSeo, createFixtureFetch, type DataForSeoClient, allowlistedAssert, type AdMediaDeps, createGuardedFetchBytes, createGuardedFetchText, createPlaywrightRenderer, createPoliteRenderer, defaultFetchText, DFS_BASE_URL, discoverPages,
   clientsNeedingRankMap as rankClientsNeedingMap, createStadiaStaticClient, refreshRankMap as refreshMap, ensureSelfCompetitors, failProspectReport, failStaleRankScans as failStaleScans, failStaleCitationRuns as failStaleCitations, failCitationRun, listCitationDueClients as citationDueClients, runCitationAudit as runCitations, HostRateLimiter, listRankClients as rankClients, markSourceResult, postGbpPostTasks, postJobTasks, postReviewTasks, releaseSources, type Renderer, requireSalt, RobotsPolicy,
   runProspectSnapshot, scanRankings, type SourceKind, type CapturePageResult, type PoliteRenderer, zeroFixtureVendorCosts,
@@ -132,6 +132,12 @@ export interface WorkerDeps {
   ensureSelfCompetitors(): Promise<number>;
   /** 18d P8: activates `tripadvisor` source rows for competitors an opted-in client tracks or owns, deactivates the rest. */
   syncTripadvisorSources(): Promise<{ active: number; inactive: number }>;
+  /** 18e: activates `social` source rows for competitors an opted-in client tracks or owns, deactivates the rest; `discover` = competitors needing a first account search. */
+  syncSocialSources(): Promise<{ active: number; inactive: number; discover: string[] }>;
+  /** 18e: finds a competitor's Facebook/Instagram accounts (skipped without SCRAPECREATORS_API_KEY). */
+  discoverSocial(competitorId: string): Promise<Record<string, unknown>>;
+  /** 18e: the weekly pull of a competitor's social accounts; marks the `social` source result. */
+  pullSocial(competitorId: string): Promise<Record<string, unknown>>;
   claimDueSources(limit: number): Promise<{ competitorId: string; source: SourceKind }[]>;
   runSource(competitorId: string, source: 'gbp' | 'ads_google' | 'ads_meta', scope?: CallScope): Promise<{ status: string }>;
   /**
@@ -410,6 +416,38 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv, opts: { aiGuard?: boole
     }
   };
 
+  /** 18e: a ScrapeCreators client for one competitor (vendor limiter + ledger); null without the key. */
+  const scFor = (competitorId: string) => env.SCRAPECREATORS_API_KEY
+    ? makeScClient({ apiKey: env.SCRAPECREATORS_API_KEY, ledger: vendorLedger(), fetch: vendorFetch('scrapecreators'), scope: { agencyId: null, clientId: null, competitorIds: [competitorId] } })
+    : null;
+  const discoverSocial: WorkerDeps['discoverSocial'] = async (competitorId) => {
+    const sc = scFor(competitorId);
+    if (!sc) {
+      workerLog.info('[social-discover] SCRAPECREATORS_API_KEY not set; skipping');
+      return { status: 'skipped' };
+    }
+    const [c] = await loadCompetitors([competitorId]);
+    if (!c) return { status: 'missing' };
+    const r = await discoverSocialAccounts(getDb(), sc, { id: c.id, name: c.name, domain: c.domain, metaPageIds: c.metaPageIds });
+    return { status: 'ok', credits: r.credits, facebook: r.facebook?.status ?? null, instagram: r.instagram?.status ?? null };
+  };
+  const pullSocialSource: WorkerDeps['pullSocial'] = async (competitorId) => {
+    const sc = scFor(competitorId);
+    if (!sc) {
+      workerLog.info('[social-pull] SCRAPECREATORS_API_KEY not set; skipping');
+      await markSourceResult(getDb(), competitorId, 'social', 'skipped');
+      return { status: 'skipped' };
+    }
+    try {
+      const r = await pullSocial({ db: getDb(), store: getStore(), sc }, competitorId);
+      await markSourceResult(getDb(), competitorId, 'social', 'ok');
+      return { status: 'ok', captures: r.captures.length, credits: r.credits };
+    } catch (err) {
+      await markSourceResult(getDb(), competitorId, 'social', 'error');
+      throw err;
+    }
+  };
+
   const leadEmailDeps = (): LeadEmailDeps | null => {
     const from = delivery?.fromAddress ?? env.EMAIL_FROM;
     const appUrl = env.APP_URL?.trim();
@@ -514,6 +552,9 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv, opts: { aiGuard?: boole
     vendorsConfigured,
     ensureSelfCompetitors: () => ensureSelfCompetitors(getDb()),
     syncTripadvisorSources: () => syncTripadvisorSources(getDb(), packs),
+    syncSocialSources: () => syncSocialSources(getDb(), packs),
+    discoverSocial,
+    pullSocial: pullSocialSource,
     claimDueSources: (limit) => claimDueSources(getDb(), limit),
     runSource,
     async postBatchTasks(items) {
