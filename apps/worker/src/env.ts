@@ -1,9 +1,10 @@
+import { parseHostEnv } from '@cs/db';
 import { EMAIL_FROM_PROBLEM, isBareEmailAddress } from '@cs/email/branding';
 
-/** 7c2: `SERVICE_DATABASE_POOLED_URL` too — the daemon sizes its app pool from the concurrency table (~33), too many for the direct URL. */
+/** 13a1 N2: `NEUTRAL_DOMAIN` too (client hosts and the fallback sender). 7c2: `SERVICE_DATABASE_POOLED_URL` too — the daemon sizes its app pool from the concurrency table (~33), too many for the direct URL. */
 export const REQUIRED_PROD_ENV: readonly string[] = [
   'DATABASE_URL', 'SERVICE_DATABASE_URL', 'SERVICE_DATABASE_POOLED_URL', 'APP_URL', 'LINK_SIGNING_SECRET', 'EMAIL_FROM', 'POSTMARK_SERVER_TOKEN',
-  'R2_ACCOUNT_ID', 'R2_ACCESS_KEY_ID', 'R2_SECRET_ACCESS_KEY', 'R2_BUCKET', 'OPENROUTER_API_KEY', 'SENTRY_DSN',
+  'R2_ACCOUNT_ID', 'R2_ACCESS_KEY_ID', 'R2_SECRET_ACCESS_KEY', 'R2_BUCKET', 'OPENROUTER_API_KEY', 'SENTRY_DSN', 'NEUTRAL_DOMAIN',
 ];
 
 /** Names of required env vars that are unset or blank; always [] outside production. */
@@ -16,6 +17,14 @@ export function missingProdEnv(env: NodeJS.ProcessEnv): string[] {
 export function emailFromErrors(env: NodeJS.ProcessEnv): string[] {
   const from = env.EMAIL_FROM?.trim();
   return from && !isBareEmailAddress(from) ? [EMAIL_FROM_PROBLEM] : [];
+}
+
+/**
+ * 13a1 (P2/R7): `parseHostEnv` problems for a set but refused `NEUTRAL_DOMAIN`. A missing one is `missingProdEnv`'s line in production;
+ * elsewhere delivery idles without a host env (`deliveryConfigFromEnv` → null), so it is not a start-up error.
+ */
+export function hostEnvErrors(env: NodeJS.ProcessEnv): string[] {
+  return parseHostEnv(env).problems.filter((p) => p !== 'NEUTRAL_DOMAIN is required');
 }
 
 /** Rehearsal switches (7c2 spec §4): they only work on staging or outside production. */

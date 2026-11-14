@@ -74,7 +74,13 @@
     "POSTMARK_WEBHOOK_SECRET",
     "LOG_LEVEL",
     "PORT",
-    "PROFILE_TOOLS"
+    "PROFILE_TOOLS",
+    "NEUTRAL_DOMAIN",
+    "VERCEL_API_TOKEN",
+    "VERCEL_PROJECT_ID",
+    "VERCEL_TEAM_ID",
+    "POSTMARK_ACCOUNT_TOKEN",
+    "DOMAINS_FAKE_VENDORS"
   ],
   "tasks": {
     "typecheck": { "dependsOn": ["^typecheck"] },

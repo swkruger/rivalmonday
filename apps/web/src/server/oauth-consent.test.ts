@@ -22,7 +22,7 @@ afterAll(async () => {
 });
 
 const env: WebEnv = {
-  appUrl: APP, appDatabaseUrl: testUrls.app, serviceDatabaseUrl: testUrls.service, queueDatabaseUrl: testUrls.owner,
+  appUrl: APP, hostEnv: { appUrl: APP, neutralDomain: 'neutral.example', extraPlatformHosts: [] }, appDatabaseUrl: testUrls.app, serviceDatabaseUrl: testUrls.service, queueDatabaseUrl: testUrls.owner,
   authSecret: 's'.repeat(40), linkSecrets: ['l'.repeat(40)], emailFrom: 'from@example.com', google: null, defaultAgencyId: null, webMonitoring: false, kbImport: false, platformAdmins: [], askFakeAi: false, setupFakeLookup: false, webhookFakeSend: false, siteOrigins: [],
 };
 const links: string[] = [];

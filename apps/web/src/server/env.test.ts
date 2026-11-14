@@ -77,7 +77,7 @@ describe('parseWebEnv', () => {
     expect(parseWebEnv({ ...ok, ASK_FAKE_AI: '1' } as unknown as NodeJS.ProcessEnv).askFakeAi).toBe(true);
     expect(parseWebEnv({ ...ok, ASK_FAKE_AI: '1', VERCEL_ENV: 'preview' } as unknown as NodeJS.ProcessEnv).askFakeAi).toBe(true);
     expect(() => parseWebEnv({ ...ok, ASK_FAKE_AI: '1', VERCEL_ENV: 'production' } as unknown as NodeJS.ProcessEnv)).toThrow(/ASK_FAKE_AI/);
-    expect(parseWebEnv({ ...ok, VERCEL_ENV: 'production' } as unknown as NodeJS.ProcessEnv).askFakeAi).toBe(false);
+    expect(parseWebEnv({ ...ok, NEUTRAL_DOMAIN: 'briefs-hub.com', VERCEL_ENV: 'production' } as unknown as NodeJS.ProcessEnv).askFakeAi).toBe(false);
   });
 
   it('does not carry POSTMARK_BROADCAST_STREAM (the worker reads it itself)', () => {
@@ -104,5 +104,42 @@ describe('siteOrigins', () => {
   it('reads SITE_ORIGIN then SITE_ORIGIN_EXTRA, drops trailing slashes and anything that is not a bare origin', () => {
     const env = parseWebEnv({ ...ok, SITE_ORIGIN: 'https://rivalmonday.com/', SITE_ORIGIN_EXTRA: 'https://www.rivalmonday.com, https://x.com/path, nope, ' } as unknown as NodeJS.ProcessEnv);
     expect(env.siteOrigins).toEqual(['https://rivalmonday.com', 'https://www.rivalmonday.com']);
+  });
+});
+
+describe('hostEnv (13a1 P2, N2)', () => {
+  const prodUrl = { ...ok, APP_URL: 'https://rivalmonday.app' };
+  it('missing NEUTRAL_DOMAIN with a production APP_URL yields exactly one problem line', () => {
+    let message = '';
+    try {
+      parseWebEnv({ ...prodUrl, VERCEL_ENV: 'production' } as unknown as NodeJS.ProcessEnv);
+    } catch (e) {
+      message = (e as Error).message;
+    }
+    expect(message.split('\n').filter((l) => l.startsWith('- '))).toEqual(['- NEUTRAL_DOMAIN is required']);
+  });
+
+  it('carries the parsed host env', () => {
+    expect(parseWebEnv({ ...prodUrl, NEUTRAL_DOMAIN: 'briefs-hub.com', VERCEL_ENV: 'production', VERCEL_URL: 'web-abc.vercel.app' } as unknown as NodeJS.ProcessEnv).hostEnv).toEqual({
+      appUrl: 'https://rivalmonday.app', neutralDomain: 'briefs-hub.com', extraPlatformHosts: ['web-abc.vercel.app'],
+    });
+    expect(parseWebEnv({ ...ok, APP_URL: 'http://localhost:3101' } as unknown as NodeJS.ProcessEnv).hostEnv.neutralDomain).toBe('localhost');
+  });
+
+  it('outside production a missing NEUTRAL_DOMAIN nests agency hosts under the APP_URL host (staging form)', () => {
+    for (const VERCEL_ENV of [undefined, 'preview', 'development']) {
+      expect(parseWebEnv({ ...ok, VERCEL_ENV } as unknown as NodeJS.ProcessEnv).hostEnv).toEqual({ appUrl: 'https://rm.nofingers.ai', neutralDomain: 'rm.nofingers.ai', extraPlatformHosts: [] });
+    }
+    // the fallback never makes a Rival Monday root the neutral domain
+    expect(() => parseWebEnv({ ...prodUrl, VERCEL_ENV: 'preview' } as unknown as NodeJS.ProcessEnv)).toThrow(/NEUTRAL_DOMAIN must not be a Rival Monday domain/);
+  });
+
+  it('a set but refused NEUTRAL_DOMAIN fails in every environment', () => {
+    expect(() => parseWebEnv({ ...prodUrl, NEUTRAL_DOMAIN: 'x.rivalmonday.app' } as unknown as NodeJS.ProcessEnv)).toThrow(/NEUTRAL_DOMAIN must not be a Rival Monday domain/);
+    expect(() => parseWebEnv({ ...ok, NEUTRAL_DOMAIN: 'not a domain' } as unknown as NodeJS.ProcessEnv)).toThrow(/NEUTRAL_DOMAIN must be a domain name/);
+  });
+
+  it('a missing APP_URL reports only APP_URL', () => {
+    expect(() => parseWebEnv({ ...ok, APP_URL: undefined } as unknown as NodeJS.ProcessEnv)).toThrow(/^Web app configuration problems:\n- APP_URL is required$/);
   });
 });

@@ -12,7 +12,7 @@ import { AiPausedError } from '@cs/core';
 import { createBoss, registerJobs } from './boss';
 import { appPoolMax, applyConcurrency, parseConcurrencyOverrides, QUEUE_CONCURRENCY } from './concurrency';
 import { createWorkerDeps, type WorkerDeps } from './deps';
-import { emailFromErrors, missingProdEnv, rehearsalEnvErrors } from './env';
+import { emailFromErrors, hostEnvErrors, missingProdEnv, rehearsalEnvErrors } from './env';
 import { healthState, startHealthServer } from './health';
 import { createJobList } from './job-list';
 import { warnIfDeliveryUnconfigured } from './jobs/delivery';
@@ -27,7 +27,7 @@ if (missing.length > 0) {
   process.exit(1);
 }
 
-const rehearsalErrors = [...rehearsalEnvErrors(process.env), ...emailFromErrors(process.env)];
+const rehearsalErrors = [...rehearsalEnvErrors(process.env), ...emailFromErrors(process.env), ...hostEnvErrors(process.env)];
 if (rehearsalErrors.length > 0) {
   process.stderr.write(`[worker] ${rehearsalErrors.join('; ')}
 `);

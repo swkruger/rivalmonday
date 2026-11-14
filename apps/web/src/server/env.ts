@@ -1,9 +1,15 @@
 import 'server-only';
 import { isUuid, MIN_LINK_SECRET_LENGTH, normalizeAdminEmails } from '@cs/core';
+import { type HostEnv, parseHostEnv } from '@cs/db';
 import { EMAIL_FROM_PROBLEM, isBareEmailAddress } from '@cs/email/branding';
 
 export interface WebEnv {
   appUrl: string;
+  /**
+   * 13a1 (P2, N2): host routing env from `parseHostEnv`. Non-null after a clean parse. A missing `NEUTRAL_DOMAIN` refuses to boot only
+   * when `VERCEL_ENV=production`; elsewhere agency/mcp hosts nest under APP_URL's own host (the R7 staging form).
+   */
+  hostEnv: HostEnv;
   appDatabaseUrl: string;
   serviceDatabaseUrl: string;
   /** Owner URL for pg-boss enqueue (decision 8; least privilege is a Phase 7 item). */
@@ -69,6 +75,7 @@ export function parseWebEnv(env: NodeJS.ProcessEnv): WebEnv {
   if (setupFake && env.VERCEL_ENV?.trim() === 'production') problems.push('SETUP_FAKE_LOOKUP must not be set in production');
   const webhookFake = env.WEBHOOK_FAKE_SEND?.trim() ?? '';
   if (webhookFake && env.VERCEL_ENV?.trim() === 'production') problems.push('WEBHOOK_FAKE_SEND must not be set in production');
+  const hostEnv = hostEnvFor(env, problems);
   const emailFrom = env.EMAIL_FROM?.trim();
   if (emailFrom && !isBareEmailAddress(emailFrom)) problems.push(EMAIL_FROM_PROBLEM);
   const billingFake = env.BILLING_FAKE_GATEWAY?.trim() || undefined;
@@ -77,7 +84,7 @@ export function parseWebEnv(env: NodeJS.ProcessEnv): WebEnv {
     .map((x) => x?.trim().replace(/\/+$/, ''))
     .filter((x): x is string => !!x && isOrigin(x));
   const parsed: WebEnv = {
-    appUrl, authSecret,
+    appUrl, authSecret, hostEnv: hostEnv!,
     appDatabaseUrl: need('APP_DATABASE_URL'), serviceDatabaseUrl: need('SERVICE_DATABASE_URL'), queueDatabaseUrl: need('DATABASE_URL'),
     linkSecrets: [link, ...(previous && previous.length >= MIN_LINK_SECRET_LENGTH ? [previous] : [])],
     emailFrom: emailFrom || (appUrl ? `briefs@${safeHost(appUrl)}` : ''),
@@ -112,6 +119,23 @@ export function parseWebEnv(env: NodeJS.ProcessEnv): WebEnv {
   };
   if (problems.length) throw new Error(`Web app configuration problems:\n- ${problems.join('\n- ')}`);
   return parsed;
+}
+
+/**
+ * N2: `parseHostEnv` problems go to `problems` as they are (no second web rule). Only "NEUTRAL_DOMAIN is required" is production-only:
+ * elsewhere the APP_URL host stands in (refused like a set value when it is a Rival Monday root). Null only when `problems` grew.
+ */
+function hostEnvFor(env: NodeJS.ProcessEnv, problems: string[]): HostEnv | null {
+  const first = parseHostEnv(env);
+  if (first.hostEnv || !first.problems.length) return first.hostEnv; // null + no problem = APP_URL missing/invalid, reported above
+  const missing = first.problems.length === 1 && first.problems[0] === 'NEUTRAL_DOMAIN is required';
+  if (missing && env.VERCEL_ENV?.trim() !== 'production') {
+    const fallback = parseHostEnv({ ...env, NEUTRAL_DOMAIN: new URL(env.APP_URL!.trim()).hostname });
+    problems.push(...fallback.problems);
+    return fallback.hostEnv;
+  }
+  problems.push(...first.problems);
+  return null;
 }
 
 function isOrigin(x: string): boolean {

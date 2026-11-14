@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { REHEARSAL_ENV, REQUIRED_PROD_ENV, emailFromErrors, missingProdEnv, rehearsalEnvErrors } from './env';
+import { REHEARSAL_ENV, REQUIRED_PROD_ENV, emailFromErrors, hostEnvErrors, missingProdEnv, rehearsalEnvErrors } from './env';
 
 describe('emailFromErrors', () => {
   it('accepts a bare address or unset', () => {
@@ -28,7 +28,7 @@ describe('missingProdEnv', () => {
     expect(missingProdEnv(env)).toEqual(['APP_URL', 'SENTRY_DSN']);
   });
   it('has the Decision 4 list plus the 7c2 pooled app URL (Jev rides OPENROUTER_API_KEY, no TYPESAFE_API_KEY)', () => {
-    expect(REQUIRED_PROD_ENV).toHaveLength(13);
+    expect(REQUIRED_PROD_ENV).toHaveLength(14);
     expect(REQUIRED_PROD_ENV).toContain('OPENROUTER_API_KEY');
     expect(REQUIRED_PROD_ENV).not.toContain('TYPESAFE_API_KEY');
   });
@@ -107,5 +107,21 @@ describe('rehearsalEnvErrors', () => {
       expect(rehearsalEnvErrors({ ...staging, STADIA_API_KEY: undefined })).toEqual(['VENDOR_LIVE_RANK_SCANS needs real STADIA_API_KEY']);
       expect(rehearsalEnvErrors({ ...staging, DATAFORSEO_LOGIN: ' ', DATAFORSEO_PASSWORD: 'fixture' })).toEqual(['VENDOR_LIVE_RANK_SCANS needs real DATAFORSEO_LOGIN, DATAFORSEO_PASSWORD']);
     });
+  });
+});
+
+describe('NEUTRAL_DOMAIN (13a1 N2)', () => {
+  it('missingProdEnv lists NEUTRAL_DOMAIN', () => {
+    const env: NodeJS.ProcessEnv = { NODE_ENV: 'production' };
+    for (const k of REQUIRED_PROD_ENV) env[k] = 'x';
+    delete env.NEUTRAL_DOMAIN;
+    expect(missingProdEnv(env)).toEqual(['NEUTRAL_DOMAIN']);
+  });
+  it('hostEnvErrors reports parseHostEnv problems; a missing NEUTRAL_DOMAIN is left to missingProdEnv (delivery idles elsewhere)', () => {
+    expect(hostEnvErrors({ APP_URL: 'https://rivalmonday.app', NEUTRAL_DOMAIN: 'briefs-hub.com' })).toEqual([]);
+    expect(hostEnvErrors({ APP_URL: 'http://localhost:3000' })).toEqual([]);
+    expect(hostEnvErrors({ APP_URL: 'https://rivalmonday.app' })).toEqual([]);
+    expect(hostEnvErrors({ APP_URL: 'https://rivalmonday.app', NEUTRAL_DOMAIN: 'x.rivalmonday.app' })).toEqual(['NEUTRAL_DOMAIN must not be a Rival Monday domain']);
+    expect(hostEnvErrors({ APP_URL: 'https://staging.rivalmonday.app', NEUTRAL_DOMAIN: 'staging.rivalmonday.app' })).toEqual([]);
   });
 });
