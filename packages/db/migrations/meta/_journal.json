@@ -778,6 +778,20 @@
       "when": 1794614065050,
       "tag": "0110_social_jev",
       "breakpoints": true
+    },
+    {
+      "idx": 111,
+      "version": "7",
+      "when": 1794689354598,
+      "tag": "0111_hosts",
+      "breakpoints": true
+    },
+    {
+      "idx": 112,
+      "version": "7",
+      "when": 1794689374353,
+      "tag": "0112_hosts_rls",
+      "breakpoints": true
     }
   ]
 }

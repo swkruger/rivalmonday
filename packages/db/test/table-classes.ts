@@ -53,10 +53,12 @@ export const TABLE_CLASS: Record<string, TableClass> = {
   trend_report: 'tenant_client',
   vendor_call: 'tenant_client',
 
-  // tenant_agency (9)
+  // tenant_agency (11)
   agency: 'tenant_agency',
+  agency_domain: 'tenant_agency',
   agency_onboarding: 'tenant_agency',
   agency_profile: 'tenant_agency',
+  agency_sending_domain: 'tenant_agency',
   api_token: 'tenant_agency',
   audit_log: 'tenant_agency',
   intake_link: 'tenant_agency',

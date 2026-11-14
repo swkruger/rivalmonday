@@ -45,8 +45,16 @@ export const agency = pgTable('agency', {
   suspendedReason: text('suspended_reason'),
   /** Better Auth user id of the staff member who set the hold. */
   suspendedBy: text('suspended_by'),
+  /**
+   * Phase 13a (P1/R4): the agency's host label (`<host_slug>.<NEUTRAL_DOMAIN>`, `<host_slug>@mail.<NEUTRAL_DOMAIN>`).
+   * Filled by the `agency_host_slug_fill` BEFORE INSERT trigger when omitted (the SQL default is NULL, so inserts may
+   * leave it out); never changed by an intake-slug change. Service role only (app_user has no UPDATE on agency).
+   */
+  hostSlug: text('host_slug').notNull().default(sql`NULL`),
   createdAt: createdAt(),
 }, (t) => [
+  unique('agency_host_slug_unique').on(t.hostSlug),
+  check('agency_host_slug_check', sql`${t.hostSlug} ~ '^[a-z0-9]([a-z0-9-]{1,38}[a-z0-9])$' AND ${t.hostSlug} NOT IN ('www','mcp','mail','app','api','admin','support')`),
   check('agency_suspended_reason_len', sql`${t.suspendedReason} IS NULL OR char_length(${t.suspendedReason}) BETWEEN 3 AND 500`),
   check('agency_suspended_consistent', sql`(${t.suspendedAt} IS NULL) = (${t.suspendedReason} IS NULL) AND (${t.suspendedAt} IS NULL) = (${t.suspendedBy} IS NULL)`),
 ]);

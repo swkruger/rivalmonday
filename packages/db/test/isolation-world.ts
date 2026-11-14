@@ -330,6 +330,22 @@ async function seedPublic(b: WorldBuilder, k: CompetitorKey): Promise<PublicRefs
   return { competitorId, pageId, afterCaptureId, evidenceId, publicEventId: event.id as string, vertical: comp.vertical };
 }
 
+/** 13a1 (seeded last so earlier canary numbers stay put): A has a live custom subdomain, B a pending one; `error` is the free-text column. */
+async function seedHosts(b: WorldBuilder): Promise<void> {
+  for (const a of ['A', 'B'] as const) {
+    const agencyId = a === 'A' ? IDS.agencyA : IDS.agencyB;
+    const lc = a.toLowerCase();
+    await b.ins('agency_domain', a, {
+      id: b.id('agency_domain', a), agency_id: agencyId, hostname: `intel.${lc}-world.test`, status: a === 'A' ? 'live' : 'pending',
+      dns_records: [{ type: 'CNAME', name: 'intel', value: 'cname.vercel-dns.com' }], error: `DNS note ${b.c(a)}`, live_at: a === 'A' ? b.at(10) : null,
+    });
+    await b.ins('agency_sending_domain', a, {
+      id: b.id('agency_sending_domain', a), agency_id: agencyId, domain: `${lc}-world.test`, status: a === 'A' ? 'verified' : 'pending', postmark_domain_id: a === 'A' ? 1001 : 1002,
+      dkim_host: `pm._domainkey.${lc}-world.test`, dkim_value: 'k=rsa; p=MIGf', error: `Sending note ${b.c(a)}`, verified_at: a === 'A' ? b.at(10) : null,
+    });
+  }
+}
+
 async function seedAgency(b: WorldBuilder, a: 'A' | 'B', planId: string): Promise<AgencyRefs> {
   const agencyId = a === 'A' ? IDS.agencyA : IDS.agencyB;
   const admin = a === 'A' ? worldUsers().adminA : worldUsers().adminB;
@@ -634,6 +650,7 @@ export async function seedIsolationWorld(owner: Db): Promise<IsolationWorld> {
   await seedClient(b, { key: 'A2', clientId: IDS.clientA2, agency: agencyA, pub: pub.Y, owner: worldUsers().ownerA2, viewer: null, askUser: worldUsers().ownerA2.userId });
   await seedClient(b, { key: 'B1', clientId: IDS.clientB1, agency: agencyB, pub: pub.X, owner: null, viewer: null, askUser: worldUsers().adminB.userId });
   const platformIds = await seedPlatform(b, owner);
+  await seedHosts(b);
 
   const users = Object.fromEntries(
     Object.entries(worldUsers()).map(([k, u]) => [k, { userId: u.userId, email: u.email, agencyId: u.agencyId, role: u.role, clientScope: u.clientScope }]),

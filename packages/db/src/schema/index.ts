@@ -7,6 +7,7 @@ export * from './client-intel';
 export * from './delivery';
 export * from './engine';
 export * from './evidence';
+export * from './hosts';
 export * from './insights';
 export * from './knowledge';
 export * from './leads';

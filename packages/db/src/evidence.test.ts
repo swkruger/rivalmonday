@@ -97,6 +97,7 @@ describe('privilege guard', () => {
     //   api_token / oauth_grant_binding UPDATE — column-level (Phase 6a): only revoked_at is granted; inserts are service role.
     //   ask_thread INSERT/DELETE + UPDATE(title, updated_at, deleted_at), ask_message INSERT + UPDATE(action) — author-only RLS (Phase 6b, 0043).
     //   agency_profile INSERT + UPDATE — agency admin edits its own profile under RLS (Phase 10, 0066).
+    //   (agency_domain, agency_sending_domain: SELECT only for app_user — writes run on the service connection, Phase 13a, 0112.)
     // Every other public table (agency, competitor, tracked_page, capture, evidence, audit_log, llm_call,
     // vendor_call, competitor_source, vendor_task, observation, review, ad, rank_snapshot, brief, brief_item,
     // recommendation, playbook_override, feedback, contact, notification_pref, agency_webhook, notification,
