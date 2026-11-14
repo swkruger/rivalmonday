@@ -246,6 +246,8 @@ const SCREEN_ENTRIES: readonly ScreenCoverage[] = [
       { tool: 'get_ad_activity', input: (ids) => ({ clientId: ls(ids), competitorId: lsComp(ids), weeks: 12 }), path: 'series.*.points' },
       { tool: 'get_rating_trend', input: (ids) => ({ clientId: ls(ids), months: 12 }), path: 'businesses.*.monthly' },
       { tool: 'get_audience_trend', input: (ids) => ({ clientId: ls(ids), competitorId: lsComp(ids) }), path: 'pages.*.points' },
+      { tool: 'get_social_activity', input: (ids) => ({ clientId: ls(ids) }), path: 'businesses.*.accounts' },
+      { tool: 'list_social_accounts', input: (ids) => ({ competitorId: lsComp(ids) }), path: 'accounts' },
       lsProfile,
     ],
   },

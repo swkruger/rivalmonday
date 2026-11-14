@@ -11,7 +11,7 @@ What 17c pages may say about Rival Monday (code at `21622051`). Ids binding. `ga
 | cap-ads | Meta and Google ads | packages/collectors/src/ads/meta.ts, packages/collectors/src/ads/google.ts | shipped | "Rivals' ads on Meta and Google." |
 | cap-gbp | Google Business Profile changes | packages/collectors/src/gbp/collect-gbp.ts | shipped | "Changes to rivals' Google Business Profiles." |
 | cap-rankings | Weekly map rankings on a grid | apps/worker/src/jobs/vendor.ts | shipped | "Weekly map rankings across the service area." |
-| cap-social | Competitor social | packages/collectors/src/sources/kinds.ts (no social kind) | not built | none; cell `no` |
+| cap-social | Rivals' confirmed Facebook and Instagram accounts: followers, posts, offers (phase 18e; accounts are confirmed before anything is read) | packages/collectors/src/social/, packages/tools/src/tools/social.ts | shipped | "Facebook and Instagram, weekly." Never name the data vendor; accounts are public pages only |
 | cap-weeklyBrief | Monday brief (client-local); agency may review | packages/engine/src/briefs/review.ts | shipped | "A brief every Monday; your team can edit or approve it first." |
 | cap-evidenceLinks | Claims link to evidence; unbacked dropped | packages/ui/src/components/citation-pill.tsx, packages/engine/src/briefs/support.ts | shipped | "Every claim links to its evidence." |
 | cap-assistant | Friday (Ask), renamable | packages/core/src/access.ts | shipped (plan feature `ask`) | "Friday answers with its sources, under the name you choose." |

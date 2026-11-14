@@ -111,7 +111,7 @@ describe('compare facts', () => {
   });
 
   it('our cells follow the ledger corrections', () => {
-    expect(RIVAL_MONDAY.social.mark).toBe('no');
+    expect(RIVAL_MONDAY.social).toMatchObject({ mark: 'yes', label: expect.stringMatching(/Facebook and Instagram/) });
     expect(RIVAL_MONDAY.api.mark).toBe('no');
     expect(RIVAL_MONDAY.whiteLabel.mark).toBe('partial');
     expect(RIVAL_MONDAY.websites).toEqual(websitesCell(WEBSITE_MONITORING_LIVE)); // gated: WEB_MONITORING_ENABLED

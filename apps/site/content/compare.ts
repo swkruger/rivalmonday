@@ -150,7 +150,7 @@ export const RIVAL_MONDAY: Record<CapabilityKey, OurCell> = {
   ads: { mark: 'yes', label: "Rivals' ads on Meta and Google", ledger: 'cap-ads' },
   gbp: { mark: 'yes', label: "Changes to rivals' Google Business Profiles", ledger: 'cap-gbp' },
   rankings: { mark: 'yes', label: 'Weekly map rankings across the service area', ledger: 'cap-rankings' },
-  social: { mark: 'no', ledger: 'cap-social' },
+  social: { mark: 'yes', label: 'Facebook and Instagram, weekly', ledger: 'cap-social' },
   weeklyBrief: { mark: 'yes', label: 'A brief every Monday; your team can edit or approve it before it goes out', ledger: 'cap-weeklyBrief' },
   evidenceLinks: { mark: 'yes', label: 'Every claim links to its evidence', ledger: 'cap-evidenceLinks' },
   assistant: { mark: 'yes', label: 'Friday answers with its sources, under the name you choose', ledger: 'cap-assistant' },

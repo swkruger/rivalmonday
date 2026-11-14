@@ -6,7 +6,7 @@ const callTool = vi.fn();
 const tryCallTool = vi.fn();
 let role = 'client_owner';
 vi.mock('@/server/current-viewer', () => ({ requireContext: async () => ({ ctx: { role, features: new Set(['dashboard']) } }) }));
-vi.mock('../actions', () => ({ setPinAction: vi.fn(), addPageAction: vi.fn(), confirmAdMatchAction: vi.fn(), removeAdMatchAction: vi.fn() }));
+vi.mock('../actions', () => ({ setPinAction: vi.fn(), addPageAction: vi.fn(), confirmAdMatchAction: vi.fn(), removeAdMatchAction: vi.fn(), confirmSocialAction: vi.fn(), findSocialAction: vi.fn() }));
 vi.mock('@/server/tools', () => ({ callTool: (...a: unknown[]) => callTool(...a), tryCallTool: (...a: unknown[]) => tryCallTool(...a), registry: vi.fn() }));
 vi.mock('@/server/env', () => ({ webEnv: () => ({}) }));
 vi.mock('@/components/help/help-tip', () => ({ HelpTip: ({ tip, term }: { tip?: string; term?: string }) => <button type="button">{'tip ' + (tip ?? term)}</button> }));
@@ -209,5 +209,62 @@ describe('CompetitorProfilePage', () => {
     expect(kpi.textContent).toContain('—');
     expect(within(kpi).getByText('No rating yet')).toBeTruthy();
     expect(within(kpi).getByText('3 reviews')).toBeTruthy();
+  });
+
+  describe('Social accounts block (18e)', () => {
+    const COMP = '11111111-1111-4111-8111-111111111111';
+    const activity = { businesses: [{ competitorId: 'x', name: 'Smith HVAC', self: false, offers: [], accounts: [
+      { network: 'facebook', handle: 'smithhvac', url: 'https://www.facebook.com/smithhvac', followers: 1840, followers90dChange: 130, posts30d: 4, lastPostAt: '2026-10-11T15:00:00.000Z', evidenceId: null },
+    ] }] };
+    const listed = { accounts: [
+      { id: COMP, network: 'instagram', handle: 'smith.hvac', url: 'https://www.instagram.com/smith.hvac', status: 'suggested', confirmedBy: null, followers: 220, lastPulledAt: null },
+      { id: 'r', network: 'facebook', handle: 'old', url: 'https://www.facebook.com/old', status: 'rejected', confirmedBy: null, followers: null, lastPulledAt: null },
+    ] };
+    const social = (a: unknown, l: unknown) => tryCallTool.mockImplementation(async (_c: unknown, tool: string) => (tool === 'get_social_activity' ? a : tool === 'list_social_accounts' ? l : null));
+
+    it('agency sees a confirmed row, a suggested row with Confirm / Not them, and the find and add controls', async () => {
+      role = 'agency_admin';
+      social(activity, listed);
+      await renderPage();
+      const rows = within(screen.getByRole('list', { name: 'Social accounts' })).getAllByRole('listitem');
+      expect(rows).toHaveLength(2);
+      const fb = rows[0]!;
+      expect(within(fb).getByRole('link', { name: '@smithhvac' }).getAttribute('rel')).toBe('noopener noreferrer');
+      expect(within(fb).getByText('Confirmed')).toBeTruthy();
+      expect(within(fb).getByText('1,840')).toBeTruthy();
+      expect(within(fb).getByText('Oct 11')).toBeTruthy();
+      const ig = rows[1]!;
+      expect(within(ig).getByText('Suggested')).toBeTruthy();
+      expect(within(ig).getByRole('button', { name: 'Confirm smith.hvac' })).toBeTruthy();
+      expect(within(ig).getByRole('button', { name: 'smith.hvac is not them' })).toBeTruthy();
+      expect(screen.queryByText('@old')).toBeNull();
+      expect(screen.getByRole('button', { name: 'Find accounts' })).toBeTruthy();
+      expect(screen.getByLabelText('Add link')).toBeTruthy();
+      expect(tryCallTool.mock.calls.find((c) => c[1] === 'list_social_accounts')?.[2]).toEqual({ competitorId: 'x' });
+    });
+
+    it('a client viewer sees the confirmed account read-only: no controls, no suggested row, no list call', async () => {
+      social(activity, listed);
+      await renderPage();
+      expect(screen.getByRole('link', { name: '@smithhvac' })).toBeTruthy();
+      expect(screen.queryByText('Suggested')).toBeNull();
+      expect(screen.queryByRole('button', { name: /Find accounts|Confirm|not them/ })).toBeNull();
+      expect(screen.queryByLabelText('Add link')).toBeNull();
+      expect(tryCallTool.mock.calls.map((c) => c[1])).not.toContain('list_social_accounts');
+    });
+
+    it('says so when nothing is found', async () => {
+      await renderPage();
+      expect(screen.getByText('No Facebook or Instagram account found yet.')).toBeTruthy();
+      expect(screen.queryByRole('button', { name: 'Find accounts' })).toBeNull();
+    });
+
+    it('no account yet for an agency: the empty sentence with Find accounts and Add link', async () => {
+      role = 'agency_admin';
+      social({ businesses: [] }, { accounts: [] });
+      await renderPage();
+      expect(screen.getByText('No Facebook or Instagram account found yet.')).toBeTruthy();
+      expect(screen.getByRole('button', { name: 'Find accounts' })).toBeTruthy();
+    });
   });
 });

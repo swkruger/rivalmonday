@@ -323,13 +323,20 @@ export const EVENT_SOURCE: LabelMap<ListedEventSource> = {
   google_panel: e('Google'),
 };
 
+// social_account.status (18e competitor page; draft → copy review)
+export const SOCIAL_STATUS: LabelMap<'confirmed' | 'suggested' | 'rejected'> = {
+  confirmed: e('Confirmed', 'success'),
+  suggested: e('Suggested', 'warning'),
+  rejected: e('Not them'),
+};
+
 // brief item status; agency-only (not in CLIENT_AUDIENCE_MAPS)
 export const BRIEF_ITEM_STATUS: LabelMap<'active' | 'dropped'> = { active: e('Included'), dropped: e('Dropped') };
 
 /** Maps whose labels can render to client roles; the terminology test scans these for agency-only words. */
 export const CLIENT_AUDIENCE_MAPS: readonly LabelMap<string>[] = [
   ALERT_STATUS, REPORT_STATUS, ASK_MESSAGE_STATUS, EVIDENCE_KIND, MEMBERSHIP_ROLE,
-  MOVE_STATUS, EVENT_ROUTE, CAPTURE_STATUS, PAGE_TYPE, CADENCE, RECOMMENDATION_STATUS, LEVEL, SETUP_STEP_STATUS, CLIENT_PLAN_STATUS, AD_STATE, CITATION_STATUS, LISTED_EVENT_STATUS, EVENT_SOURCE,
+  MOVE_STATUS, EVENT_ROUTE, CAPTURE_STATUS, PAGE_TYPE, CADENCE, RECOMMENDATION_STATUS, LEVEL, SETUP_STEP_STATUS, CLIENT_PLAN_STATUS, AD_STATE, CITATION_STATUS, LISTED_EVENT_STATUS, EVENT_SOURCE, SOCIAL_STATUS,
 ];
 
 // spend_guard_event.kind (packages/db/src/schema/platform.ts check constraint; 7b1, platform only)

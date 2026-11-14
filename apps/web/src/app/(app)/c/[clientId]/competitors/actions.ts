@@ -118,3 +118,27 @@ export async function confirmAdMatchAction(_p: FormResult, fd: FormData): Promis
 export async function removeAdMatchAction(_p: FormResult, fd: FormData): Promise<FormResult> {
   return adMatchAction('remove_ad_match', fd, 'Ad account removed.');
 }
+
+/** 18e: confirm, reject or add (by pasted link) a Facebook / Instagram account. Agency-only; the tool refuses a bad link with its own message. (draft → copy review) */
+export async function confirmSocialAction(_p: FormResult, fd: FormData): Promise<FormResult> {
+  const ctx = await agencyCtx();
+  const clientId = s(fd, 'clientId');
+  const competitorId = s(fd, 'competitorId');
+  const decision = s(fd, 'decision') === 'reject' ? 'reject' : 'confirm';
+  const accountId = s(fd, 'accountId');
+  const r = await runTool(ctx, 'confirm_social_account', { competitorId, decision, ...(accountId ? { accountId } : { url: s(fd, 'url') }) });
+  if (!r.ok) return r;
+  revalidatePath(`/c/${clientId}/competitors/${competitorId}`);
+  const message = decision === 'reject' ? 'Marked as not them.' : accountId ? 'Account confirmed. Its posts are read from the next weekly run.' : 'Account added and confirmed. Its posts are read from the next weekly run.';
+  return { ok: true, message };
+}
+
+export async function findSocialAction(_p: FormResult, fd: FormData): Promise<FormResult> {
+  const ctx = await agencyCtx();
+  const clientId = s(fd, 'clientId');
+  const competitorId = s(fd, 'competitorId');
+  const r = await runTool(ctx, 'find_social_accounts', { competitorId });
+  if (!r.ok) return r;
+  revalidatePath(`/c/${clientId}/competitors/${competitorId}`);
+  return { ok: true, message: 'Searching for accounts. Suggestions appear here in a few minutes.' };
+}

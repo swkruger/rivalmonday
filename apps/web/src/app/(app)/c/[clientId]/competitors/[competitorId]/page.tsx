@@ -1,7 +1,7 @@
 import { formatCount, formatDate, formatRelative } from '@/lib/format';
 import { CADENCE, PAGE_TYPE, labelFor } from '@/lib/labels';
 import { canManageCompetitors, hasFeature, isAgencyRole, PAGE_TYPES } from '@cs/core';
-import type { AdActivityView, AdList, AudienceTrend, AdMatch, ClientProfile, CompetitorProfile, CompetitorSignalView, GeoGridView, PriceMatrixView, RatingTrendView, TopicBenchmarkView, TrackedPageView } from '@cs/tools';
+import type { AdActivityView, AdList, AudienceTrend, AdMatch, ClientProfile, CompetitorProfile, CompetitorSignalView, GeoGridView, PriceMatrixView, RatingTrendView, SocialAccountsView, SocialActivityView, TopicBenchmarkView, TrackedPageView } from '@cs/tools';
 import { Card, CardContent, CardHeader, HairlineCell, HairlineGrid, Kpi, KpiStrip, Section, segmentedItemClass, segmentedTrackClass, StatusChip, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@cs/ui';
 import type { Metadata } from 'next';
 import Link from 'next/link';
@@ -27,6 +27,7 @@ import { helpGuides } from '@/server/help';
 import { callTool, tryCallTool } from '@/server/tools';
 import { AddPageForm, PinPageSwitch } from './page-controls';
 import { AdsSection, PricesSection, RankingsSection, ReviewsSection } from './sections';
+import { SocialAccountsSection } from './social-accounts';
 import { sourceStatusLabel } from './source-status';
 import { TimelineCard } from './timeline';
 
@@ -72,7 +73,7 @@ export default async function CompetitorProfilePage({
   // One batch: a bad id makes get_competitor_profile throw not_found (-> 404); Promise.all handles the sibling calls' rejections.
   // Ad-account matches are agency-only: other viewers never trigger the call or see the chips.
   const manageAds = isAgencyRole(ctx.role) && canManageCompetitors(ctx);
-  const [profile, pages, matrix, ads, benchmark, geo, signals, adMatches, client, guides, adActivity, ratingTrend, audience] = await Promise.all([
+  const [profile, pages, matrix, ads, benchmark, geo, signals, adMatches, client, guides, adActivity, ratingTrend, audience, social, socialListed] = await Promise.all([
     loadCompetitor(ctx, clientId, competitorId),
     callTool<{ items: TrackedPageView[] }>(ctx, 'list_tracked_pages', { clientId, competitorId }),
     callTool<PriceMatrixView>(ctx, 'get_price_matrix', { clientId, competitorId }),
@@ -90,6 +91,9 @@ export default async function CompetitorProfilePage({
     tryCallTool<RatingTrendView>(ctx, 'get_rating_trend', { clientId, months: 12 }),
     // Facebook Page likes (18a-1): a refused or empty read simply leaves the stat out.
     tryCallTool<AudienceTrend>(ctx, 'get_audience_trend', { clientId, competitorId }),
+    // Social accounts (18e): confirmed ones for every viewer; suggested ones and the controls are agency-only. A refused read just leaves the block empty.
+    tryCallTool<SocialActivityView>(ctx, 'get_social_activity', { clientId }),
+    isAgencyRole(ctx.role) ? tryCallTool<SocialAccountsView>(ctx, 'list_social_accounts', { competitorId }) : Promise.resolve(null),
   ]);
   const adsTrace = adActivity?.series.find((x) => x.competitorId === competitorId)?.points;
   const ratingTrace = ratingTrend?.businesses.find((b) => b.competitorId === competitorId)?.monthly.map((m) => m.avgRating);
@@ -213,6 +217,15 @@ export default async function CompetitorProfilePage({
               <RankingsSection clientId={clientId} competitorId={competitorId} geo={geo} />
             </HairlineCell>
           </HairlineGrid>
+
+          <SocialAccountsSection
+            clientId={clientId}
+            competitorId={competitorId}
+            activity={social?.businesses.find((b) => b.competitorId === competitorId)?.accounts ?? []}
+            listed={socialListed?.accounts ?? null}
+            agency={agency}
+            tz={tz}
+          />
 
           <Section
             title="Timeline"
