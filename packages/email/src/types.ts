@@ -205,6 +205,19 @@ export interface BillingNoticeProps {
   date?: string;
   billingUrl: string;
 }
+/** 13a1 P10: a custom web domain or sending domain changed status (direct email to agency admins, Rival Monday branded). */
+export type AgencyDomainNoticeKind = 'domain_live' | 'domain_failed' | 'sender_verified' | 'sender_failed';
+export interface AgencyDomainNoticeProps {
+  /** Always Rival Monday branding (the platform writes to agency staff). */
+  branding: Branding;
+  kind: AgencyDomainNoticeKind;
+  /** The hostname (custom domain) or domain (sending domain). */
+  name: string;
+  /** `${APP_URL}/agency/settings/domains`. */
+  settingsUrl: string;
+  /** Failures only: decided copy from the verify job, never vendor text. */
+  error?: string;
+}
 /** 15c-2a D7: an agency-role (admin / account manager) invitation; sent directly, not via the outbox (B1). */
 export interface TeamInviteProps {
   branding: Branding;
@@ -371,7 +384,8 @@ export type EmailPayload =
   | { template: 'sample_brief_ready'; props: SampleBriefReadyProps }
   | { template: 'lead_declined'; props: LeadDeclinedProps }
   | { template: 'lead_new'; props: LeadNewProps }
-  | { template: 'agency_plan_change'; props: AgencyPlanChangeProps };
+  | { template: 'agency_plan_change'; props: AgencyPlanChangeProps }
+  | { template: 'agency_domain_notice'; props: AgencyDomainNoticeProps };
 export interface RenderedEmail {
   subject: string;
   html: string;

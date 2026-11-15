@@ -1,4 +1,4 @@
-import { agency, agencySendingDomain } from '@cs/db';
+import { agency, agencySendingDomain, contact } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { verifyUnsubscribeToken } from '@cs/tools';
 import { eq } from 'drizzle-orm';
@@ -109,6 +109,23 @@ describe('billingEmail().sendClient and the other senders (13a1)', () => {
   it('agency-facing billing notices keep the platform sender', async () => {
     await withDb().billingEmail().sendAgencyClient('jo@acme.test', IDS.agencyA, { kind: 'client-payment-failed', clientName: 'A1', actionUrl: 'https://app.rm.test/x' } as never);
     expect((await outbox())[0]!.from).toBe('"Rival Monday" <hello@rm.test>');
+  });
+
+  it('domainEmail: platform-branded notice from the platform sender to active agency-admin contacts; failures never throw', async () => {
+    await dbs.owner.delete(contact).where(eq(contact.agencyId, IDS.agencyA));
+    await dbs.owner.insert(contact).values([
+      { agencyId: IDS.agencyA, role: 'agency_admin', email: 'boss@acme.test' },
+      { agencyId: IDS.agencyA, role: 'agency_admin', email: 'gone@acme.test', active: false },
+      { agencyId: IDS.agencyA, role: 'account_manager', email: 'am@acme.test' },
+    ]);
+    const d = withDb();
+    await d.domainEmail({ agencyId: IDS.agencyA, kind: 'domain_failed', name: 'intel.acme.co', error: "We couldn't verify this domain within 72 hours." });
+    const sent = (await outbox()).filter((m) => m.tag === 'agency_domain_notice');
+    expect(sent.map((m) => m.to)).toEqual(['boss@acme.test']);
+    expect(sent[0]).toMatchObject({ from: '"Rival Monday" <hello@rm.test>', subject: "We couldn't verify intel.acme.co" });
+    expect(sent[0]!.html).toContain('href="https://app.rm.test/agency/settings/domains"');
+    // No EMAIL_FROM: logged, not thrown.
+    await expect(withDb({ EMAIL_FROM: '' }).domainEmail({ agencyId: IDS.agencyA, kind: 'domain_live', name: 'intel.acme.co' })).resolves.toBeUndefined();
   });
 
   it('leadEmailDeps carries the sender config (platform From + host env)', () => {

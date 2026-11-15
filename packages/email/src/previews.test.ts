@@ -7,7 +7,7 @@ const ALL = [
   'alert', 'alert_digest', 'agency_notice', 'brief', 'trend_report', 'sign_in', 'support_session_started', 'agency_hold', 'platform_cost_low',
   'platform_spend_alert', 'platform_ops_alert', 'billing_notice', 'client_invite', 'team_invite', 'competitor_review', 'client_billing_notice',
   'agency_client_billing_notice', 'agency_invite', 'agency_welcome', 'onboarding_tip', 'platform_signup_notice', 'lead_verify', 'lead_confirmation',
-  'waitlist_confirmation', 'sample_brief_ready', 'lead_declined', 'lead_new', 'agency_plan_change',
+  'waitlist_confirmation', 'sample_brief_ready', 'lead_declined', 'lead_new', 'agency_plan_change', 'agency_domain_notice',
 ] as const satisfies readonly EmailPayload['template'][];
 // Compile-time exhaustiveness: a new template id that is missing from ALL makes this a type error.
 const exhaustive: Exclude<EmailPayload['template'], (typeof ALL)[number]> extends never ? true : false = true;

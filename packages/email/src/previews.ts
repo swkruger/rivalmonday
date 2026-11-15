@@ -3,7 +3,7 @@ import type { LeadPreview } from '@cs/db';
 import { resolveBranding } from './branding';
 import { renderBriefDocument, renderBriefReportDocument, renderTrendReportDocument } from './document';
 import type {
-  AgencyClientBillingNoticeKind, AgencyNoticeProps, AlertEmailProps, BillingNoticeKind, BriefEmailItem, BriefEmailProps, BriefHighlights, BriefReportDocumentProps, ClientBillingNoticeKind,
+  AgencyClientBillingNoticeKind, AgencyDomainNoticeKind, AgencyNoticeProps, AlertEmailProps, BillingNoticeKind, BriefEmailItem, BriefEmailProps, BriefHighlights, BriefReportDocumentProps, ClientBillingNoticeKind,
   EmailPayload, OnboardingTipProps, PlanTerms, PlatformOpsAlertProps, PlatformSpendAlertProps, ScorecardModel, TrendReportEmailProps,
 } from './types';
 
@@ -186,6 +186,20 @@ const tip = (day: 1 | 3 | 7, nextStep: OnboardingTipProps['nextStep']): EmailPre
   payload: { template: 'onboarding_tip', props: { branding: platform, agencyName: AGENCY, day, nextStep, url: `${APP}/agency`, unsubscribeUrl: `${APP}/unsubscribe/abc` } },
 });
 
+const DOMAIN_NOTICE_KINDS = ['domain_live', 'domain_failed', 'sender_verified', 'sender_failed'] as const satisfies readonly AgencyDomainNoticeKind[];
+/** Compile-time: a new `AgencyDomainNoticeKind` missing from DOMAIN_NOTICE_KINDS is a type error. */
+export const DOMAIN_NOTICE_KINDS_EXHAUSTIVE: Exclude<AgencyDomainNoticeKind, (typeof DOMAIN_NOTICE_KINDS)[number]> extends never ? true : false = true;
+const domainNotice = (kind: AgencyDomainNoticeKind): EmailPreview => ({
+  id: `agency_domain_notice.${kind}`, label: `Domain notice: ${kind}`,
+  payload: {
+    template: 'agency_domain_notice',
+    props: {
+      branding: platform, kind, name: kind.startsWith('domain') ? 'intel.northwind.example' : 'northwind.example', settingsUrl: `${APP}/agency/settings/domains`,
+      ...(kind.endsWith('failed') && { error: "We couldn't verify this domain within 72 hours." }),
+    },
+  },
+});
+
 const terms = (basePriceCents: number, basePriceYearCents: number | null, includedSeats: number, seatTiers: PlanTerms['seatTiers'], tiers: PlanTerms['tiers']): PlanTerms => ({ basePriceCents, basePriceYearCents, includedSeats, seatTiers, tiers });
 const planBase = { branding: platform, recipientName: 'Ann', agencyName: AGENCY, before: terms(22900, null, 3, [{ upTo: null, unitCents: 9900 }], [{ fromClient: 4, toClient: null, unitCents: 9900 }]), after: terms(22900, 229000, 3, [{ upTo: 7, unitCents: 7900 }, { upTo: null, unitCents: 5900 }], [{ fromClient: 4, toClient: 10, unitCents: 7900 }, { fromClient: 11, toClient: null, unitCents: 5900 }]), featuresAdded: [] as ('ask' | 'mcp')[], featuresRemoved: [] as ('ask' | 'mcp')[] };
 
@@ -253,6 +267,7 @@ export const EMAIL_PREVIEWS: readonly EmailPreview[] = [
   ops('pre_delivery_unapproved', 'warning'),
   ops('starting_point_late', 'warning'),
   ...BILLING_KINDS.map(billing),
+  ...DOMAIN_NOTICE_KINDS.map(domainNotice),
   agencyClientBilling('client-payment-failed'),
   agencyClientBilling('client-paid'),
   agencyClientBilling('client-auto-paused'),

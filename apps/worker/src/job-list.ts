@@ -9,6 +9,7 @@ import { createBillingNoticeJobs } from './jobs/billing-notices';
 import { createCitationJobs } from './jobs/citations';
 import { createBriefJobs, createStartingPointJobs } from './jobs/briefs';
 import { createDeliveryJobs } from './jobs/delivery';
+import { createDomainJobs } from './jobs/domains';
 import { createEngineJobs } from './jobs/engine';
 import { createHeartbeatJob } from './jobs/heartbeat';
 import { createModelOpsJobs } from './jobs/model-ops';
@@ -186,6 +187,16 @@ export function createJobList(deps: WorkerDeps, boss: PgBoss, opts: { envName: E
   const platformCosts = createPlatformCostsJobs(deps);
   const ops = createOpsJobs(deps);
   const prospects = createProspectJobs(deps);
+  const domains = createDomainJobs(deps, {
+    enqueueDomain: async (domainId, startAfter) => {
+      const singletonKey = `domain:${domainId}`;
+      await enqueue(boss, domains.domainVerify, { domainId }, startAfter === undefined ? { singletonKey } : { singletonKey, startAfter });
+    },
+    enqueueSender: async (sendingDomainId, startAfter) => {
+      const singletonKey = `sender:${sendingDomainId}`;
+      await enqueue(boss, domains.senderVerify, { sendingDomainId }, startAfter === undefined ? { singletonKey } : { singletonKey, startAfter });
+    },
+  }, { envName: opts.envName });
   const delivery = createDeliveryJobs(deps, {
     enqueueAlert: async (alertId) => {
       await enqueue(boss, delivery.alertProcess, { alertId }, { singletonKey: alertId });
@@ -204,5 +215,6 @@ export function createJobList(deps: WorkerDeps, boss: PgBoss, opts: { envName: E
     engine.sweep, engine.diff, engine.rankDiff, engine.tag, engine.score, engine.review, engine.reask, engine.price, engine.adPrice, engine.postPrice, engine.siteFeatures, engine.listedEvents, engine.adImage, engine.adImageRead, reviews.nightly, moves.nightly, moves.client,
     modelOps.batchPoll, platformStats.daily, billing.daily, billingNotices.notices, onboarding.nudges, setup.suggestions, setup.reminders, runbooks.tailor, leads.preview, leads.cleanup, platformCosts.snapshot, spendGuard.guard, ops.readiness, briefs.schedule, briefs.client, startingPoints.schedule, startingPoints.client, ask.starters, kb.embed, kb.importUrl, kb.sync,
     delivery.alertsSweep, delivery.alertProcess, delivery.digest, delivery.dispatch, delivery.briefsDeliver, delivery.briefPdf, delivery.reports, delivery.reportPdf,
+    domains.domainVerify, domains.senderVerify, domains.sweep,
   ];
 }

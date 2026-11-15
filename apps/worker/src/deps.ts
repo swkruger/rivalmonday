@@ -7,7 +7,7 @@ import {
 } from '@cs/collectors';
 import { DEFAULT_SUPPORT_EMAIL, type AiGuard, type CallScope } from '@cs/core';
 import { createVendorLimiter } from '@cs/core/server';
-import { type AgencyBranding, clientOriginFor, competitor, type HostEnv, type OpsAlert, catalogRows, parseHostEnv, rehostLogoUrl, createAiGuard, createDb, createDecisionModeSource, createDecisionSampleSink, createLedgerSink, type Db } from '@cs/db';
+import { type AgencyBranding, clientOriginFor, competitor, type EnvName, type HostEnv, type OpsAlert, catalogRows, parseHostEnv, rehostLogoUrl, createAiGuard, createDb, createDecisionModeSource, createDecisionSampleSink, createLedgerSink, type Db } from '@cs/db';
 import { createCatalog } from '@cs/verticals';
 import type { DiscoveryResult } from '@cs/collectors';
 import {
@@ -23,10 +23,10 @@ import {
   type AgencyClientBillingNoticeProps, type AgencyWelcomeProps, type BillingNoticeProps, type ClientBillingNoticeProps, createEmailTransportFromEnv, type OnboardingTipProps,
   type PlatformOpsAlertProps, type PlatformSignupNoticeProps, renderEmail, resolveBranding,
 } from '@cs/email';
-import { type LeadEmailDeps, listMonthlyRivalClients, normalizeAdminEmails, platformOperatorEmails, type PlatformCostLowPayload, type PlatformCostSnapshotDeps, type PlatformSpendAlertPayload, type SpendGuardDeps, unsubscribeToken } from '@cs/tools';
+import { createDomainProbe, type DomainNotice, domainNoticeRecipients, domainVendorsFor, type PostmarkDomains, type VercelDomains, type LeadEmailDeps, listMonthlyRivalClients, normalizeAdminEmails, platformOperatorEmails, type PlatformCostLowPayload, type PlatformCostSnapshotDeps, type PlatformSpendAlertPayload, type SpendGuardDeps, unsubscribeToken } from '@cs/tools';
 import { createStoreFromEnv, type ObjectStore } from '@cs/storage';
 import { eq, inArray, sql } from 'drizzle-orm';
-import { lookup } from 'node:dns/promises';
+import { lookup, resolveTxt } from 'node:dns/promises';
 import { runLeadPreview } from './jobs/leads';
 import { runRunbookTailor } from './jobs/runbooks';
 import { failPendingSuggestions, runSetupReminders, runSetupSuggestions } from './jobs/setup';
@@ -221,6 +221,17 @@ export interface WorkerDeps {
   spendGuard(): SpendGuardDeps;
   /** Phase 9a: platform-branded billing lifecycle email sender (direct transport send, outside the client outbox). */
   billingEmail(): BillingEmailSender;
+  /**
+   * 13a1 Task 11 (P11, N6): Vercel/Postmark domain wrappers over the shared vendor limiter (`vercel`/`postmark` keys); fakes on
+   * DEMO/TEST databases; `DOMAINS_FAKE_VENDORS` ignored (`allowFakeFlag: false`). Null = that vendor is not configured.
+   */
+  domainVendors(envName: EnvName): { vercel: VercelDomains | null; postmark: PostmarkDomains | null };
+  /** 13a1 P13: SSRF-guarded `GET https://<hostname>/health` (2xx = certificate issued and the host routes to us). */
+  domainProbe(hostname: string): Promise<boolean>;
+  /** DNS TXT lookup (DMARC check of a verified sending domain). */
+  resolveTxt(name: string): Promise<string[][]>;
+  /** 13a1 P10: `agency_domain_notice` (platform-branded, platform sender) to the agency's active agency-admin contacts; best effort, never throws. */
+  domainEmail(n: DomainNotice): Promise<void>;
   /** Phase 6c: KB_IMPORT_ENABLED === 'true'; gates kb-import and kb-sync. */
   kbImportEnabled(): boolean;
   /** Phase 6c: every address the host resolves to (SSRF guard for kb-import / kb-sync). */
@@ -357,6 +368,10 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv, opts: { aiGuard?: boole
   };
   /** 13a1 (N1, N2): client email needs the host env (`<host_slug>@mail.<NEUTRAL_DOMAIN>`); without it client mail fails closed. */
   const { hostEnv } = parseHostEnv(env);
+  /** 13a1 Task 11: built on first use (one per process; the worker's live env name never changes). */
+  let domainVendors: ReturnType<WorkerDeps['domainVendors']> | null = null;
+  // P13 / F21: the custom hostname is user-supplied, so the probe goes through the SSRF guard (system DNS lookup).
+  const domainProbe = createDomainProbe();
   let emailTransport: ReturnType<typeof createEmailTransportFromEnv> | null = null;
   const getEmailTransport = () => (emailTransport ??= createEmailTransportFromEnv(env, createLedgerSink(getDb())));
   let senders: Parameters<typeof dispatchDue>[0]['senders'] | null = null;
@@ -804,6 +819,31 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv, opts: { aiGuard?: boole
         await getEmailTransport().send({ from: platformSender({ platformFrom: from }), to, replyTo: null, subject: r.subject, html: r.html, text: r.text, tag: 'agency_client_billing_notice', metadata: {} }, { agencyId, clientId: null });
       },
     }),
+    domainVendors: (envName) => (domainVendors ??= domainVendorsFor(env, envName, { allowFakeFlag: false, fetch: { vercel: vendors.limitedFetch('vercel'), postmark: vendors.limitedFetch('postmark') } })),
+    domainProbe: (hostname) => domainProbe(hostname),
+    resolveTxt: (name) => resolveTxt(name),
+    domainEmail: async (n) => {
+      try {
+        const from = requirePlatformFrom();
+        const appUrl = env.APP_URL?.trim().replace(/\/+$/, '');
+        if (!appUrl) throw new Error('APP_URL is required');
+        const to = await domainNoticeRecipients(getDb(), n.agencyId);
+        if (to.length === 0) workerLog.warn(`[domain-notice] no agency admins for agency ${n.agencyId}`);
+        const r = await renderEmail({
+          template: 'agency_domain_notice',
+          props: { branding: resolveBranding('Rival Monday', null), kind: n.kind, name: n.name, settingsUrl: `${appUrl}/agency/settings/domains`, ...(n.error && { error: n.error }) },
+        });
+        for (const [i, addr] of to.entries()) {
+          try {
+            await getEmailTransport().send({ from: platformSender({ platformFrom: from }), to: addr, replyTo: null, subject: r.subject, html: r.html, text: r.text, tag: 'agency_domain_notice', metadata: {} }, { agencyId: n.agencyId, clientId: null });
+          } catch (err) {
+            workerLog.warn({ agencyId: n.agencyId, kind: n.kind, recipient: i + 1, err: err instanceof Error ? err.name : 'unknown' }, '[domain-notice] send failed');
+          }
+        }
+      } catch (err) {
+        workerLog.warn({ agencyId: n.agencyId, kind: n.kind, err: err instanceof Error ? err.message : 'unknown' }, '[domain-notice] not sent');
+      }
+    },
     kbImportEnabled: () => env.KB_IMPORT_ENABLED?.trim() === 'true',
     resolveHost: async (host) => (await lookup(host, { all: true })).map((a) => a.address),
     politeRenderer: () => getRenderer(),

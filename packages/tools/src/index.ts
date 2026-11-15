@@ -88,3 +88,7 @@ export { DomainVendorError, type DomainVendorErrorCode, type PostmarkDomainState
 export { type FakePostmarkDomains, type FakeVercelDomains, fakePostmarkDomains, fakeVercelDomains, resetFakeDomainVendors } from './domains/fakes';
 export { createPostmarkDomains } from './domains/postmark';
 export { createVercelDomains } from './domains/vercel';
+export {
+  createDomainProbe, DOMAIN_VERIFY_SECONDS, type DomainNotice, domainNoticeRecipients, expireStaleDomains, listDomainsToVerify, SENDER_VERIFY_SECONDS, VERIFY_COPY,
+  VERIFY_WINDOW_HOURS, verifyAgencyDomain, verifySendingDomain,
+} from './domains/verify';

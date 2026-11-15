@@ -91,4 +91,18 @@ describe('fakes', () => {
     await pm.verifyDkim(s.id);
     expect((await pm.create('agency.com').catch((e) => e)).code).toBe('in_use');
   });
+
+  it('unknown names are deterministic across processes: verified unless they contain pending/fail; removed ones stay unknown', async () => {
+    const v = fakeVercelDomains();
+    expect(await v.status('Intel.Agency.com')).toMatchObject({ verified: true, misconfigured: false, message: null });
+    expect(await v.status('pending.agency.com')).toMatchObject({ verified: false, misconfigured: true, message: null });
+    expect((await v.status('fail.agency.com')).message).not.toBeNull();
+    await v.remove('intel.agency.com');
+    expect((await v.status('intel.agency.com').catch((e) => e)).code).toBe('invalid');
+    const pm = fakePostmarkDomains();
+    expect((await pm.verifyDkim(4242)).dkim.verified).toBe(true);
+    expect((await pm.verifyReturnPath(4242)).returnPath.verified).toBe(true);
+    await pm.remove(4242);
+    expect((await pm.verifyDkim(4242).catch((e) => e)).code).toBe('invalid');
+  });
 });

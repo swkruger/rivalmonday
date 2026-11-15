@@ -31,13 +31,22 @@ function oneShot() {
   };
 }
 
+/**
+ * A hostname this process never added (Task 11 carry 4: the web process adds, the worker polls): deterministic, so E2E works
+ * across processes — verified unless the name contains `pending` or `fail` (`fail` also reports a TXT message).
+ */
+const unknownVercel = (h: string) => ({ verified: !h.includes('pending') && !h.includes('fail') });
+
 function createFakeVercel(): FakeVercelDomains {
   const domains = new Map<string, { verified: boolean }>();
+  /** Removed in this process: `status` reports them unknown (as Vercel's 404 would). */
+  const removed = new Set<string>();
   const fail = oneShot();
   const state = (h: string): VercelDomainState => {
-    const d = domains.get(h);
+    const d = domains.get(h) ?? (removed.has(h) ? undefined : unknownVercel(h));
     if (!d) throw new DomainVendorError('invalid', `Fake Vercel: unknown domain ${h}`);
-    return { verified: d.verified, misconfigured: !d.verified, records: [{ type: 'CNAME', name: h, value: VERCEL_DEFAULT_CNAME }], message: null };
+    const message = !d.verified && h.includes('fail') ? 'Fake Vercel: TXT record not found' : null;
+    return { verified: d.verified, misconfigured: !d.verified, records: [{ type: 'CNAME', name: h, value: VERCEL_DEFAULT_CNAME }], message };
   };
   return {
     failNext: fail.set,
@@ -45,6 +54,7 @@ function createFakeVercel(): FakeVercelDomains {
     async add(hostname) {
       fail.check('Vercel add');
       const h = hostname.toLowerCase();
+      removed.delete(h);
       if (!domains.has(h)) domains.set(h, { verified: false });
       return state(h);
     },
@@ -55,16 +65,24 @@ function createFakeVercel(): FakeVercelDomains {
     async remove(hostname) {
       fail.check('Vercel remove');
       domains.delete(hostname.toLowerCase());
+      removed.add(hostname.toLowerCase());
     },
   };
 }
 
 function createFakePostmark(): FakePostmarkDomains {
   const domains = new Map<number, { name: string; published: boolean; dkim: boolean; returnPath: boolean }>();
+  /** Removed in this process: verify calls report them unknown (Postmark ErrorCode 510). */
+  const removed = new Set<number>();
   let nextId = 1000;
   const fail = oneShot();
   const get = (id: number) => {
-    const d = domains.get(id);
+    let d = domains.get(id);
+    if (!d && !removed.has(id)) {
+      // Created by another process (web adds, the worker verifies): records published, so it verifies (Task 11 carry 4).
+      d = { name: `fake-${id}.invalid`, published: true, dkim: false, returnPath: false };
+      domains.set(id, d);
+    }
     if (!d) throw new DomainVendorError('invalid', `Fake Postmark: unknown domain ${id}`);
     return d;
   };
@@ -108,6 +126,7 @@ function createFakePostmark(): FakePostmarkDomains {
     async remove(id) {
       fail.check('Postmark remove');
       domains.delete(id);
+      removed.add(id);
     },
   };
 }
