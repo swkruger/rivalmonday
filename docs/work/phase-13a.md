@@ -4,10 +4,10 @@
 **Plan/spec:** [13a1 plan 11-14](../superpowers/plans/2026-11-14-phase-13a1-hosts-domains.md) (approved; supersedes Part 1 of [plan 10-17](../superpowers/plans/2026-10-17-phase-13a-white-label.md)) · [spec + addendum 11-05](../superpowers/specs/2026-10-17-phase-13a-white-label-design.md) · old brief [phase-13.md](phase-13.md) (delete at merge)
 
 ## Status (overwrite)
-13a1 SDD Tasks 0–13 complete and reviewed. Task 14 (MCP moved notice) skipped by ruling R13. Task 15 prep is done: `--filter`, coverage entry for Domains, staging worker `NEUTRAL_DOMAIN`, kb:seed, copy list. The launch gate is green on both hosts.
+13a1 complete: Tasks 0–13 and 15 reviewed (Task 14 skipped, R13). test:affected green after test-only fixes; e2e:affected 164 passed; launch gate green on both hosts. Final review (opus) fix wave done and re-reviewed: I1 web delivery uses the web's resolved host env (staging no longer drops client mail), I2 purge skips agencies still holding domains, M1 refusal names `NEUTRAL_DOMAIN`.
 
 ## Next (overwrite)
-Agent: the final review (top model): `pnpm test:affected`, `pnpm --filter @cs/web e2e:affected` (background, one at a time), Review focus 1–5, one fix wave. Owner: `pnpm copy:review` in this worktree, the R9 confirmation, then `/rm-merge` on the owner's go-ahead. 13a2/13a3 plans come later (13a3 may start in its own worktree at any time).
+Owner: `pnpm copy:review` in this worktree (~86 new strings + 3 re-signs for the M1 refusal text), the R9 confirmation, then `/rm-merge` on the owner's go-ahead. 13a2/13a3 plans come later (13a3 may start in its own worktree at any time).
 
 ## Interfaces this branch adds or changes
 - **Migrations:** `0111_hosts` (`agency.host_slug` unique, `agency_domain`, `agency_sending_domain`), `0112_hosts_rls` (service-role writes), `0113_sending_domain_unique` (partial unique `agency_sending_domain(domain) WHERE status <> 'removed'`).
@@ -76,9 +76,10 @@ Spec D1–D7 and plan P1–P23 (2026-10-17) stand, amended by the 2026-11-14 ref
 ## New backlog (target → item)
 - **13a2 → hosts:** surface an unparsable `APP_URL` as a `hostEnvFor` problem (env.ts `hostEnv!`). Short-circuit `RESERVED_HOST_SLUGS` before the query (fix the hosts.ts:73 comment). Add a test for a hostname removed by A then live for B. Bound the host-cache instances (LRU, not insertion order). Add an unknown-host `/health` pass-through test.
 - **13a2 → MCP/auth:** `productNameFor` agency fallback (P17). Fix the stale proxy.ts:9 comment. Add tests for revoked/accepted invitations in `hasSignInRightIn`. Split the consent `page.test` states. Add a smoke test that refuses a platform guest cookie at `/agency`.
-- **Polish → domains:** `dnsRecords` update failure after `vercel.add` leaves a pending row (the sweep covers it). Support sessions can't read the Domains page (note in the 8b doc). An unnamed unique violation is mapped to slug-taken. `deps.ts` `domainEmail` logs the raw `err.message` (use `redactForLog`). No DKIM refresh from Postmark state (check at live verification). A misconfigured verifying row doesn't revert to pending. Concurrency test for the host_slug advisory lock / operator slug refusal.
+- **Polish → domains:** `dnsRecords` update failure after `vercel.add` leaves a pending row (the sweep covers it). Support sessions can't read the Domains page (note in the 8b doc). An unnamed unique violation is mapped to slug-taken. No DKIM refresh from Postmark state (check at live verification). A misconfigured verifying row doesn't revert to pending. Concurrency test for the host_slug advisory lock / operator slug refusal. Verify jobs + sweep skip archived agencies (`archived_at IS NULL` in `listDomainsToVerify`/`expireStaleDomains`). Per-agency cap/limiter on web domain writes. Platform-side domain removal for archived agencies, and purge releasing the Vercel hostname + Postmark domain (today purge just skips, I2). Web fallback test: `webEnv` mock returning `hostEnv` with no `NEUTRAL_DOMAIN` stub.
 - **Polish → delivery:** `clientOriginFor` is computed per message in worker paths (precompute). Mixed-membership inbox edge goes to `/inbox`. Theme `hostForLogo` swallows errors. Outbox test rows without an audience fall back to agency. The `pool_new` guard test can't fail. Import placement in swept tests.
 - **Polish → web:** `/start` with a malformed slug skips the host check (submitIntake refuses anyway). Agency-contact `/l` on its own agency host goes to platform sign-in.
+- **Soon → deploy:** prod deploy has no `/sign-in` smoke check (a prod web without `NEUTRAL_DOMAIN` 500s while `/health` is green); add the staging-style curl. Start-up log of the neutral domain on web and worker so a mismatch is visible.
 - **Soon → launch gate:** seed `alertId`/`briefId` for a client user so the agency-host pass can be `--strict-routes`.
 
 ## Pre-flight (Task 0, 2026-11-14, condensed)
