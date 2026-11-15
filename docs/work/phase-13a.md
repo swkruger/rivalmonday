@@ -1,56 +1,84 @@
 # phase-13a — White-label parity (hosts, domains, MCP host, sender, voice, scrub, branding)
 
 **Kind:** implementation   **Worktree:** ../CompetitorSpy-wt/phase-13a   **Base:** main @ bccdc980
-**Plan/spec:** [13a1 plan 11-14](../superpowers/plans/2026-11-14-phase-13a1-hosts-domains.md) (awaiting owner approval; supersedes Part 1 of [plan 10-17](../superpowers/plans/2026-10-17-phase-13a-white-label.md)) · [spec + addendum 11-05](../superpowers/specs/2026-10-17-phase-13a-white-label-design.md) · old brief [phase-13.md](phase-13.md) (delete at merge)
+**Plan/spec:** [13a1 plan 11-14](../superpowers/plans/2026-11-14-phase-13a1-hosts-domains.md) (approved; supersedes Part 1 of [plan 10-17](../superpowers/plans/2026-10-17-phase-13a-white-label.md)) · [spec + addendum 11-05](../superpowers/specs/2026-10-17-phase-13a-white-label-design.md) · old brief [phase-13.md](phase-13.md) (delete at merge)
 
 ## Status (overwrite)
-Owner approved the 13a1 plan 2026-11-14 (incl. N1–N6 and its Proposed copy). SDD execution started; Task 0 next.
+13a1 SDD Tasks 0–13 complete and reviewed. Task 14 (MCP moved notice) skipped by ruling R13. Task 15 prep is done: `--filter`, coverage entry for Domains, staging worker `NEUTRAL_DOMAIN`, kb:seed, copy list. The launch gate passes on the platform host. The agency-host client pass is **open**: see Launch gate.
 
 ## Next (overwrite)
-Agent: SDD from Task 0 (pre-flight). 13a2/13a3 plans later (13a3 may start in its own worktree any time).
+Agent: decide the agency-host 404/307 overage (Launch gate), then the final review (top model): `pnpm test:affected`, `pnpm --filter @cs/web e2e:affected` (background, one at a time), Review focus 1–5, one fix wave. Owner: `pnpm copy:review` in this worktree, the R9 confirmation, then `/rm-merge` on the owner's go-ahead. 13a2/13a3 plans come later (13a3 may start in its own worktree at any time).
 
 ## Interfaces this branch adds or changes
-Migrations next free at execution, currently **0111+**. Tables `agency_domain`, `agency_sending_domain`; `agency.host_slug`; `client.voice_override`; `brief`/`alert` `review_reason`/`review_terms`. Env `NEUTRAL_DOMAIN`, `VERCEL_API_TOKEN`, `VERCEL_PROJECT_ID`, `VERCEL_TEAM_ID`, `POSTMARK_ACCOUNT_TOKEN`, `DOMAINS_FAKE_VENDORS` (E2E).
+- **Migrations:** `0111_hosts` (`agency.host_slug` unique, `agency_domain`, `agency_sending_domain`), `0112_hosts_rls` (service-role writes), `0113_sending_domain_unique` (partial unique `agency_sending_domain(domain) WHERE status <> 'removed'`).
+- **Hosts (`@cs/db` `hosts.ts`):** `HostEnv`, `parseHostEnv(env)` (null host env when there is no routing; prod refuses without `NEUTRAL_DOMAIN`), `clientOriginFor(db, agencyId, h)`. Delivery: `senderFor` (`engine delivery/sender.ts`) and `linkBaseFor` (`outbox.ts`, audience = recipient). Tools: `linkBase(deps, ctx)` (`tools/link-base.ts`).
+- **Tools:** `get_agency_domains`, `set_custom_domain`, `remove_custom_domain`, `set_sending_domain`, `remove_sending_domain` (agency admin, web only), `platform_set_agency_host_slug`.
+- **Jobs:** `domain-verify` and `sender-verify` (worker `jobs/domains.ts`), plus cron `domain-verify-sweep` (`23 * * * *`).
+- **Routes:** `/agency/settings/domains`, `/rm-internal/host-redirect` (cross-host 307 + no-store; target in a proxy-set header, never a query). Platform `/mcp` now returns 404; MCP and its OAuth issuer live on `mcp.<NEUTRAL_DOMAIN>`.
+- **Env:** `NEUTRAL_DOMAIN`, `VERCEL_API_TOKEN`, `VERCEL_PROJECT_ID`, `VERCEL_TEAM_ID`, `POSTMARK_ACCOUNT_TOKEN`, E2E-only `DOMAINS_FAKE_VENDORS` (refused on any `VERCEL_ENV`). The staging worker gets `NEUTRAL_DOMAIN` via `pnpm staging:railway-vars` (21 vars; must equal the `APP_URL` host).
 
 ## Assumes from other branches
-None in flight. Plan "Dependencies on in-flight work" all satisfied (13b, 11, 10, 15a–c, 16, 17, 7a–c, 18a–e merged).
+None in flight.
 
-## Plan refresh (summary — detail now in the 13a1 plan)
-Audit 2026-11-14 of the 10-17 plan against `main`: per-task drift (paths, symbols, new routes, sender sites, settings pages under `/agency/settings/*`, registry in `tools/src/tools/`, `E2E_PORT`), done-elsewhere items (15a auth branding/titles/error pages/connector slug, `--brand-ink`, runbook pages, intake) and new scope are folded into the [13a1 plan](../superpowers/plans/2026-11-14-phase-13a1-hosts-domains.md) (Decisions P/N, task Files, Appendices). Open questions Q1–Q10 became R1–R11.
-- **13a2** (own plan after 13a1 merges): voice (R3 Runbook "Voice" section, R5 writers + `runbook_tailor`, preview under 7b guards, AM review flags), scrub (favicon per host, host-aware root metadata, `productNameFor`/`kbNamesFor` fallbacks, `support.ts` copy, Stripe product name), leak check (unit + E2E crawl, `brief_highlights`/`brief_report`/`scorecard`/`digest`/`lead_*`/`feedback_line`), `apps/site` white-label FAQ (BACKLOG l.200) once 13a1 is live.
+## Later sub-phases (from the 11-14 refresh)
+- **13a2** (own plan after 13a1 merges): voice (R3/R5, AM review flags), scrub (favicon per host — F24, host-aware root metadata, `productNameFor`/`kbNamesFor` fallbacks, `support.ts` copy, Stripe product name), leak check (unit + E2E crawl), `apps/site` white-label FAQ (BACKLOG l.200).
 - **13a3** (any time, own worktree): spec addendum 2026-11-05 (header colour, dark logo, editor preview, tokens everywhere incl. BACKLOG l.162 URLs, l.209, l.213, l.217; property test; 3-theme shots).
 
 ## Decisions (owner-approved)
-Spec D1–D7 and plan P1–P23 (2026-10-17) stand, amended by the 2026-11-14 refresh:
-- **R1 Split (Q1):** three sub-phases, own plan + merge each: 13a1 hosts/custom domains/MCP host/sending domains; 13a2 voice/remaining scrub/leak check; 13a3 = spec addendum 2026-11-05 (comprehensive branding), no domain prerequisites, may start first in its own worktree.
-- **R2 Host cache (Q2):** 60 s hostname→agency cache is a named exception to "no cross-request cache" (routing data only; memberships checked per request). Record under Launch gate at merge.
-- **R3 Client voice (Q3):** a "Voice" section on the client Runbook settings page; no `/c/<id>/settings/customisation` page.
-- **R4 `host_slug` (Q4):** `intake_link.slug` when present, else slugify `agency.name`; operator can change it.
-- **R5 Voice coverage (Q5):** P20 writers + `runbook_tailor`; preview = agency AI spend under 7b guards.
-- **R6 `/start` (Q6):** P24 dropped; platform `/start` may show Rival Monday (CLAUDE.md Onboarding 11); agency hosts serve only `/start/<slug>`.
-- **R7 Staging hosts (Q7, owner 2026-11-14):** staging `NEUTRAL_DOMAIN` = `staging.rivalmonday.app` → agency `<slug>.staging.rivalmonday.app`, MCP `mcp.staging.rivalmonday.app` (no client visibility yet). Production neutral domain must not be under `rivalmonday.app`.
-- **R8 Fake vendors (Q8):** `DOMAINS_FAKE_VENDORS` refused on any `VERCEL_ENV` (like `BILLING_FAKE_GATEWAY`).
-- **R9 MCP cutover (Q9):** if 13a1 reaches prod with/before the first live deploy, drop the moved error + reconnect notice (P16); decide at 13a1 merge.
-- **R10 Prerequisites (Q10):** code now on fakes (`NEUTRAL_DOMAIN=localhost`); infra in parallel. Owner OK'd adding `NEUTRAL_DOMAIN`, `VERCEL_API_TOKEN`, `VERCEL_PROJECT_ID`, `VERCEL_TEAM_ID`, `POSTMARK_ACCOUNT_TOKEN`, `DOMAINS_FAKE_VENDORS` to `turbo.json`.
-- **R12 13a1 plan approved (2026-11-14):** N1–N6 and Proposed copy as written in the plan.
-- **R11 Neutral domain:** not chosen. Available 2026-11-14 (registry check): clientintel.app (suggested), insightdesk.app/.io, intelportal.app, weeklybrief.app, briefportal.app.
+Spec D1–D7 and plan P1–P23 (2026-10-17) stand, amended by the 2026-11-14 refresh (13a1 plan Decisions P/N):
+- **R1 Split:** 13a1 covers hosts, custom domains, the MCP host and sending domains. 13a2 covers voice, the remaining scrub and the leak check. 13a3 = spec addendum 2026-11-05 (own worktree, may start first).
+- **R2 Host cache:** the 60 s hostname→agency cache is a named exception to "no cross-request cache" (routing data only; memberships are checked per request). Record it under Launch gate at merge.
+- **R3 Client voice:** a "Voice" section on the client Runbook settings page.
+- **R4 `host_slug`:** `intake_link.slug`, else a slug of `agency.name`; the operator can change it.
+- **R5 Voice coverage:** P20 writers + `runbook_tailor`; the preview counts as agency AI spend under the 7b guards.
+- **R6 `/start`:** platform `/start` may show Rival Monday; agency hosts serve only `/start/<slug>`.
+- **R7 Staging hosts:** staging `NEUTRAL_DOMAIN` = `staging.rivalmonday.app` (agency `<slug>.staging.rivalmonday.app`, MCP `mcp.staging.rivalmonday.app`). The production neutral domain must not be under `rivalmonday.app`.
+- **R8 Fake vendors:** `DOMAINS_FAKE_VENDORS` is refused on any `VERCEL_ENV`.
+- **R9 MCP cutover:** if 13a1 reaches prod with or before the first live deploy, drop the moved error and the reconnect notice (P16). Decide at merge.
+- **R10 Prerequisites:** code runs on fakes; infra goes in parallel. The new env names are in `turbo.json`.
+- **R11 Neutral domain:** not chosen. Available 2026-11-14: clientintel.app (suggested), insightdesk.app/.io, intelportal.app, weeklybrief.app, briefportal.app.
+- **R12 13a1 plan approved (2026-11-14):** N1–N6 and the Proposed copy, as written.
+- **R13 Task 14 skipped:** pending the owner's R9 confirmation at merge. No production deploy exists, so no OAuth connection to the old `/mcp` exists. If the owner wants it, the task can be built from the plan.
 
-## New backlog (target → item)
-- Close at merge → BACKLOG l.212 (`--secondary-foreground` literal): done in `theme.ts`.
+## Launch gate (Task 15, 2026-11-14)
+- **Platform pass, green:** `bash apps/web/scripts/profile-gate.sh --seed` profiled 74/74 routes; max 6 DB stages (`/agency`, `/agency/approvals/[briefId]`, `/c/[clientId]/ask/[threadId]`, `/changes`, `/evidence/[id]`; 404s `/pitch-snapshot`, `/settings/billing`). `/agency/settings/domains` = **4**; `/platform/agencies/[id]` = 3.
+- **Agency-host client pass, over budget (open):** `MSYS2_ARG_CONV_EXCL='/c/' bash apps/web/scripts/profile-gate.sh --skip-build -- --base http://e2e-agency.localhost:3100 --cookie <state> --filter /c/ --param clientId=<id> --params-from-seed --strict-routes --assert-db-stages 8`.
+  - `MSYS2_ARG_CONV_EXCL` stops Git Bash rewriting `/c/` into `C:/`. `--param clientId` is needed because the seed's `clientId` belongs to the admin.
+  - Cookie: a magic-link session on `e2e-agency.localhost`.
+  - With asker@e2e.test on Ask Demo Heating, every **200** page is ≤ 8 (max 8, `/evidence/[id]`). But 404 refusals (`/pitch-snapshot`, `/reports/[id]` of another client, `/settings/delivery`, `/settings/runbook`) and the `/setup` 307 reach **9**; the same 404s cost 6 on the platform.
+  - `--strict-routes` also fails on 2 routes with no seeded id (`/alerts/[alertId]`, `/briefs/[briefId]`).
+  - With mcp-owner on First Heating Co (features `mcp` only), most pages are feature 404s at 9–10.
+- **Profiler:** `--filter <prefix>`. A `*.localhost` base is requested on 127.0.0.1 with an explicit `Host`, because Node does not resolve `*.localhost`.
 
 ## Owner verification steps
-TBD at plan refresh.
+1. Set the env on Vercel web (prod + staging) and the Railway worker: `NEUTRAL_DOMAIN`, `VERCEL_API_TOKEN`, `VERCEL_PROJECT_ID`, `VERCEL_TEAM_ID`, `POSTMARK_ACCOUNT_TOKEN`. Add the wildcard `*.<neutral>` and `mcp.<neutral>` domains to the web project.
+2. As a client, open `<slug>.<NEUTRAL_DOMAIN>` (staging: `<slug>.staging.rivalmonday.app`). Expect the agency's branding, no Rival Monday, and sign-in on that host.
+3. On Agency settings → Domains, add a real custom subdomain, set its DNS, and see it go live (sweep or Check now).
+4. Add a sending domain, set DKIM + Return-Path, wait for verified, and confirm a brief arrives From it.
+5. In Claude, connect `https://mcp.<neutral>/mcp`; OAuth completes and tools list.
+6. Old URL: platform `/mcp` returns 404 (per R9/R13, no moved notice).
 
-## Pre-flight (Task 0, 2026-11-14)
-- **Base:** `main` still `bccdc980`; no rebase. Migrations: latest `0110_social_jev`; claim **0111** (hosts) + **0112** (hosts_rls), as planned (plan unchanged).
-- **Drift:** none. Every cited symbol/path exists: `proxy` (`apps/web/src/proxy.ts`, sync today), `buildAuthOptions` (`server/auth-options.ts`), `server/auth.ts` has 12 importers (as planned), `authBranding`/`defaultBranding`, `themeForViewer`, `agencyBrandingOf`/`viewerWith` (`current-viewer.ts`, `theme.ts`), `resolveViewer` (`viewer.ts`, also named in `proxy.ts`), `notify` (`engine delivery/outbox.ts`), `personalLink`, `createEmailSender`, `deliveryConfigFromEnv`, `loadBranding` (`@cs/email`), `appLinkFor` (`@cs/core links.ts`), `handleMcpRequest`, `createVerifyOAuth`, `mcpServerName`, `displayNameFor`, `updateAgencyBranding`, `sendLeadEmail`, `sendTeamInviteEmail`, `client-invite.ts` `startUrl`, `briefAttachment`, `client-details.ts` `logoUrl`, worker `deps.ts`, `slugBase` (`tools/leads.ts:213`).
-- **Gotcha for Task 3:** making `proxy` async breaks `next build` typecheck unless `src/proxy.test.ts` (~l.48-74) and `src/server/mcp.test.ts` (l.176-179) `await` it (build typechecks tests).
-- **Spike** (port 3217; `E2E_PORT` unset, default 3100): (a) Playwright Chromium `http://foo.localhost:3217/health` 200 `{"ok":true}`. (b) Node `http.request` to 127.0.0.1 with `Host: foo.localhost:3217` 200. (c) async `proxy` importing `./server/db` (`server-only`) ran `select 1` under `next start` (header `x-spike: OK [{"x":1}]`); build needed `typescript.ignoreBuildErrors` only for the sync-test typing above. All pass; reverted, nothing committed.
-- **Slug preview (`cs_dev`, BEGIN..ROLLBACK, Appendix A bodies):** 3 agencies: "CS Dev Verification Agency" -> `cs-dev` (intake slug); "No Fingers AI" -> `no-fingers-ai`; "DSTigerGuide" -> `dstigerguide`. Rolled back (no `host_slug` column left).
-- **Vendor contracts (live docs 2026-11-14):** matches expectations; extras below. Bearer token + `teamId` (or `slug`) query on all Vercel calls.
-  - Vercel `POST /v10/projects/{idOrName}/domains` body `{name}` (+ optional gitBranch/redirect...) -> `{apexName,name,projectId,verified,verification?[{domain,type,value,reason}],createdAt,updatedAt,...}`. Errors: 400 already on project/invalid, 402, 403, 409 (assigned to another project / not allowed).
-  - `GET /v9/projects/{id}/domains/{name}` same shape; `POST .../{name}/verify` (no body) -> same minus `verification`; 400 when TXT missing/mismatched/used by another project. `DELETE /v9/projects/{id}/domains/{name}` -> 200 `{}`; 404 if absent.
-  - `GET /v6/domains/{name}/config?projectIdOrName=` -> `{misconfigured, configuredBy: A|CNAME|dns-01|http|null, acceptedChallenges, recommendedCNAME:[{rank,value}], recommendedIPv4:[{rank,value:string[]}]}`; use rank 1; pass `projectIdOrName` for a not-yet-attached domain.
-  - Postmark `https://api.postmarkapp.com`, header `X-Postmark-Account-Token`: `POST /domains {Name, ReturnPathDomain?}`, `GET /domains/{id}`, `PUT /domains/{id}/verifyDkim`, `PUT /domains/{id}/verifyReturnPath`, `DELETE /domains/{id}`. Domain object (create/get/verify all same): `ID` (int), `Name`, `DKIMVerified`, `DKIMHost/TextValue`, `DKIMPendingHost/TextValue`, `DKIMRevokedHost/TextValue`, `DKIMUpdateStatus` (Pending|Verified), `WeakDKIM`, `ReturnPathDomain`, `ReturnPathDomainVerified`, `ReturnPathDomainCNAMEValue`, `SPFVerified` (deprecated), `SPFHost/TextValue`, `SafeToRemoveRevokedKeyFromDNS`. Delete -> `{ErrorCode, Message}`. Differences: `ID` is integer (store as text/number carefully); SPF fields deprecated (ignore).
-- **Infra:** pending (neutral domain unchosen, R10/R11); not blocking, code on fakes.
-- `pnpm typecheck` green (19/19).
+## Merge notes
+- **F6 env order:** before the merge deploy, set `NEUTRAL_DOMAIN=staging.rivalmonday.app` on the staging web project **and** the Railway staging worker (`pnpm staging:railway-vars`). Otherwise staging boot fails. On prod, set the neutral domain before `DEPLOY_ENABLED`.
+- **R2:** record the 60 s host cache under Launch gate (CLAUDE.md).
+- **BACKLOG closures:** custom/sending domains (4b, 5a); connector name (6a part); `fromEmail` drop (5a T18); sign-in host branding (phase-11); l.162 From (N1); l.212 `--secondary-foreground` (done in `theme.ts`).
+- **R9:** confirm skipping Task 14. If it is kept, build it and set `MCP_HOST_CUTOVER`.
+- **OPS notes:**
+  - Pool lead mail is skipped without `NEUTRAL_DOMAIN`.
+  - A removed sending domain whose Postmark domain stays verified blocks re-adding until it is cleaned in Postmark.
+  - Vercel branch-alias preview hosts must be in `extraPlatformHosts` (`VERCEL_URL`/`VERCEL_BRANCH_URL` only).
+  - Preview with `APP_URL=https://rivalmonday.app` and no `NEUTRAL_DOMAIN` refuses boot on `VERCEL_ENV=production`; non-prod falls back to the APP_URL host.
+  - Next `redirect()` bounces can't set no-store (RSC responses are already no-store; P5 holds for proxy redirects).
+- **Copy:** owner signs the new strings in `pnpm copy:review`. About 86 items are on lines added by this branch: Domains page/panels and `DOMAIN_COPY`, the agency help copy, labels, the platform manage menu (host slug), the MCP tool text and the Domains guide. The list is in the SDD `task-15-report.md`.
+- Delete `docs/work/phase-13.md`.
+
+## New backlog (target → item)
+- **13a2 → hosts:** surface an unparsable `APP_URL` as a `hostEnvFor` problem (env.ts `hostEnv!`). Short-circuit `RESERVED_HOST_SLUGS` before the query (fix the hosts.ts:73 comment). Add a test for a hostname removed by A then live for B. Bound the host-cache instances (LRU, not insertion order). Add an unknown-host `/health` pass-through test.
+- **13a2 → MCP/auth:** `productNameFor` agency fallback (P17). Fix the stale proxy.ts:9 comment. Add tests for revoked/accepted invitations in `hasSignInRightIn`. Split the consent `page.test` states. Add a smoke test that refuses a platform guest cookie at `/agency`.
+- **Polish → domains:** `dnsRecords` update failure after `vercel.add` leaves a pending row (the sweep covers it). Support sessions can't read the Domains page (note in the 8b doc). An unnamed unique violation is mapped to slug-taken. `deps.ts` `domainEmail` logs the raw `err.message` (use `redactForLog`). No DKIM refresh from Postmark state (check at live verification). A misconfigured verifying row doesn't revert to pending. Concurrency test for the host_slug advisory lock / operator slug refusal.
+- **Polish → delivery:** `clientOriginFor` is computed per message in worker paths (precompute). Mixed-membership inbox edge goes to `/inbox`. Theme `hostForLogo` swallows errors. Outbox test rows without an audience fall back to agency. The `pool_new` guard test can't fail. Import placement in swept tests.
+- **Polish → web:** `/start` with a malformed slug skips the host check (submitIntake refuses anyway). Agency-contact `/l` on its own agency host goes to platform sign-in.
+- **Soon → launch gate:** agency-host 404/307 paths (+3 stages vs platform). Seed `alertId`/`briefId` for the client pass.
+
+## Pre-flight (Task 0, 2026-11-14, condensed)
+Base `main` `bccdc980`, migrations 0111/0112 claimed (0113 added in Task 10). No drift. Spike: Chromium resolves `*.localhost`; Node needs `127.0.0.1` + `Host`; async `proxy` with DB works under `next start` (tests must `await proxy`). Vendor contracts: Vercel v10/v9/v6 domain endpoints (Bearer + `teamId`); Postmark `/domains` with `X-Postmark-Account-Token`. `ID` is an integer and the SPF fields are deprecated.
