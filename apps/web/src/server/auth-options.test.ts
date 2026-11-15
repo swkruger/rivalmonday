@@ -398,7 +398,7 @@ describe('one Better Auth per origin (13a1 P6, Appendix D)', () => {
       a.handler(new Request(`${origin}/api/auth/oauth2/register`, { method: 'POST', headers: { 'content-type': 'application/json', origin }, body }));
     expect((await register(betterAuth(buildAuthOptions(deps(PLATFORM))), PLATFORM.origin)).status).toBe(404);
     expect((await register(betterAuth(buildAuthOptions(deps(AGENCY_HOST))), ACME)).status).toBe(404);
-    expect((await register(betterAuth(buildAuthOptions(deps(MCP))), MCP.origin)).status).toBe(201);
+    expect((await register(betterAuth(buildAuthOptions(deps(MCP_REAL))), MCP_REAL.origin)).status).toBe(201); // a real MCP-shaped origin (mcp.<neutral>)
     expect(buildAuthOptions(deps(PLATFORM)).hooks?.before).toBeUndefined();
   });
 });

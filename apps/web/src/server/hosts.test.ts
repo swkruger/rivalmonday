@@ -114,8 +114,14 @@ describe('routeForHost', () => {
     for (const p of ['/', '/agency', '/c/x', '/mcp/x', '/start/acme', '/.well-known/other', '/files/logo/x/y.png', '/sign-up']) expect(route(mcp, p), p).toEqual({ kind: 'not_found' });
   });
 
-  it('platform host passes everything (PLATFORM_HOST_DENY is Task 8)', () => {
-    for (const p of ['/', '/mcp', '/agency/x', '/start', '/bot']) expect(route({ kind: 'platform' }, p), p).toEqual({ kind: 'next' });
+  it('platform host passes everything else', () => {
+    for (const p of ['/', '/agency/x', '/start', '/bot', '/mcpx', '/oauthx', '/sign-in', '/api/auth/get-session']) expect(route({ kind: 'platform' }, p), p).toEqual({ kind: 'next' });
+  });
+
+  it('platform /mcp is 404 (Task 8: MCP, its OAuth pages and metadata live only on the mcp host)', () => {
+    for (const p of ['/mcp', '/mcp/', '/mcp/x', '/oauth/consent', '/oauth', '/.well-known/oauth-protected-resource', '/.well-known/oauth-protected-resource/mcp', '/.well-known/oauth-authorization-server/api/auth']) {
+      expect(route({ kind: 'platform' }, p, 'POST'), p).toEqual({ kind: 'not_found' });
+    }
   });
 
   it('agency host denies /mcp, /sign-up, /join, /u/x, /bot, /api/stripe/webhook, /api/postmark/webhook, /api/waitlist, /api/site-status, /waitlist/confirm/x, /sample/x, /start', () => {

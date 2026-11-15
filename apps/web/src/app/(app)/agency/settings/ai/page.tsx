@@ -1,4 +1,5 @@
 import { grantableScopes, hasChannel, isAgencyRole } from '@cs/core';
+import { mcpOrigin } from '@cs/db';
 import type { ApiTokenView, OAuthGrantView } from '@cs/tools';
 import { notFound } from 'next/navigation';
 import { AccessTokensCard, ConnectedAppsCard, ConnectorUrlCard } from '@/components/ai-connections';
@@ -47,7 +48,7 @@ export default async function AgencyAiConnectionsPage() {
         guide={guides.has(HELP_KEY)}
       />
       {admin && <p className="text-muted-ink">As an admin you see everyone&apos;s tokens and connected apps in this agency.</p>}
-      <ConnectorUrlCard url={`${webEnv().appUrl}/mcp`} displayName={displayName} help={<HelpTip tip="agency.settings.ai.connector" />} />
+      <ConnectorUrlCard url={`${mcpOrigin(webEnv().hostEnv)}/mcp`} displayName={displayName} help={<HelpTip tip="agency.settings.ai.connector" />} />
       <AccessTokensCard
         canCreate
         scopes={grantableScopes(ctx.role)}

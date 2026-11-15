@@ -19,13 +19,14 @@ afterAll(async () => {
   await pool.end();
   await dbs.closeAll();
 });
-// The real Better Auth + OAuth provider, on the test DB, for the app at https://app.example.
+// The real Better Auth + OAuth provider, on the test DB: the platform is https://app.example, the MCP host (13a1 Task 8) https://mcp.neutral.example.
+const MCP_ORIGIN = 'https://mcp.neutral.example';
 const links: string[] = [];
 const background: Promise<unknown>[] = [];
 const flush = () => Promise.all(background.splice(0));
 const testAuth = betterAuth(buildAuthOptions({
   env: { appUrl: 'https://app.example', hostEnv: { appUrl: 'https://app.example', neutralDomain: 'neutral.example', extraPlatformHosts: [] }, appDatabaseUrl: testUrls.app, serviceDatabaseUrl: testUrls.service, queueDatabaseUrl: testUrls.owner, authSecret: 's'.repeat(40), linkSecrets: ['l'.repeat(40)], emailFrom: 'f@e.co', google: null, defaultAgencyId: null, webMonitoring: false, kbImport: false, platformAdmins: [], askFakeAi: false, setupFakeLookup: false, webhookFakeSend: false, siteOrigins: [] },
-  host: { origin: 'https://app.example', info: { kind: 'mcp' } }, service: dbs.service, pool, branding: async () => resolveBranding('Rival Monday', null),
+  host: { origin: MCP_ORIGIN, info: { kind: 'mcp' } }, service: dbs.service, pool, branding: async () => resolveBranding('Rival Monday', null),
   runInBackground: (task) => void background.push(task), sendEmail: async () => {}, onMagicLink: (_e, url) => void links.push(url),
 }));
 const holder = vi.hoisted(() => ({ auth: null as unknown }));
@@ -38,7 +39,7 @@ vi.mock('./runtime-env', () => ({ platformAdmins: () => [] }));
 const store = createMemoryStore();
 vi.mock('./store', () => ({ webStore: () => store }));
 
-const URL_ = 'https://app.example/mcp';
+const URL_ = `${MCP_ORIGIN}/mcp`;
 const post = (token?: string, body: unknown = { jsonrpc: '2.0', id: 1, method: 'tools/list' }) => new Request(URL_, {
   method: 'POST',
   headers: { 'content-type': 'application/json', accept: 'application/json, text/event-stream', 'mcp-protocol-version': '2025-06-18', ...(token ? { authorization: `Bearer ${token}` } : {}) },
@@ -54,7 +55,7 @@ beforeEach(async () => {
 });
 
 describe('/mcp route', () => {
-  it('PAT round-trip through the route handler returns tools/list', async () => {
+  it('PAT works on the mcp host: round-trip through the route handler returns tools/list', async () => {
     const g = generatePat();
     await dbs.service.insert(apiToken).values({ agencyId: IDS.agencyA, userId: 'u1', name: 't', tokenHash: g.hash, tokenPrefix: g.prefix, scope: 'read' });
     const { POST } = await import('@/app/mcp/route');
@@ -68,7 +69,7 @@ describe('/mcp route', () => {
     const { POST, GET, DELETE, dynamic } = await import('@/app/mcp/route');
     const res = await POST(post());
     expect(res.status).toBe(401);
-    expect(res.headers.get('www-authenticate')).toContain('https://app.example/.well-known/oauth-protected-resource');
+    expect(res.headers.get('www-authenticate')).toBe(`Bearer resource_metadata="${MCP_ORIGIN}/.well-known/oauth-protected-resource"`);
     expect((await GET()).status).toBe(405);
     expect((await DELETE()).status).toBe(405);
     expect(dynamic).toBe('force-dynamic');
@@ -77,13 +78,13 @@ describe('/mcp route', () => {
 
 describe('/mcp with an OAuth access token (Task 11)', () => {
   async function oauthToken() {
-    const h = oauthHarness(testAuth, () => links.at(-1), flush, 'https://app.example');
+    const h = oauthHarness(testAuth, () => links.at(-1), flush, MCP_ORIGIN);
     await dbs.service.insert(invitation).values({ agencyId: IDS.agencyA, email: 'oa@e.co', role: 'agency_admin', invitedBy: 't', expiresAt: new Date(Date.now() + 86_400_000) });
     await h.signIn('oa@e.co');
     const clientId = await h.registerPublic();
     const { url, verifier } = h.authorizeUrl(clientId);
     const consentPage = await h.call(url, { headers: { accept: 'text/html' } });
-    const accepted = await h.consent(new URL(consentPage.location!, 'https://app.example').search.slice(1), true);
+    const accepted = await h.consent(new URL(consentPage.location!, MCP_ORIGIN).search.slice(1), true);
     const [row] = [...(await dbs.owner.execute<{ id: string; userId: string }>(sql`select id, "userId" from auth."oauthConsent"`))];
     await bindConsent(dbs.service, { consentId: row!.id, oauthClientId: clientId, userId: row!.userId, target: { agencyId: IDS.agencyA, clientId: null, scope: 'read' } });
     const tok = await h.exchange(clientId, new URL(accepted.body.url as string).searchParams.get('code')!, verifier);
@@ -102,11 +103,11 @@ describe('/mcp with an OAuth access token (Task 11)', () => {
 });
 
 describe('mcpDeps', () => {
-  it('wires appUrl and the evidence store, and no embedQuery outside a keyed dev environment', async () => {
+  it('wires the mcp origin (challenge + OAuth audience), the platform appUrl for tool links, the evidence store, and no embedQuery outside a keyed dev environment', async () => {
     vi.stubEnv('OPENROUTER_API_KEY', '');
     const { mcpDeps } = await import('./mcp');
     const d = mcpDeps('test');
-    expect(d.appUrl).toBe('https://app.example');
+    expect(d.appUrl).toBe(MCP_ORIGIN);
     expect(d.verifyOAuth).toBeTypeOf('function');
     expect(await d.verifyOAuth!('opaque-but-unknown')).toBeNull();
     expect(d.deps.appUrl).toBe('https://app.example');
@@ -126,20 +127,21 @@ describe('mcpDeps', () => {
 });
 
 describe('protected-resource metadata', () => {
-  it('has the RFC 9728 shape pointing at the /api/auth issuer, for both well-known paths', async () => {
+  it('protected-resource metadata names the mcp origin and has no resource_name, for both well-known paths', async () => {
     const { GET } = await import('@/app/.well-known/oauth-protected-resource/[[...path]]/route');
     for (const path of ['', '/mcp']) {
-      const res = await GET(new Request(`https://app.example/.well-known/oauth-protected-resource${path}`), { params: Promise.resolve({ path: path ? ['mcp'] : undefined }) });
+      const res = await GET(new Request(`${MCP_ORIGIN}/.well-known/oauth-protected-resource${path}`), { params: Promise.resolve({ path: path ? ['mcp'] : undefined }) });
       expect(res.status).toBe(200);
-      expect(await res.json()).toEqual({
-        resource: 'https://app.example/mcp',
-        authorization_servers: ['https://app.example/api/auth'],
+      const body = (await res.json()) as Record<string, unknown>;
+      expect(body).toEqual({
+        resource: `${MCP_ORIGIN}/mcp`,
+        authorization_servers: [`${MCP_ORIGIN}/api/auth`],
         scopes_supported: ['read', 'feedback', 'manage'],
         bearer_methods_supported: ['header'],
-        resource_name: 'Rival Monday',
       });
+      expect(body).not.toHaveProperty('resource_name'); // white-label: no product name in public metadata
     }
-    const other = await GET(new Request('https://app.example/.well-known/oauth-protected-resource/x'), { params: Promise.resolve({ path: ['x'] }) });
+    const other = await GET(new Request(`${MCP_ORIGIN}/.well-known/oauth-protected-resource/x`), { params: Promise.resolve({ path: ['x'] }) });
     expect(other.status).toBe(404);
   });
 });
@@ -148,34 +150,37 @@ describe('authorization-server metadata', () => {
   it('serves RFC 8414 metadata with the /api/auth issuer at both well-known paths, public PKCE clients included', async () => {
     const { GET } = await import('@/app/.well-known/oauth-authorization-server/[[...path]]/route');
     for (const path of [undefined, ['api', 'auth']]) {
-      const res = await GET(new Request(`https://app.example/.well-known/oauth-authorization-server${path ? '/api/auth' : ''}`), { params: Promise.resolve({ path }) });
+      const res = await GET(new Request(`${MCP_ORIGIN}/.well-known/oauth-authorization-server${path ? '/api/auth' : ''}`), { params: Promise.resolve({ path }) });
       expect(res.status).toBe(200);
       const body = (await res.json()) as Record<string, unknown>;
       expect(body).toMatchObject({
-        issuer: 'https://app.example/api/auth',
-        authorization_endpoint: 'https://app.example/api/auth/oauth2/authorize',
-        token_endpoint: 'https://app.example/api/auth/oauth2/token',
-        registration_endpoint: 'https://app.example/api/auth/oauth2/register',
+        issuer: `${MCP_ORIGIN}/api/auth`,
+        authorization_endpoint: `${MCP_ORIGIN}/api/auth/oauth2/authorize`,
+        token_endpoint: `${MCP_ORIGIN}/api/auth/oauth2/token`,
+        registration_endpoint: `${MCP_ORIGIN}/api/auth/oauth2/register`,
         code_challenge_methods_supported: ['S256'],
         grant_types_supported: ['authorization_code', 'refresh_token'],
       });
       expect(body.token_endpoint_auth_methods_supported).toContain('none');
       expect(body.scopes_supported).toEqual(expect.arrayContaining(['read', 'feedback', 'manage', 'offline_access']));
     }
-    const other = await GET(new Request('https://app.example/.well-known/oauth-authorization-server/x'), { params: Promise.resolve({ path: ['x'] }) });
+    const other = await GET(new Request(`${MCP_ORIGIN}/.well-known/oauth-authorization-server/x`), { params: Promise.resolve({ path: ['x'] }) });
     expect(other.status).toBe(404);
   });
 });
 
 describe('proxy', () => {
-  it('lets /mcp and /.well-known through without cookies, but keeps /oauth/consent protected', async () => {
+  it('on the mcp host lets /mcp and /.well-known through without cookies, keeps /oauth/consent protected; platform /mcp is 404', async () => {
     const { proxy } = await import('../proxy');
-    const run = (p: string) => proxy(new NextRequest(`https://app.example${p}`, { headers: { host: 'app.example' } }));
-    for (const p of ['/mcp', '/.well-known/oauth-protected-resource', '/.well-known/oauth-protected-resource/mcp', '/.well-known/oauth-authorization-server/api/auth']) {
-      const res = await run(p);
+    const on = (host: string, p: string) => proxy(new NextRequest(`https://${host}${p}`, { headers: { host } }));
+    const paths = ['/mcp', '/.well-known/oauth-protected-resource', '/.well-known/oauth-protected-resource/mcp', '/.well-known/oauth-authorization-server/api/auth'];
+    for (const p of paths) {
+      const res = await on('mcp.neutral.example', p);
       expect(res.status, p).toBe(200);
       expect(res.headers.get('location'), p).toBeNull();
     }
-    for (const p of ['/oauth/consent', '/mcp/x', '/mcpx']) expect((await run(p)).headers.get('location'), p).toContain('/sign-in');
+    expect((await on('mcp.neutral.example', '/oauth/consent')).headers.get('location')).toContain('/sign-in');
+    for (const p of ['/mcp/x', '/mcpx']) expect((await on('mcp.neutral.example', p)).status, p).toBe(404);
+    for (const p of [...paths, '/oauth/consent', '/mcp/x']) expect((await on('app.example', p)).status, p).toBe(404);
   });
 });

@@ -98,7 +98,8 @@ const providerOptions = (ctx: AuthContext): ProviderOptions | null =>
 
 /**
  * `/mcp`'s OAuth verifier (spike item 7): the plugin checks the hashed opaque token is known, unrevoked, unexpired, its
- * client enabled and session alive (it throws otherwise). We then require the `/mcp` audience when one is recorded,
+ * client enabled and session alive (it throws otherwise). We then require the `<appUrl>/mcp` audience (13a1: `appUrl` is
+ * the MCP origin; F20: a token without one is refused),
  * refuse DPoP-bound tokens (not supported here), and resolve the newest consent for (user, client), which must have an
  * ACTIVE binding for the same user and client (R9: fail closed; `resolveBearer` re-checks it). Never throws.
  */
@@ -114,7 +115,8 @@ export function createVerifyOAuth(d: { context: () => Promise<unknown>; service:
       if (p.active !== true || typeof p.sub !== 'string' || typeof p.client_id !== 'string') return null;
       if (typeof p.exp === 'number' && p.exp * 1000 <= (d.now ?? Date.now)()) return null;
       if ((p as { cnf?: unknown }).cnf !== undefined) return null;
-      if (p.aud !== undefined && !(Array.isArray(p.aud) ? p.aud : [p.aud]).includes(resource)) return null;
+      // F20: the audience is required — a token with no recorded `aud`, or one for the pre-move `${APP_URL}/mcp`, is refused.
+      if (p.aud === undefined || p.aud === null || !(Array.isArray(p.aud) ? p.aud : [p.aud]).includes(resource)) return null;
       const consentId = await consentIdFor(d.service, p.sub, p.client_id);
       if (!consentId) return null;
       const [b] = await d.service.select({ id: oauthGrantBinding.id }).from(oauthGrantBinding).where(and(

@@ -43,10 +43,11 @@ export function oauthHarness(auth: Handler, latestLink: () => string | undefined
     return r.body.client_id as string;
   }
 
-  function authorizeUrl(clientId: string, scope = 'read offline_access') {
+  /** `aud: null` omits the `resource` parameter (a token with no recorded audience). */
+  function authorizeUrl(clientId: string, scope = 'read offline_access', aud: string | null = resource) {
     const verifier = randomBytes(32).toString('base64url');
     const challenge = createHash('sha256').update(verifier).digest('base64url');
-    const qs = new URLSearchParams({ response_type: 'code', client_id: clientId, redirect_uri: REDIRECT, scope, state: 'st', code_challenge: challenge, code_challenge_method: 'S256', resource });
+    const qs = new URLSearchParams({ response_type: 'code', client_id: clientId, redirect_uri: REDIRECT, scope, state: 'st', code_challenge: challenge, code_challenge_method: 'S256', ...(aud === null ? {} : { resource: aud }) });
     return { url: `/api/auth/oauth2/authorize?${qs}`, verifier };
   }
 
@@ -62,8 +63,8 @@ export function oauthHarness(auth: Handler, latestLink: () => string | undefined
   /** Accept or deny through the consent endpoint (as the server action does). */
   const consent = (oauthQuery: string, accept: boolean) => call('/api/auth/oauth2/consent', { method: 'POST', json: { accept, oauth_query: oauthQuery } });
 
-  async function exchange(clientId: string, code: string, verifier: string) {
-    return call('/api/auth/oauth2/token', { method: 'POST', form: { grant_type: 'authorization_code', code, redirect_uri: REDIRECT, client_id: clientId, code_verifier: verifier, resource } });
+  async function exchange(clientId: string, code: string, verifier: string, aud: string | null = resource) {
+    return call('/api/auth/oauth2/token', { method: 'POST', form: { grant_type: 'authorization_code', code, redirect_uri: REDIRECT, client_id: clientId, code_verifier: verifier, ...(aud === null ? {} : { resource: aud }) } });
   }
 
   return { jar, call, register, registerPublic, authorizeUrl, signIn, consent, exchange };

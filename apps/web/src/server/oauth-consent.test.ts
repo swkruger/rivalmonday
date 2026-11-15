@@ -8,7 +8,7 @@ import { eq, sql } from 'drizzle-orm';
 import { Pool } from 'pg';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { seedAuthUsers, truncateAuth } from '../../test/auth-fixtures';
-import { APP, oauthHarness, pathOf, queryOf } from '../../test/oauth-fixtures';
+import { APP, oauthHarness, pathOf, queryOf, RESOURCE } from '../../test/oauth-fixtures';
 import { buildAuthOptions } from './auth-options';
 import type { WebEnv } from './env';
 import { safeNext } from './safe-next';
@@ -198,10 +198,10 @@ describe('OAuth flow end to end (in-process)', () => {
   const h = () => oauthHarness(auth, () => links.at(-1), flush);
 
   /** Registers, signs in through the OAuth redirect, and stops at the consent page. */
-  async function toConsent(harness: ReturnType<typeof h>, scope = 'read offline_access') {
+  async function toConsent(harness: ReturnType<typeof h>, scope = 'read offline_access', aud: string | null = RESOURCE) {
     await dbs.service.insert(invitation).values({ agencyId: IDS.agencyA, email: 'oa@example.com', role: 'agency_admin', invitedBy: 't', expiresAt: new Date(Date.now() + 86_400_000) });
     const clientId = await harness.registerPublic();
-    const { url, verifier } = harness.authorizeUrl(clientId, scope);
+    const { url, verifier } = harness.authorizeUrl(clientId, scope, aud);
     const signedOut = await harness.call(url, { headers: { accept: 'text/html' } });
     // Shaped like Next's `searchParams`: a string per key, an array for repeated keys.
     const sp = new URLSearchParams(queryOf(signedOut.location!));
@@ -218,14 +218,14 @@ describe('OAuth flow end to end (in-process)', () => {
     return { clientId, verifier, oauthQuery: queryOf(consentPage.location!), userId };
   }
 
-  async function connect(harness: ReturnType<typeof h>, target: ConsentTarget = { agencyId: IDS.agencyA, clientId: null, scope: 'read' }) {
-    const c = await toConsent(harness);
+  async function connect(harness: ReturnType<typeof h>, target: ConsentTarget = { agencyId: IDS.agencyA, clientId: null, scope: 'read' }, aud: string | null = RESOURCE) {
+    const c = await toConsent(harness, 'read offline_access', aud);
     const accepted = await harness.consent(c.oauthQuery, true);
     expect(accepted.status).toBe(200);
     const consentId = String([...(await dbs.owner.execute<{ id: string }>(sql`select id from auth."oauthConsent"`))][0]!.id);
     await bindConsent(dbs.service, { consentId, oauthClientId: c.clientId, userId: c.userId, target });
     const code = new URL(accepted.body.url as string).searchParams.get('code')!;
-    const tok = await harness.exchange(c.clientId, code, c.verifier);
+    const tok = await harness.exchange(c.clientId, code, c.verifier, aud);
     expect(tok.status).toBe(200);
     return { ...c, consentId, accessToken: tok.body.access_token as string, refreshToken: tok.body.refresh_token as string };
   }
@@ -262,6 +262,20 @@ describe('OAuth flow end to end (in-process)', () => {
     const c = await connect(h());
     const other = createVerifyOAuth({ context: () => auth.$context, service: dbs.service, appUrl: 'https://elsewhere.example' });
     expect(await other(c.accessToken)).toBeNull();
+  });
+
+  it('verifyOAuth rejects a token whose aud is the old resource (13a1 Task 8: the verifier is on the mcp origin)', async () => {
+    const c = await connect(h()); // minted for `${APP}/mcp`, as pre-move tokens were for `${APP_URL}/mcp`
+    expect(await verifyOAuth(c.accessToken)).toEqual({ userId: c.userId, consentId: c.consentId });
+    const moved = createVerifyOAuth({ context: () => auth.$context, service: dbs.service, appUrl: 'http://mcp.localhost:3000' });
+    expect(await moved(c.accessToken)).toBeNull();
+  });
+
+  it('token without aud is refused (F20: a missing audience never passes)', async () => {
+    const c = await connect(h(), undefined, null);
+    const [row] = [...(await dbs.owner.execute<{ n: number }>(sql`select count(*)::int as n from auth."oauthAccessToken"`))];
+    expect(row!.n).toBeGreaterThan(0); // the plugin did mint it
+    expect(await verifyOAuth(c.accessToken)).toBeNull();
   });
 
   it('deny returns access_denied to the client and stores no consent', async () => {

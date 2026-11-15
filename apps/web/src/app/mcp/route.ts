@@ -3,7 +3,7 @@ import { mcpDeps } from '@/server/mcp';
 
 export const dynamic = 'force-dynamic';
 
-/** Remote MCP endpoint (stateless Streamable HTTP). It authenticates itself with a Bearer token, so `proxy.ts` lets it through. */
+/** Remote MCP endpoint (stateless Streamable HTTP), served only on `mcp.<NEUTRAL_DOMAIN>` (13a1 Task 8; platform and agency hosts 404 it). It authenticates itself with a Bearer token, so `proxy.ts` lets it through. */
 export const POST = (req: Request) => handleMcpRequest(req, mcpDeps());
 
 const methodNotAllowed = () => new Response(null, { status: 405, headers: { allow: 'POST' } });

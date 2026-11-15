@@ -36,13 +36,14 @@ const MCP_ALLOWED = [/^\/mcp$/, /^\/oauth\//, /^\/\.well-known\/oauth-(?:authori
 /** Staff-only paths: agency hosts 307 them to the platform; the platform never bounces them to an agency host (host-viewer). Tested against the pathname. */
 export const STAFF_ONLY = /^\/(?:agency|platform)(?:\/|$)|^\/onboarding(?:$|\/(?![\w-]+\.webp$))/;
 const AGENCY_HOST_DENY = /^\/(?:mcp|\.well-known|oauth|sign-up|join|support|u|bot|waitlist|sample|api\/(?:stripe|postmark|waitlist|site-status))(?:\/|$)|^\/start\/?$/;
-const PLATFORM_HOST_DENY: RegExp | null = null; // Task 8: /^\/(?:mcp|oauth|\.well-known)(?:\/|$)/
+/** Task 8 (P16): MCP, its OAuth consent page and the OAuth metadata live only on the mcp host; the platform serves none of them. */
+const PLATFORM_HOST_DENY = /^\/(?:mcp|oauth|\.well-known)(?:\/|$)/;
 export function routeForHost(host: HostInfo | null, req: { pathname: string; search: string; method: string }, platform: string): HostRoute {
   const { pathname, search, method } = req;
   if (ANY_HOST.test(pathname)) return { kind: 'next' };
   if (!host) return { kind: 'not_found' };
   if (host.kind === 'mcp') return MCP_ALLOWED.some((r) => r.test(pathname)) ? { kind: 'next' } : { kind: 'not_found' };
-  if (host.kind === 'platform') return PLATFORM_HOST_DENY?.test(pathname) ? { kind: 'not_found' } : { kind: 'next' };
+  if (host.kind === 'platform') return PLATFORM_HOST_DENY.test(pathname) ? { kind: 'not_found' } : { kind: 'next' };
   if (AGENCY_HOST_DENY.test(pathname)) return { kind: 'not_found' };
   if (pathname.startsWith('/dev-panel/') && !pathname.startsWith('/dev-panel/sign-in/')) return { kind: 'not_found' };
   const logo = /^\/files\/logo\/(?!clients\/)([^/]+)\//.exec(pathname); // client logos: checked by their route (N3)

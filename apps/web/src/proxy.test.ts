@@ -120,6 +120,24 @@ describe('proxy', () => {
     expect((await onHost('nobody.example', '/health')).status).toBe(200);
   });
 
+  it('platform /mcp is 404 (and its OAuth pages and metadata), served on the mcp host instead', async () => {
+    for (const p of ['/mcp', '/oauth/consent', '/.well-known/oauth-protected-resource', '/.well-known/oauth-authorization-server/api/auth']) {
+      const res = await run(p, { method: p === '/mcp' ? 'POST' : 'GET' });
+      expect(res.status, p).toBe(404);
+      expect(res.headers.get('cache-control'), p).toBe('no-store');
+    }
+    const m = await onHost('mcp.neutral.example', '/mcp', { method: 'POST' });
+    expect(m.status).toBe(200);
+    expect(m.headers.get('location')).toBeNull();
+  });
+
+  it('agency host /mcp is 404', async () => {
+    for (const p of ['/mcp', '/.well-known/oauth-protected-resource', '/oauth/consent']) {
+      const res = await onHost('acme.neutral.example', p, { method: p === '/mcp' ? 'POST' : 'GET', headers: { cookie: 'better-auth.session_token=t' } });
+      expect(res.status, p).toBe(404);
+    }
+  });
+
   it('redirect is 307 + no-store', async () => {
     const staff = await onHost('acme.neutral.example', '/agency/clients', { headers: { cookie: 'better-auth.session_token=t' } });
     expect(staff.status).toBe(307);
