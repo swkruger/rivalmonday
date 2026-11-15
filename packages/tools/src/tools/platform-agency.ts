@@ -1,6 +1,6 @@
 import { applyHoldCollection, isOnHold } from '@cs/billing';
 import { type AccessContext, ToolError, toolkit } from '@cs/core';
-import { agency, client } from '@cs/db';
+import { agency, client, HOST_SLUG_RE, RESERVED_HOST_SLUGS } from '@cs/db';
 import { and, eq, inArray, isNotNull, isNull } from 'drizzle-orm';
 import { z } from 'zod';
 import { assertTeamInviteBudget, changeMemberRole, inviteMember, listTeam, resendInvitation, revokeInvitation, revokeMembership } from '../access/team';
@@ -9,6 +9,7 @@ import type { ToolDeps } from '../deps';
 import { platformAgencyCtx } from '../platform/agency-ctx';
 import { archiveTenant } from '../platform/archive';
 import { sendAgencyHoldEmail } from '../platform/hold-email';
+import { uniqueViolationOf } from './domains';
 import { operate } from './platform-billing';
 
 /**
@@ -79,6 +80,40 @@ export const platformRenameAgencyTool = defineTool({
     return operate(deps, ctx, 'staff', 'platform_rename_agency', input, input.agencyId, async () => {
       await deps.service.update(agency).set({ name: input.name }).where(eq(agency.id, input.agencyId));
       return { name: input.name };
+    });
+  },
+});
+
+/** Proposed copy (13a1 Task 10). */
+export const HOST_SLUG_INVALID_MESSAGE = 'Use 3–40 lower-case letters, digits or hyphens.';
+/** Decided copy. */
+export const HOST_SLUG_TAKEN_MESSAGE = 'That address is taken.';
+
+/**
+ * 13a1 (spec 13a § Data model, plan ruling): the platform owner changes an agency's client host label. The old
+ * `<slug>.<neutral>` keeps resolving for up to 60 s (proxy host cache) — accepted. An explicit write skips the fill trigger's
+ * advisory lock, so a concurrent taker surfaces as the `agency_host_slug_unique` violation: mapped to the taken copy.
+ */
+export const platformSetAgencyHostSlugTool = defineTool({
+  name: 'platform_set_agency_host_slug',
+  access: 'write',
+  description: "Platform owner: change an agency's client host label (<slug>.<neutral domain>). The old address stops working within about a minute.",
+  input: z.object({ agencyId: Id, hostSlug: z.string().trim().toLowerCase() }),
+  output: z.object({ hostSlug: z.string() }),
+  permission: 'agency',
+  audit: 'skip-web',
+  async handler(ctx: AccessContext, input, deps) {
+    return operate(deps, ctx, 'owner', 'platform_set_agency_host_slug', input, input.agencyId, async () => {
+      const slug = input.hostSlug;
+      if (!HOST_SLUG_RE.test(slug) || RESERVED_HOST_SLUGS.includes(slug)) throw new ToolError('invalid_input', HOST_SLUG_INVALID_MESSAGE, { userFacing: true });
+      try {
+        await deps.service.update(agency).set({ hostSlug: slug }).where(eq(agency.id, input.agencyId));
+      } catch (e) {
+        const c = uniqueViolationOf(e);
+        if (c === 'agency_host_slug_unique' || c === '') throw new ToolError('conflict', HOST_SLUG_TAKEN_MESSAGE, { userFacing: true });
+        throw e;
+      }
+      return { hostSlug: slug };
     });
   },
 });
@@ -292,7 +327,7 @@ export const platformUnarchiveAgencyTool = defineTool({
 });
 
 export const platformAgencyTools = [
-  listAgencyPeopleTool, platformRenameAgencyTool, platformChangeMemberRoleTool, platformRemoveMemberTool,
+  listAgencyPeopleTool, platformRenameAgencyTool, platformSetAgencyHostSlugTool, platformChangeMemberRoleTool, platformRemoveMemberTool,
   platformInviteAgencyAdminTool, platformResendInvitationTool, platformRevokeInvitationTool,
   platformSuspendAgencyTool, platformUnsuspendAgencyTool, platformRetryHoldBillingTool, platformArchiveAgencyTool, platformUnarchiveAgencyTool,
 ];

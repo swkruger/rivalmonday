@@ -565,3 +565,23 @@ export const SocialAccountsView = z.object({
   })),
 });
 export type SocialAccountsView = z.infer<typeof SocialAccountsView>;
+
+/** 13a1: one DNS record the agency must create (as the vendor reports it). */
+export const DnsRecordView = z.object({ type: z.string(), name: z.string(), value: z.string() });
+const DnsPair = z.object({ host: z.string(), value: z.string() });
+/**
+ * 13a1 `get_agency_domains` (spec 13a § Interfaces, plus `fromAddress`: the bare address client email goes out from right
+ * now, so the page shows the real From). `custom`/`sending` = the agency's current (non-removed) rows. `dkim`/`returnPath`
+ * are null only while the Postmark records are not stored yet.
+ */
+export const AgencyDomainsView = z.object({
+  fallbackHost: z.string(),
+  fromAddress: z.string(),
+  custom: z.object({
+    hostname: z.string(), status: z.enum(['pending', 'verifying', 'live', 'failed']), dnsRecords: z.array(DnsRecordView), error: z.string().nullable(), liveAt: iso.nullable(),
+  }).nullable(),
+  sending: z.object({
+    domain: z.string(), localPart: z.string(), status: z.enum(['pending', 'verified', 'failed']), dkim: DnsPair.nullable(), returnPath: DnsPair.nullable(), dmarcOk: z.boolean().nullable(), error: z.string().nullable(),
+  }).nullable(),
+});
+export type AgencyDomainsView = z.infer<typeof AgencyDomainsView>;

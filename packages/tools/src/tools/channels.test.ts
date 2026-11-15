@@ -27,7 +27,7 @@ const SKIP_WEB_TOOLS = ['list_clients', 'get_competitor_search_status', 'get_cli
   'list_platform_costs', 'refresh_platform_costs', 'update_platform_cost_service', 'save_platform_cost_item', 'archive_platform_cost_item',
   'attach_agency_discount', 'create_discount_code', 'create_invite_link', 'create_plan_version', 'end_pilot', 'extend_trial', 'get_agency_billing', 'get_billing_overview', 'get_connect_overview', 'grant_pilot', 'list_discount_codes', 'list_invite_links', 'list_plans', 'list_plan_agencies', 'move_agencies_to_current_plan', 'revoke_discount_code', 'revoke_invite_link', 'set_connect_fee_percent', 'set_seat_cap_exempt',
   'get_signups_paused', 'set_signups_paused', 'get_signup_funnel', 'get_pilot_settings', 'set_pilot_mode', 'set_sample_brief_limit',
-  'list_agency_people', 'platform_rename_agency', 'platform_change_member_role', 'platform_remove_member', 'platform_invite_agency_admin', 'platform_resend_invitation', 'platform_revoke_invitation',
+  'list_agency_people', 'platform_rename_agency', 'platform_set_agency_host_slug', 'platform_change_member_role', 'platform_remove_member', 'platform_invite_agency_admin', 'platform_resend_invitation', 'platform_revoke_invitation',
   'platform_suspend_agency', 'platform_unsuspend_agency', 'platform_retry_hold_billing', 'platform_archive_agency', 'platform_unarchive_agency',
   'list_leads', 'get_lead', 'list_pool_leads', 'assign_lead', 'list_waitlist', 'invite_waitlist_agencies', 'decline_waitlist_entry', 'platform_find_business', 'assign_waitlist_business', 'decide_sample_brief', 'send_sample_brief',
   'list_catalog_review', 'count_catalog_review', 'review_vertical', 'review_business_area', 'merge_vertical', 'merge_business_area',

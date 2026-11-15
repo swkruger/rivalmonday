@@ -4,10 +4,11 @@ import { type CallScope, ToolError } from '@cs/core';
 import type { Db, HostEnv } from '@cs/db';
 import type { DeliveryConfig, PackLoader } from '@cs/engine';
 import type { Catalog, VerticalDraft } from '@cs/verticals';
+import type { PostmarkDomains, VercelDomains } from './domains/errors';
 import type { LeadEmailDeps } from './intake/emails';
 
 /** Jobs the web app may enqueue. The worker owns the queues (5a decision 8); `singletonKey` dedupes on `short`-policy queues. */
-export type QueueJob = 'brief-pdf' | 'report-pdf' | 'rival-search' | 'discover-pages' | 'prospect-snapshot' | 'kb-embed' | 'kb-import' | 'platform-costs-snapshot' | 'setup-suggestions' | 'lead-preview' | 'rank-scan' | 'rank-map-refresh' | 'runbook-tailor' | 'citation-audit-client' | 'social-discover';
+export type QueueJob = 'brief-pdf' | 'report-pdf' | 'rival-search' | 'discover-pages' | 'prospect-snapshot' | 'kb-embed' | 'kb-import' | 'platform-costs-snapshot' | 'setup-suggestions' | 'lead-preview' | 'rank-scan' | 'rank-map-refresh' | 'runbook-tailor' | 'citation-audit-client' | 'social-discover' | 'domain-verify' | 'sender-verify';
 export type EnqueueJob = (job: QueueJob, data: Record<string, string>, singletonKey: string) => Promise<void>;
 /** pg-boss job states (v10). */
 export type JobState = 'created' | 'retry' | 'active' | 'completed' | 'cancelled' | 'failed';
@@ -50,6 +51,8 @@ export interface ToolDeps {
   appUrl?: string;
   /** 13a1 P8: host env (`parseHostEnv`); client-role row `url`s and client-facing links use the agency's client origin (`linkBase`). Absent: `appUrl`. */
   hostEnv?: HostEnv;
+  /** 13a1: custom-domain (Vercel) and sending-domain (Postmark) vendors (`domainVendorsFor`: fakes in DEMO/TEST/Vitest). A null or absent vendor makes its domain write tools refuse (not configured). */
+  domains?: { vercel: VercelDomains | null; postmark: PostmarkDomains | null };
   /** Phase 17a: signs the 30-day `/sample/<token>` links (web: BETTER_AUTH_SECRET). Absent: `send_sample_brief` refuses with `internal`. */
   sampleLinkSecret?: string;
   /** P16: query embedding for `search` (dev environment with an OpenRouter key only); absent: full-text search only. */

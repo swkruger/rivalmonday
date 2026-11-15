@@ -16,12 +16,13 @@ export interface DomainVendorOptions {
 
 /**
  * 13a1 P11/R8: fakes for DEMO/TEST databases, Vitest/`NODE_ENV=test` and `DOMAINS_FAKE_VENDORS=1` (E2E only; the web env
- * refuses it on any VERCEL_ENV; ignored with `allowFakeFlag: false`). Otherwise each vendor is real when its credentials are
+ * refuses it on any VERCEL_ENV and it is ignored there; ignored with `allowFakeFlag: false`). Otherwise each vendor is real when its credentials are
  * set (Vercel: `VERCEL_API_TOKEN` + `VERCEL_PROJECT_ID`, optional `VERCEL_TEAM_ID`; Postmark: `POSTMARK_ACCOUNT_TOKEN`), else
  * null — domain write tools refuse. A real process never falls back to the fakes.
  */
 export function domainVendorsFor(env: NodeJS.ProcessEnv, envName: EnvName, opts: DomainVendorOptions = {}): { vercel: VercelDomains | null; postmark: PostmarkDomains | null; fake: boolean } {
-  const fakeFlag = opts.allowFakeFlag !== false && env.DOMAINS_FAKE_VENDORS?.trim() === '1';
+  // Defence in depth (Task 9 review): the web env already refuses the flag on Vercel; it is also ignored here on any VERCEL_ENV.
+  const fakeFlag = opts.allowFakeFlag !== false && !env.VERCEL_ENV?.trim() && env.DOMAINS_FAKE_VENDORS?.trim() === '1';
   if (envName === 'demo' || envName === 'test' || !!env.VITEST || env.NODE_ENV === 'test' || fakeFlag) {
     return { vercel: fakeVercelDomains(), postmark: fakePostmarkDomains(), fake: true };
   }

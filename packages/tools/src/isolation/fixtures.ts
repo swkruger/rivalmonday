@@ -47,6 +47,7 @@ const object = (input: (w: IsolationWorld, t: IsolationTarget) => unknown, skipP
 const agency = (input: Record<string, unknown> = {}): IsolationFixture => ({ kind: 'agency', input: () => input });
 const platform = (input?: (w: IsolationWorld) => unknown): IsolationFixture => (input ? { kind: 'platform', input } : { kind: 'platform' });
 const NOT_A_PROSPECT = "needs a prospect client: the world's clients are all active (a prospect would change every client list); covered in prospects.test.ts";
+const DOMAIN_ONE_AT_A_TIME = "needs an agency without a current domain: the world seeds one custom and one sending domain per agency, so a set is refused 'Remove the current domain first.' (conflict); covered in domains.test.ts";
 const A1_SUBSCRIBED = 'needs A1 off / invited: the world bills A1 (active subscription) so the disable / price / portal controls run; covered in client-billing.test.ts';
 /** A client-level runbook owner for the target. */
 const runbookOwner = (t: IsolationTarget) => ({ level: 'client' as const, clientId: t.clientId });
@@ -310,6 +311,13 @@ export const ISOLATION_FIXTURES: Record<string, IsolationFixture> = {
   // ── agency writes ──────────────────────────────────────────────────────────────────────────────────
   create_client: agency({ name: 'Eastside Heating', verticalId: 'hvac_plumbing', services: [], keywords: ['furnace repair'], serviceArea: null, placeId: null }),
   update_agency_branding: agency({ displayName: 'Brand Co' }),
+  // 13a1 domains (admin only; amA → permission_denied). The world gives A and B a current custom and sending domain each, so a
+  // set is the one-at-a-time `conflict` for both agencies; removes run for real (fake vendors).
+  get_agency_domains: agency(),
+  set_custom_domain: { kind: 'agency', input: () => ({ hostname: 'intel.iso-world.test' }), allowConflict: DOMAIN_ONE_AT_A_TIME, skipPositive: DOMAIN_ONE_AT_A_TIME },
+  remove_custom_domain: agency(),
+  set_sending_domain: { kind: 'agency', input: () => ({ domain: 'iso-world.test' }), allowConflict: DOMAIN_ONE_AT_A_TIME, skipPositive: DOMAIN_ONE_AT_A_TIME },
+  remove_sending_domain: agency(),
   add_webhook: agency({ kind: 'slack', url: 'https://hooks.slack.com/services/T000/B000/world' }),
   set_support_access_notify: agency({ enabled: true }),
   create_checkout_session: agency(),
@@ -386,6 +394,8 @@ export const ISOLATION_FIXTURES: Record<string, IsolationFixture> = {
   update_spend_guard_settings: platform(() => ({ creditsPerUsd: 100 })),
   // 15c-3a: platform agency tools (membership A #1 = amA, so A keeps two admins; the world's agency-A invitation is pending)
   platform_rename_agency: platform((w) => ({ agencyId: w.ids.agencyA, name: 'World Agency Renamed' })),
+  // 13a1: the owner changes B's host label (the operator is a platform owner in the world)
+  platform_set_agency_host_slug: platform((w) => ({ agencyId: w.ids.agencyB, hostSlug: 'iso-b-renamed' })),
   platform_change_member_role: platform((w) => ({ agencyId: w.ids.agencyA, membershipId: idOf(w, 'membership', 'A', 1), role: 'agency_admin' })),
   platform_remove_member: platform((w) => ({ agencyId: w.ids.agencyA, membershipId: idOf(w, 'membership', 'A', 1) })),
   platform_invite_agency_admin: platform((w) => ({ agencyId: w.ids.agencyA, email: 'new-admin@world.example' })),

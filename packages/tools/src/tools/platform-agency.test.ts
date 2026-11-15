@@ -384,3 +384,34 @@ describe('platform_archive_agency / platform_unarchive_agency', () => {
     for (const name of ['platform_archive_agency', 'platform_unarchive_agency']) expect((await fails(call(owner, name, { agencyId: UNKNOWN }))).code, name).toBe('not_found');
   });
 });
+
+describe('platform_set_agency_host_slug', () => {
+  it('operator owner changes it (trimmed, lower-cased; audited on the target agency)', async () => {
+    expect(await call(owner, 'platform_set_agency_host_slug', { agencyId: A, hostSlug: '  Peak-Digital ' })).toEqual({ hostSlug: 'peak-digital' });
+    expect((await agencyRow()).hostSlug).toBe('peak-digital');
+    expect(await audits('platform_set_agency_host_slug')).toMatchObject([{ agencyId: A, outcome: 'ok' }]);
+    // setting the slug it already has is fine
+    expect(await call(owner, 'platform_set_agency_host_slug', { agencyId: A, hostSlug: 'peak-digital' })).toEqual({ hostSlug: 'peak-digital' });
+  });
+
+  it('staff/non-operator → not_found (permission_denied, a 404 on the web); nothing changes', async () => {
+    const before = (await agencyRow()).hostSlug;
+    for (const ctx of [staff, viewer, adminA]) {
+      expect((await fails(call(ctx, 'platform_set_agency_host_slug', { agencyId: A, hostSlug: 'nope-slug' }))).code).toBe('permission_denied');
+    }
+    expect((await agencyRow()).hostSlug).toBe(before);
+    expect((await fails(call(owner, 'platform_set_agency_host_slug', { agencyId: '00000000-0000-4000-8000-00000000dead', hostSlug: 'nope-slug' }))).code).toBe('not_found');
+  });
+
+  it('taken → copy (the unique violation maps to a refusal, not a 500)', async () => {
+    const other = (await dbs.owner.select({ s: agency.hostSlug }).from(agency).where(eq(agency.id, IDS.agencyB)))[0]!.s;
+    expect(await fails(call(owner, 'platform_set_agency_host_slug', { agencyId: A, hostSlug: other }))).toMatchObject({ code: 'conflict', message: 'That address is taken.', userFacing: true });
+    expect((await agencyRow()).hostSlug).not.toBe(other);
+  });
+
+  it('reserved → invalid (and malformed)', async () => {
+    for (const hostSlug of ['mcp', 'www', 'support', 'ab', '-abc', 'abc-', 'a_b_c', 'x'.repeat(41), 'peak.digital']) {
+      expect(await fails(call(owner, 'platform_set_agency_host_slug', { agencyId: A, hostSlug })), hostSlug).toMatchObject({ code: 'invalid_input', message: 'Use 3–40 lower-case letters, digits or hyphens.', userFacing: true });
+    }
+  });
+});

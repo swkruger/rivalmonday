@@ -43,6 +43,29 @@ describe('createPostmarkDomains', () => {
     expect(s.dkim).toEqual({ host: '2025pm._domainkey.agency.com', value: 'k=rsa;p=ACTIVE', verified: true });
   });
 
+  it('create of a domain already on the account (ErrorCode 512) reads it back, so a crash-retry recovers', async () => {
+    const { fetch, calls } = fakeFetch((method, path) => {
+      if (method === 'POST') return json(422, { ErrorCode: 512, Message: 'Domain already exists.' });
+      if (method === 'GET' && path === '/domains') return json(200, { TotalCount: 2, Domains: [{ ID: 1, Name: 'other.com' }, { ID: 36735, Name: 'Agency.com' }] });
+      if (method === 'GET' && path === '/domains/36735') return json(200, domain());
+      return json(404, {});
+    });
+    const s = await createPostmarkDomains({ token: TOKEN, fetch }).create('agency.com');
+    expect(s.id).toBe(36735);
+    expect(s.dkim.host).toBe('20261114pm._domainkey.agency.com');
+    expect(calls.map((c) => `${c.method} ${new URL(c.url).pathname}${new URL(c.url).search}`)).toEqual(['POST /domains', 'GET /domains?count=500&offset=0', 'GET /domains/36735']);
+  });
+
+  it('512 without a match on the account, or 513 (another account owns it) → in_use', async () => {
+    const dup = fakeFetch((method) => (method === 'POST' ? json(422, { ErrorCode: 512 }) : json(200, { TotalCount: 0, Domains: [] })));
+    await expect(createPostmarkDomains({ token: TOKEN, fetch: dup.fetch }).create('agency.com')).rejects.toMatchObject({ code: 'in_use' });
+    const other = fakeFetch(() => json(422, { ErrorCode: 513, Message: 'You do not own this Domain.' }));
+    const e = (await createPostmarkDomains({ token: TOKEN, fetch: other.fetch }).create('agency.com').catch((x: unknown) => x)) as DomainVendorError;
+    expect(e).toBeInstanceOf(DomainVendorError);
+    expect(e).toMatchObject({ code: 'in_use' });
+    expect(e.message).not.toContain('own');
+  });
+
   it('verify flips flags', async () => {
     const { fetch, calls } = fakeFetch((_method, path) => {
       if (path === '/domains/36735/verifyDkim') return json(200, domain({ DKIMVerified: true }));

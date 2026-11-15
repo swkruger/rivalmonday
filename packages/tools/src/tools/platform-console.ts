@@ -334,6 +334,8 @@ export const getPlatformAgency = defineTool({
     archiveBlockers: z.object({ agencyPlan: z.boolean(), clientSubscriptions: z.number().int() }),
     team: z.object({ agencyAdmin: z.number().int(), accountManager: z.number().int(), clientOwner: z.number().int(), clientViewer: z.number().int() }),
     clients: z.array(z.object({ id: z.string(), name: z.string(), status: z.string(), createdAt: z.string() })),
+    /** 13a1: the agency's client host label (`<hostSlug>.<NEUTRAL_DOMAIN>`); the owner changes it with `platform_set_agency_host_slug`. */
+    hostSlug: z.string(),
   }),
   permission: 'agency',
   audit: 'skip-web',
@@ -385,6 +387,7 @@ export const getPlatformAgency = defineTool({
         archiveBlockers: blockers,
         team: { agencyAdmin: n('agency_admin'), accountManager: n('account_manager'), clientOwner: n('client_owner'), clientViewer: n('client_viewer') },
         clients: clientRows.map((c) => ({ id: c.id, name: c.name, status: c.status, createdAt: c.createdAt.toISOString() })),
+        hostSlug: found.hostSlug,
       };
     });
   },

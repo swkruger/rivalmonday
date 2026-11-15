@@ -32,6 +32,14 @@ describe('domainVendorsFor', () => {
     expect(real.vercel).not.toBeNull();
   });
 
+  it('ignores the E2E flag on any VERCEL_ENV (defence in depth); test/demo/Vitest still get fakes', () => {
+    for (const VERCEL_ENV of ['production', 'preview', 'development']) {
+      expect(domainVendorsFor(prod({ DOMAINS_FAKE_VENDORS: '1', VERCEL_ENV }), 'dev')).toEqual({ vercel: null, postmark: null, fake: false });
+      expect(domainVendorsFor(prod({ ...tokens, DOMAINS_FAKE_VENDORS: '1', VERCEL_ENV }), 'dev').fake).toBe(false);
+      expect(domainVendorsFor(prod({ DOMAINS_FAKE_VENDORS: '1', VERCEL_ENV }), 'demo').fake).toBe(true);
+    }
+  });
+
   it('null without tokens', () => {
     expect(domainVendorsFor(prod(), 'dev')).toEqual({ vercel: null, postmark: null, fake: false });
     // Vercel needs its project id as well as the token; each vendor stands alone.

@@ -299,6 +299,7 @@ describe('status filter, counts and hold/archive detail (15c-3a)', () => {
     expect(d.archivedAt).toBeNull();
     expect(d.tiles).not.toBeNull();
     expect(d.archiveBlockers).toEqual({ agencyPlan: false, clientSubscriptions: 1 });
+    expect(d.hostSlug).toBe((await dbs.owner.select({ s: agency.hostSlug }).from(agency).where(eq(agency.id, IDS.agencyA)))[0]!.s);
   });
 
   it('detail of an archived agency: null health/tiles/series, team and clients still returned', async () => {

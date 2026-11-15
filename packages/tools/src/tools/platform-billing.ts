@@ -33,10 +33,10 @@ export interface RequireAgencyOptions {
 
 export async function requireAgency(
   deps: ToolDeps, agencyId: string, o: RequireAgencyOptions = {},
-): Promise<{ id: string; name: string; archivedAt: Date | null; suspendedAt: Date | null }> {
+): Promise<{ id: string; name: string; hostSlug: string; archivedAt: Date | null; suspendedAt: Date | null }> {
   // 7a2 D16: an archived agency is deleted for the console (unless the tool opts in).
   const [a] = await deps.service
-    .select({ id: agency.id, name: agency.name, archivedAt: agency.archivedAt, suspendedAt: agency.suspendedAt })
+    .select({ id: agency.id, name: agency.name, hostSlug: agency.hostSlug, archivedAt: agency.archivedAt, suspendedAt: agency.suspendedAt })
     .from(agency)
     .where(o.allowArchived ? eq(agency.id, agencyId) : and(eq(agency.id, agencyId), isNull(agency.archivedAt)));
   if (!a) throw new ToolError('not_found', 'Agency not found');

@@ -77,6 +77,11 @@ add_tracked_page (pages.ts) | write | inserts tracked page
 platform_overview (platform-console.ts) | read | read; audit row only
 list_platform_agencies (platform-console.ts) | read | read; audit row only
 get_platform_agency (platform-console.ts) | read | read; audit row only
+get_agency_domains (domains.ts) | read | read-only; agency_admin; custom/sending domain rows, fallback host, current From address (13a1)
+set_custom_domain (domains.ts) | write | inserts agency_domain, adds the hostname to the Vercel project, enqueues domain-verify; agency_admin (13a1)
+remove_custom_domain (domains.ts) | write | removes the hostname from Vercel, marks agency_domain removed; agency_admin (13a1)
+set_sending_domain (domains.ts) | write | inserts agency_sending_domain, creates the Postmark domain, enqueues sender-verify; agency_admin (13a1)
+remove_sending_domain (domains.ts) | write | deletes the Postmark domain, marks agency_sending_domain removed; agency_admin (13a1)
 list_platform_activity (platform-console.ts) | read | read; audit row only
 get_runbook (runbooks.ts) | read | lazily creates the platform/agency runbook (skipped under support)
 update_runbook_item (runbooks.ts) | write | upserts runbook item; client thresholds write client.score_thresholds
@@ -198,6 +203,7 @@ set_seat_cap_exempt (platform-billing.ts) | write | updates agency_billing; plat
 set_connect_fee_percent (platform-billing.ts) | write | updates platform_setting or agency_connect fee; platform owner
 list_agency_people (platform-agency.ts) | read | read-only (team via platform target-agency context); platform operator; archived agencies allowed; supportMask emails
 platform_rename_agency (platform-agency.ts) | write | updates agency.name; platform staff
+platform_set_agency_host_slug (platform-agency.ts) | write | updates agency.host_slug (taken/reserved refused); platform owner (13a1)
 platform_change_member_role (platform-agency.ts) | write | updates membership role (last-admin lock); platform staff
 platform_remove_member (platform-agency.ts) | write | deletes membership (last-admin lock); platform staff
 platform_invite_agency_admin (platform-agency.ts) | write | inserts invitation; sends team_invite as the agency; platform staff; 20 / agency / 24 h

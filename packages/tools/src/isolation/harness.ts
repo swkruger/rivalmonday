@@ -22,6 +22,7 @@ import { TABLE_CLASS, type IsolationWorld, type TenantKey, type WorldUser } from
 import { type SQL, sql } from 'drizzle-orm';
 import type { z } from 'zod';
 import type { EnqueueJob, ToolDeps } from '../deps';
+import { fakePostmarkDomains, fakeVercelDomains } from '../domains/fakes';
 import { dbs } from '../tools/workspace-fixtures';
 import { type IsolationFixture, type IsolationTarget, VIEWER_WRITES } from './fixtures';
 import { testDeliveryConfig, testSenderConfig } from '@cs/engine/test-config';
@@ -69,6 +70,9 @@ export function isolationDeps(w: IsolationWorld): { deps: ToolDeps; enqueued: un
     webMonitoring: true,
     kbImportEnabled: true,
     appUrl: 'https://app.example',
+    // 13a1: host env + fake domain vendors, so the domain tools reach their tenancy checks
+    hostEnv: { appUrl: 'https://app.example', neutralDomain: 'clients.example', extraPlatformHosts: [] },
+    domains: { vercel: fakeVercelDomains(), postmark: fakePostmarkDomains() },
     sampleLinkSecret: 'isolation-sample-secret-0123456789abcdef',
     delivery: testDeliveryConfig({ appUrl: 'https://app.example', linkSecrets: ['isolation-link-secret-0123456789abcdef'] }),
     webhookFetch,

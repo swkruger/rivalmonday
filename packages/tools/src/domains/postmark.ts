@@ -2,8 +2,13 @@ import { type TimedFetch, timedFetch } from '@cs/core/server';
 import { DOMAIN_VENDOR_TIMEOUT_MS, DomainVendorError, type PostmarkDomainState, type PostmarkDomains, safeCode } from './errors';
 
 const API = 'https://api.postmarkapp.com';
-/** Postmark's "Domain not found" API error code (DELETE of an already-removed domain). */
+/**
+ * Postmark API error codes (422), confirmed against https://postmarkapp.com/developer/api/overview (2026-11-14):
+ * 510 "This domain was not found.", 512 "Domain already exists.", 513 "You do not own this Domain."
+ */
 const PM_DOMAIN_NOT_FOUND = 510;
+const PM_DOMAIN_EXISTS = 512;
+const PM_DOMAIN_NOT_OWNED = 513;
 
 /** The Postmark domain object fields we read (SPF fields are deprecated and ignored). */
 interface PmDomain {
@@ -61,10 +66,38 @@ export function createPostmarkDomains(o: { token: string; fetch?: TimedFetch }):
     return toPostmarkState(r.body as PmDomain);
   }
 
+  /**
+   * The domain already on our account, by exact name (case-insensitive), else null. Pages the list (500 per page, Postmark's
+   * maximum) and then reads the full domain object (the list carries no DKIM/Return-Path values).
+   */
+  async function findByName(name: string): Promise<PostmarkDomainState | null> {
+    for (let offset = 0; offset < 10_000; offset += 500) {
+      const path = '/domains';
+      const r = await call('GET', `${path}?count=500&offset=${offset}`);
+      if (r.status !== 200) fail('GET', path, r);
+      const page = (r.body as { Domains?: { ID: number; Name: string }[] } | null)?.Domains ?? [];
+      const hit = page.find((x) => typeof x.Name === 'string' && x.Name.toLowerCase() === name);
+      if (hit) return domainCall('GET', `/domains/${Math.trunc(Number(hit.ID))}`);
+      if (page.length < 500) return null;
+    }
+    return null;
+  }
+
   return {
-    create: (domain) => {
+    async create(domain) {
       const d = domain.toLowerCase();
-      return domainCall('POST', '/domains', { Name: d, ReturnPathDomain: returnPathFor(d) });
+      const r = await call('POST', '/domains', { Name: d, ReturnPathDomain: returnPathFor(d) });
+      if (r.status === 200) return toPostmarkState(r.body as PmDomain);
+      const code = Number(pmCode(r));
+      // 512 "Domain already exists" on our account: a create that crashed before the DB write. Read it back so a retry recovers.
+      if (r.status === 422 && code === PM_DOMAIN_EXISTS) {
+        const found = await findByName(d);
+        if (found) return found;
+        throw new DomainVendorError('in_use', `Postmark POST /domains: HTTP 422 (ErrorCode ${PM_DOMAIN_EXISTS}), not on this account`);
+      }
+      // 513 "You do not own this Domain": another Postmark account has it.
+      if (r.status === 422 && code === PM_DOMAIN_NOT_OWNED) throw new DomainVendorError('in_use', `Postmark POST /domains: HTTP 422 (ErrorCode ${PM_DOMAIN_NOT_OWNED})`);
+      fail('POST', '/domains', r);
     },
     verifyDkim: (id) => domainCall('PUT', `/domains/${Math.trunc(id)}/verifyDkim`),
     verifyReturnPath: (id) => domainCall('PUT', `/domains/${Math.trunc(id)}/verifyReturnPath`),
