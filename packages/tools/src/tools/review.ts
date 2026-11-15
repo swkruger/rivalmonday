@@ -150,7 +150,7 @@ export const sendBriefNowTool = defineTool({
   output: z.object({ notifications: z.number().int(), pdf: z.enum(['queued', 'later']) }),
   permission: 'agency',
   async handler(ctx, { briefId }, deps) {
-    if (!deps.delivery) throw new ToolError('invalid_input', 'Sending is not configured on this server (APP_URL and LINK_SIGNING_SECRET)');
+    if (!deps.delivery) throw new ToolError('invalid_input', 'Sending is not configured on this server (APP_URL, LINK_SIGNING_SECRET and NEUTRAL_DOMAIN)');
     const { notifications } = await sendBriefNow({ service: deps.service, app: deps.app, delivery: deps.delivery }, ctx, briefId);
     try {
       await enqueueOf(deps)('brief-pdf', { briefId }, briefId); // same singletonKey as /files/brief (5a)

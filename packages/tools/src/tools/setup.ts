@@ -448,7 +448,7 @@ export const sendCompetitorReview = defineTool({
   permission: 'agency',
   channels: ['web'],
   async handler(ctx, { clientId }, deps) {
-    if (!deps.delivery) throw new ToolError('invalid_input', 'Sending is not configured on this server (APP_URL and LINK_SIGNING_SECRET)');
+    if (!deps.delivery) throw new ToolError('invalid_input', 'Sending is not configured on this server (APP_URL, LINK_SIGNING_SECRET and NEUTRAL_DOMAIN)');
     await assertClientVisible(ctx, deps, clientId);
     const now = new Date();
     const queued = await queueCompetitorReview(deps.service, deps.delivery, {

@@ -68,7 +68,7 @@ export const approveAlertTool = defineTool({
   output: z.object({ outcome: z.enum(['immediate', 'digest', 'withdrawn']) }),
   permission: 'agency',
   async handler(ctx, { alertId }, deps) {
-    if (!deps.delivery) throw new ToolError('invalid_input', 'Sending is not configured on this server (APP_URL and LINK_SIGNING_SECRET)');
+    if (!deps.delivery) throw new ToolError('invalid_input', 'Sending is not configured on this server (APP_URL, LINK_SIGNING_SECRET and NEUTRAL_DOMAIN)');
     return { outcome: await approveAlert({ service: deps.service, app: deps.app, delivery: deps.delivery }, ctx, alertId) };
   },
 });
