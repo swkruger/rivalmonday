@@ -194,19 +194,19 @@ describe('settingsNavFor agency', () => {
       ['agency', 'Agency', ['Branding & voice', 'Team', 'Runbook']],
       ['plan', 'Plan', ['Billing', 'Usage & limits']],
       ['growth', 'Growth', ['Intake link']],
-      ['integrations', 'Integrations', ['Slack & Teams', 'AI connections']],
+      ['integrations', 'Integrations', ['Slack & Teams', 'AI connections', 'Domains']],
       ['security', 'Security', ['Platform access']],
     ]);
     expect(hrefs(s)).toEqual([
       '/agency/settings/branding', '/agency/settings/team', '/agency/settings/runbook',
       '/agency/settings/billing', '/agency/settings/usage',
       '/agency/settings/intake',
-      '/agency/settings/slack-teams', '/agency/settings/ai',
+      '/agency/settings/slack-teams', '/agency/settings/ai', '/agency/settings/domains',
       '/agency/settings/platform-access',
     ]);
   });
 
-  it('account manager: no Branding, Billing, Intake, Slack & Teams or Platform access; empty groups dropped', () => {
+  it('account manager: no Branding, Billing, Intake, Slack & Teams, Domains or Platform access; empty groups dropped', () => {
     expect(labels(settingsNavFor('agency', accountManager))).toEqual([
       ['agency', 'Agency', ['Team', 'Runbook']],
       ['plan', 'Plan', ['Usage & limits']],
@@ -214,7 +214,7 @@ describe('settingsNavFor agency', () => {
     ]);
   });
 
-  it('support session: no Billing, Intake link or Platform access (they 404 in a session)', () => {
+  it('support session: no Billing, Intake link, Domains or Platform access (they 404 in a session)', () => {
     expect(labels(settingsNavFor('agency', support))).toEqual([
       ['agency', 'Agency', ['Branding & voice', 'Team', 'Runbook']],
       ['plan', 'Plan', ['Usage & limits']],

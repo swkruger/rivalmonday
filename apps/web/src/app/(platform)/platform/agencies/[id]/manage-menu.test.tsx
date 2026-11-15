@@ -2,7 +2,7 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const m = vi.hoisted(() => ({ rename: vi.fn(), hold: vi.fn(), lift: vi.fn(), archive: vi.fn(), unarchive: vi.fn(), move: vi.fn() }));
+const m = vi.hoisted(() => ({ rename: vi.fn(), hold: vi.fn(), lift: vi.fn(), archive: vi.fn(), unarchive: vi.fn(), move: vi.fn(), hostSlug: vi.fn() }));
 vi.mock('./actions', () => ({
   renameAgencyAction: (...a: unknown[]) => m.rename(...a),
   suspendAgencyAction: (...a: unknown[]) => m.hold(...a),
@@ -10,6 +10,7 @@ vi.mock('./actions', () => ({
   archiveAgencyAction: (...a: unknown[]) => m.archive(...a),
   unarchiveAgencyAction: (...a: unknown[]) => m.unarchive(...a),
   moveAgencyToCurrentPlanAction: (...a: unknown[]) => m.move(...a),
+  setHostSlugAction: (...a: unknown[]) => m.hostSlug(...a),
 }));
 const { ManageMenu, UnarchiveButton } = await import('./manage-menu');
 
@@ -163,6 +164,46 @@ describe('ManageMenu dialogs', () => {
     expect(confirm.disabled).toBe(false);
     fireEvent.click(confirm);
     await waitFor(() => expect(m.archive).toHaveBeenCalledTimes(1));
+  });
+});
+
+describe('ManageMenu: Change web address (13a1)', () => {
+  const withSlug = { ...agency, hostSlug: 'brightline' };
+  it('owner sees Change web address, staff does not', async () => {
+    render(<ManageMenu agency={withSlug} role="staff" held={false} archiveRefusal={null} />);
+    open();
+    await item('Rename agency');
+    expect(screen.queryByRole('menuitem', { name: 'Change web address' })).toBeNull();
+    cleanup();
+    render(<ManageMenu agency={withSlug} role="owner" held={false} archiveRefusal={null} />);
+    open();
+    expect(await item('Change web address')).toBeTruthy();
+  });
+
+  it('the dialog prefills the web address name, posts it and shows the result line', async () => {
+    m.hostSlug.mockResolvedValue({ ok: true, message: 'Web address changed.' });
+    render(<ManageMenu agency={withSlug} role="owner" held={false} archiveRefusal={null} />);
+    open();
+    fireEvent.click(await item('Change web address'));
+    const dialog = await screen.findByRole('dialog', { name: 'Change web address' });
+    const input = within(dialog).getByLabelText('Web address name') as HTMLInputElement;
+    expect(input.value).toBe('brightline');
+    fireEvent.change(input, { target: { value: 'brightline-co' } });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(m.hostSlug).toHaveBeenCalledTimes(1));
+    expect(Object.fromEntries(m.hostSlug.mock.calls[0]![1] as FormData)).toEqual({ agencyId: AG, hostSlug: 'brightline-co' });
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(screen.getByRole('status').textContent).toBe('Web address changed.');
+  });
+
+  it('a taken name stays in the dialog', async () => {
+    m.hostSlug.mockResolvedValue({ ok: false, error: 'That address is taken.' });
+    render(<ManageMenu agency={withSlug} role="owner" held={false} archiveRefusal={null} />);
+    open();
+    fireEvent.click(await item('Change web address'));
+    const dialog = await screen.findByRole('dialog', { name: 'Change web address' });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Save' }));
+    expect(await within(dialog).findByText('That address is taken.')).toBeTruthy();
   });
 });
 

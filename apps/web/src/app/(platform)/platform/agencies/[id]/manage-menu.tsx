@@ -4,10 +4,11 @@ import { ChevronDown } from 'lucide-react';
 import { useState } from 'react';
 import { ActionDialog, ResultLine } from './action-dialog';
 import { MoveLines, moveSummary, NO_YEARLY_PRICE, type PlanAgencyRow } from '../../_components/plan-move-parts';
-import { archiveAgencyAction, moveAgencyToCurrentPlanAction, renameAgencyAction, suspendAgencyAction, unarchiveAgencyAction, unsuspendAgencyAction } from './actions';
+import { archiveAgencyAction, moveAgencyToCurrentPlanAction, renameAgencyAction, setHostSlugAction, suspendAgencyAction, unarchiveAgencyAction, unsuspendAgencyAction } from './actions';
 
-type Agency = { id: string; name: string };
-type Open = 'rename' | 'hold' | 'lift' | 'archive' | 'move' | null;
+/** `hostSlug` (13a1): the client host label the owner's Change web address edits. */
+type Agency = { id: string; name: string; hostSlug?: string };
+type Open = 'rename' | 'hold' | 'lift' | 'archive' | 'move' | 'hostSlug' | null;
 /** Present only when the agency is behind the current plan version and can be moved now (not on hold, archived or cancelled). */
 export type PlanMove = { row: PlanAgencyRow; currentVersion: number };
 
@@ -16,7 +17,7 @@ const REASON_MAX = 500;
 
 /**
  * Spec §4.5 / mockup pages 2, 5, 6, 8: the header's Manage menu (platform staff and owners; the page renders none for
- * viewers). Rename and hold/lift for staff+; owners also get Move to current plan (when `planMove` is set) and Archive. `archiveRefusal` is the
+ * viewers). Rename and hold/lift for staff+; owners also get Change web address (13a1), Move to current plan (when `planMove` is set) and Archive. `archiveRefusal` is the
  * page's live-billing sentence (R1: from `get_platform_agency.archiveBlockers`); the tool re-checks on confirm.
  */
 export function ManageMenu({ agency, role, held, archiveRefusal, planMove = null }: { agency: Agency; role: 'owner' | 'staff'; held: boolean; archiveRefusal: string | null; planMove?: PlanMove | null }) {
@@ -24,9 +25,11 @@ export function ManageMenu({ agency, role, held, archiveRefusal, planMove = null
   const [message, setMessage] = useState<string | null>(null);
   const [name, setName] = useState(agency.name);
   const [reason, setReason] = useState('');
+  const [hostSlug, setHostSlug] = useState(agency.hostSlug ?? '');
   const show = (o: Open) => {
     setMessage(null);
     if (o === 'rename') setName(agency.name);
+    if (o === 'hostSlug') setHostSlug(agency.hostSlug ?? '');
     if (o === 'hold') setReason('');
     setOpen(o);
   };
@@ -44,6 +47,7 @@ export function ManageMenu({ agency, role, held, archiveRefusal, planMove = null
           {held
             ? <DropdownMenuItem onSelect={() => show('lift')}>Lift hold</DropdownMenuItem>
             : <DropdownMenuItem onSelect={() => show('hold')}>Put on hold</DropdownMenuItem>}
+          {role === 'owner' && <DropdownMenuItem onSelect={() => show('hostSlug')}>Change web address</DropdownMenuItem>}
           {role === 'owner' && planMove && !planMove.row.moveBlocked && <DropdownMenuItem onSelect={() => show('move')}>Move to current plan</DropdownMenuItem>}
           {role === 'owner' && planMove?.row.moveBlocked && <DropdownMenuItem disabled>{NO_YEARLY_PRICE}</DropdownMenuItem>}
           {role === 'owner' && (
@@ -62,6 +66,15 @@ export function ManageMenu({ agency, role, held, archiveRefusal, planMove = null
           <Input id="rename-agency-name" name="name" required maxLength={120} value={name} onChange={(e) => setName(e.target.value)} />
         </div>
       </ActionDialog>
+
+      {role === 'owner' && (
+        <ActionDialog {...dialog('hostSlug')} title="Change web address" confirmLabel="Save" action={setHostSlugAction} canSubmit={hostSlug.trim().length > 0}>
+          <div className="grid gap-1.5">
+            <Label htmlFor="agency-host-slug">Web address name</Label>
+            <Input id="agency-host-slug" name="hostSlug" required maxLength={40} autoComplete="off" spellCheck={false} value={hostSlug} onChange={(e) => setHostSlug(e.target.value)} />
+          </div>
+        </ActionDialog>
+      )}
 
       <ActionDialog
         {...dialog('hold')}

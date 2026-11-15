@@ -39,6 +39,7 @@ describe('agency management actions call the right tool', () => {
     ['retry', a.retryHoldBillingAction, {}, 'platform_retry_hold_billing', { agencyId: AG }],
     ['archive', a.archiveAgencyAction, {}, 'platform_archive_agency', { agencyId: AG }],
     ['unarchive', a.unarchiveAgencyAction, {}, 'platform_unarchive_agency', { agencyId: AG }],
+    ['host slug', a.setHostSlugAction, { hostSlug: ' Brightline-Co ' }, 'platform_set_agency_host_slug', { agencyId: AG, hostSlug: 'Brightline-Co' }],
   ];
   it.each(cases)('%s → runTool + revalidate on success', async (_n, action, fields, tool, input) => {
     m.runTool.mockResolvedValue({ ok: true, data: { done: 0, failed: [], emailsSent: 0, billing: { done: 0, failed: [] }, emailSent: true, name: 'x', archivedAt: 'x', ok: true } });

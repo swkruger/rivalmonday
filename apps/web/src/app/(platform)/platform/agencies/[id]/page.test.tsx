@@ -11,8 +11,8 @@ vi.mock('@/server/runtime-env', () => ({ platformAdmins: () => [] }));
 vi.mock('@cs/tools', () => ({ platformRole: async () => m.role, ARCHIVE_BILLING_MESSAGE: 'This agency still has active billing. Cancel it in Stripe first, then archive.' }));
 vi.mock('./actions', () => ({}));
 vi.mock('./manage-menu', () => ({
-  ManageMenu: ({ role, held, archiveRefusal, planMove }: { role: string; held: boolean; archiveRefusal: string | null; planMove?: unknown }) => (
-    <div>manage-menu {role} {held ? 'held' : 'not-held'}{role === 'owner' ? ' archive' : ''} {archiveRefusal ?? 'no-refusal'}{planMove ? ' can-move' : ''}</div>
+  ManageMenu: ({ agency, role, held, archiveRefusal, planMove }: { agency: { hostSlug?: string }; role: string; held: boolean; archiveRefusal: string | null; planMove?: unknown }) => (
+    <div>manage-menu {role} {held ? 'held' : 'not-held'}{role === 'owner' ? ' archive' : ''} {archiveRefusal ?? 'no-refusal'}{planMove ? ' can-move' : ''} slug:{agency.hostSlug}</div>
   ),
   UnarchiveButton: () => <button type="button">Unarchive</button>,
 }));
@@ -40,6 +40,7 @@ const detail = {
   archiveBlockers: { agencyPlan: false, clientSubscriptions: 0 } as { agencyPlan: boolean; clientSubscriptions: number },
   team: { agencyAdmin: 1, accountManager: 0, clientOwner: 0, clientViewer: 0 },
   clients: [],
+  hostSlug: 'acme',
 };
 const session = { id: 's1', startedAt: '2026-10-12T10:00:00Z', endedAt: '2026-10-12T10:12:00Z', platformUserName: 'Sam Staff', reason: 'Checking brief setup', durationMinutes: 12, endReason: 'exit' };
 
@@ -195,6 +196,12 @@ describe('platform agency page: manage menu', () => {
     m.role = 'owner';
     render(await page());
     expect(screen.getByText(/manage-menu owner/).textContent).toContain('archive');
+  });
+  it('13a1: the header shows the web address name and hands it to the Manage menu', async () => {
+    m.role = 'owner';
+    render(await page());
+    expect(screen.getByText(/Web address name:/).textContent).toContain('Web address name: acme.');
+    expect(screen.getByText(/manage-menu owner/).textContent).toContain('slug:acme');
   });
   it('the "coming soon" line and the team-counts tip are gone', async () => {
     render(await page());

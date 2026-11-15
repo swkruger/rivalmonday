@@ -2,6 +2,7 @@
 import { Button, nativeInputClass, readableTextOn, Section, Switch } from '@cs/ui';
 import Link from 'next/link';
 import { useActionState, useOptimistic, useState, useTransition } from 'react';
+import { CopyButton } from '@/components/copy-button';
 import { StatStrip } from '@/components/stat-strip';
 import { useReadOnly } from '@/components/read-only';
 import type { FormResult } from '@/server/forms';
@@ -29,26 +30,6 @@ const HEX = /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i;
 export function buttonHtml(url: string, primary?: string | null): string {
   const background = primary && HEX.test(primary) ? primary : DEFAULT_BUTTON_COLOR;
   return `<a href="${escapeAttr(url)}" style="display:inline-block;background:${background};color:${readableTextOn(background)};font-family:Inter,Arial,sans-serif;font-weight:700;font-size:16px;line-height:1;text-decoration:none;padding:14px 22px;border-radius:8px">${BUTTON_TEXT}</a>`;
-}
-
-function CopyButton({ text, label }: { text: string; label: string }) {
-  const [state, setState] = useState<'idle' | 'copied' | 'failed'>('idle');
-  return (
-    <Button
-      type="button"
-      variant="outline"
-      onClick={async () => {
-        try {
-          await navigator.clipboard.writeText(text);
-          setState('copied');
-        } catch {
-          setState('failed');
-        }
-      }}
-    >
-      {state === 'copied' ? 'Copied' : state === 'failed' ? 'Copy failed' : label}
-    </Button>
-  );
 }
 
 /** Phase 11c §5: the agency's public intake link. The save result stays mounted (not inside anything revalidation unmounts). */

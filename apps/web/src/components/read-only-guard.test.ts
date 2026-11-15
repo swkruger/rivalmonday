@@ -33,6 +33,7 @@ const EXEMPT: Record<string, string> = {
   'app/(app)/settings/profile/details-form.tsx': 'page is a 404 in a support session',
   'app/(app)/agency/settings/platform-access/notify-switch.tsx': 'page is a 404 in a support session (viewer.kind !== user)',
   'app/(app)/agency/settings/intake/page.tsx': 'page is a 404 in a support session (viewer.kind !== user); IntakeLinkCard guards itself with useReadOnly',
+  'app/(app)/agency/settings/domains/page.tsx': 'page is a 404 in a support session (viewer.kind !== user); DomainPanel and SendingPanel guard every control with WriteGuard',
   'app/(app)/agency/settings/billing/page.tsx': 'page is a 404 in a support session (viewer.kind !== user); its buttons guard themselves with useReadOnly',
   'app/(app)/agency/settings/billing/client-billing/section.tsx': 'only passes connectAction to PaymentButton, which guards itself with useReadOnly; the page is a 404 in a support session',
   'app/(app)/c/[clientId]/settings/billing/page.tsx': 'client-owner only (a support viewer is an agency role, so the page is a 404); Manage payment is PaymentButton, which guards itself with useReadOnly',

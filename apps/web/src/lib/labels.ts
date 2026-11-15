@@ -1,5 +1,5 @@
 import type { Cadence, CaptureStatus, PageType, Role } from '@cs/core';
-import type { AGENCY_KINDS, AlertStatus, CitationStatus, ListedEventSource, ListedEventStatus, SampleStatus, WaitlistStatus, RecommendationStatus, BriefStatus, LeadStatus, BillingState, ClientStatus, EvidenceKind, WebhookKind, TrendReportStatus, askMessage, prospectReport } from '@cs/db';
+import type { AGENCY_KINDS, AgencyDomainStatus, AlertStatus, CitationStatus, ListedEventSource, ListedEventStatus, SampleStatus, SendingDomainStatus, WaitlistStatus, RecommendationStatus, BriefStatus, LeadStatus, BillingState, ClientStatus, EvidenceKind, WebhookKind, TrendReportStatus, askMessage, prospectReport } from '@cs/db';
 import type { MoveRow, StepState } from '@cs/tools';
 import type { CatalogStatus } from '@cs/verticals';
 import type { ChipTone } from '@cs/ui';
@@ -332,6 +332,19 @@ export const SOCIAL_STATUS: LabelMap<'confirmed' | 'suggested' | 'rejected'> = {
 
 // brief item status; agency-only (not in CLIENT_AUDIENCE_MAPS)
 export const BRIEF_ITEM_STATUS: LabelMap<'active' | 'dropped'> = { active: e('Included'), dropped: e('Dropped') };
+
+// agency_domain.status / agency_sending_domain.status (packages/db/src/schema/hosts.ts; 13a1, agency admins only). `removed` rows are never shown.
+export const AGENCY_DOMAIN_STATUS: LabelMap<Exclude<AgencyDomainStatus, 'removed'>> = {
+  pending: e('Waiting for DNS', 'info'),
+  verifying: e('Checking certificate', 'info'),
+  live: e('Live', 'success'),
+  failed: e('Failed', 'danger'),
+};
+export const SENDING_DOMAIN_STATUS: LabelMap<Exclude<SendingDomainStatus, 'removed'>> = {
+  pending: e('Waiting for DNS', 'info'),
+  verified: e('Verified', 'success'),
+  failed: e('Failed', 'danger'),
+};
 
 /** Maps whose labels can render to client roles; the terminology test scans these for agency-only words. */
 export const CLIENT_AUDIENCE_MAPS: readonly LabelMap<string>[] = [

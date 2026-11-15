@@ -14,7 +14,7 @@ export { clientIdFromPath, contextOf, NAV_CTX_COOKIE, type NavContext, parseNavC
 export type IconKey =
   | 'clients' | 'overview' | 'inbox' | 'team' | 'branding' | 'webhooks' | 'bell' | 'delivery' | 'profile' | 'competitors' | 'changes' | 'moves' | 'pricing' | 'ads' | 'rankings' | 'listings' | 'events' | 'reputation' | 'approvals' | 'alerts' | 'recommendations'
   | 'alertRules' | 'ai' | 'usage' | 'runbook' | 'reviews' | 'topics' | 'prospects' | 'ask' | 'knowledge'
-  | 'platform' | 'agencies' | 'health' | 'costs' | 'platformAccess' | 'billing' | 'leads' | 'waitlist' | 'intake' | 'briefs' | 'settings' | 'catalogue';
+  | 'platform' | 'agencies' | 'health' | 'costs' | 'platformAccess' | 'billing' | 'leads' | 'waitlist' | 'intake' | 'briefs' | 'settings' | 'catalogue' | 'domains';
 
 export interface NavItem {
   href: string;
@@ -211,7 +211,7 @@ export function clientSettingsNavFor(flags: NavRoleFlags, clientId: string): Nav
 
 function agencySettings(flags: NavRoleFlags): NavSection[] {
   const admin = flags.isAgencyAdmin;
-  // Billing, Intake link and Platform access 404 inside a support session (8b/9a), hence `isUser`.
+  // Billing, Intake link, Domains and Platform access 404 inside a support session (8b/9a/13a1), hence `isUser`.
   const adminUser = admin && flags.isUser;
   return compact([
     section('agency', 'Agency', (add) => {
@@ -231,6 +231,8 @@ function agencySettings(flags: NavRoleFlags): NavSection[] {
       if (admin) add('/agency/settings/slack-teams', 'Slack & Teams', 'webhooks');
       // 7a2 D13: hidden when the agency's plan has no MCP (`mcp`/`clientAi` already fold in the plan).
       if (flags.mcp || flags.clientAi) add('/agency/settings/ai', 'AI connections', 'ai');
+      // 13a1: the agency's own web address and email domain (agency admins, never in a support session).
+      if (adminUser) add('/agency/settings/domains', 'Domains', 'domains');
     }),
     section('security', 'Security', (add) => {
       if (adminUser) add('/agency/settings/platform-access', 'Platform access', 'platformAccess');

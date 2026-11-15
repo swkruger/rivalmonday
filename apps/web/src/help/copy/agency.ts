@@ -379,6 +379,29 @@ export const AGENCY_COPY = {
     description: 'What visitors see on your intake page. Nothing here can be submitted.',
     tips: {},
   },
+  'agency.settings.domains': {
+    description: 'Give clients your own web address and email domain.',
+    tips: {
+      // source: packages/tools/src/tools/domains.ts:setCustomDomainTool (subdomains only, one at a time; DOMAIN_COPY); packages/tools/src/domains/verify.ts (CNAME check every 10 minutes, 72-hour limit, certificate probe); packages/db/src/hosts.ts:clientOriginFor (live custom host, else the fallback host)
+      webAddress: {
+        title: 'Your web address',
+        body: 'Use a subdomain of your own site, such as intel.youragency.com. Add the CNAME record shown at your DNS provider. We check every 10 minutes for up to 72 hours, then check the certificate. Once it reads Live, client links and sign-in use your address. If you remove it, links in emails already sent to clients stop working.',
+        guideAnchor: 'how-to-use-it',
+      },
+      // source: packages/tools/src/tools/domains.ts:setSendingDomainTool (DEFAULT_LOCAL_PART briefs, LOCAL_PART_RE); packages/tools/src/domains/verify.ts (DKIM + Return-Path, 72-hour limit); packages/engine/src/delivery/sender.ts (verified domain, else the fallback address)
+      emailSending: {
+        title: 'Your email domain',
+        body: 'Client emails come from an address on your own domain, such as briefs@youragency.com. Add the TXT and CNAME records shown at your DNS provider. Until the domain reads Verified, client emails keep coming from the address shown on this page. The address name is the part before the @; it defaults to briefs.',
+        guideAnchor: 'how-to-use-it',
+      },
+      // source: packages/tools/src/domains/verify.ts (dmarc_ok = a TXT record at _dmarc.<domain> starting v=DMARC1; never blocks sending)
+      dmarc: {
+        title: 'DMARC',
+        body: 'A DMARC record tells inboxes what to do with email that fails its checks. We look for one once your email domain is verified and warn you if it is missing, but sending never waits for it. Add it at your DNS provider; your email or IT provider can tell you the right value.',
+        guideAnchor: 'common-questions',
+      },
+    },
+  },
   'agency.settings.platform-access': {
     description: 'Every time platform support opened a read-only session on your agency, and why.',
     tips: {

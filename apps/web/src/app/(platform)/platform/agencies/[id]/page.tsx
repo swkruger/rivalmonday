@@ -37,9 +37,10 @@ const COPY = PAGE_COPY['platform.agencies.detail'];
 type Health = 'at_risk' | 'idle' | 'growing' | 'steady';
 type Tiles = { agencies: Tile; clientsActive: Tile; seats: Tile; wau: Tile; spendMonthUsd: Tile };
 
-/** `get_platform_agency` output; `health`, `tiles` and `series` are null for an archived agency. */
+/** `get_platform_agency` output; `health`, `tiles` and `series` are null for an archived agency. `hostSlug` = the client host label (13a1). */
 interface Detail {
   agency: { id: string; name: string; createdAt: string; health: Health | null };
+  hostSlug: string;
   tiles: Tiles | null;
   series: Point[] | null;
   hold: { since: string; reason: string; byName: string } | null;
@@ -100,7 +101,7 @@ export default async function PlatformAgencyPage({ params, searchParams }: Props
   const sp = await searchParams;
   const range = parseRange(sp.range);
   const { ctx } = await requireOperatorContext();
-  const { agency, tiles, series, hold, archivedAt, holdBillingIssue, archiveBlockers, clients } = await loadAgency(id, range);
+  const { agency, tiles, series, hold, archivedAt, holdBillingIssue, archiveBlockers, clients, hostSlug } = await loadAgency(id, range);
   const [people, role, guides, tz] = await Promise.all([
     callTool<AgencyPeople>(ctx, 'list_agency_people', { agencyId: agency.id }),
     platformRole({ service: dbs().service, platformAdmins: platformAdmins() }, ctx),
@@ -119,7 +120,7 @@ export default async function PlatformAgencyPage({ params, searchParams }: Props
       breadcrumb={[{ label: 'Platform', href: '/platform' }, { label: 'Agencies', href: '/platform/agencies' }, { label: agency.name }]}
       description={
         <>
-          <HelpText text={COPY.description} /> Created {formatDate(agency.createdAt, { tz })}.{after ? ` ${after}` : ''}
+          <HelpText text={COPY.description} /> Created {formatDate(agency.createdAt, { tz })}. Web address name: {hostSlug}.{after ? ` ${after}` : ''}
         </>
       }
       helpKey={HELP_KEY}
@@ -177,7 +178,7 @@ export default async function PlatformAgencyPage({ params, searchParams }: Props
         </>,
         <>
           {canStart && <SupportDialog agencyId={agency.id} />}
-          {canStart && <ManageMenu agency={ref} role={role} held={hold !== null} archiveRefusal={archiveRefusal(archiveBlockers)} planMove={planMove} />}
+          {canStart && <ManageMenu agency={{ ...ref, hostSlug }} role={role} held={hold !== null} archiveRefusal={archiveRefusal(archiveBlockers)} planMove={planMove} />}
         </>,
       )}
       {sp.ended === '1' && (

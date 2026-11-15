@@ -2,7 +2,7 @@ import { AGENCY_KINDS, ALERT_STATUSES, BILLING_STATES, CATALOG_STATUSES, CLIENT_
 import { AGENCY_ONLY_TERMS } from './agency-only-terms';
 import { ROLES } from '@cs/core';
 import { describe, expect, it } from 'vitest';
-import { AGENCY_NOTICE_KIND, ALERT_STATUS, ASK_MESSAGE_STATUS, BILLING_EVENT_REASON, BILLING_STATE, HEALTH_STATUS, INVOICE_STATUS, KB_ARTICLE_STATUS, billingReasonLabel, CLIENT_AUDIENCE_MAPS, CLIENT_STATUS, EVIDENCE_KIND, LEAD_STATUS, MEMBERSHIP_ROLE, REPORT_STATUS, REVIEW_STATUS, TOPIC_PROPOSAL_STATUS, WEBHOOK_KIND, labelFor, MOVE_STATUS, EVENT_ROUTE, CAPTURE_STATUS, PAGE_TYPE, CADENCE, RECOMMENDATION_STATUS, LEVEL, SETUP_STEP_STATUS, CLIENT_PLAN_STATUS, AD_STATE, BRIEF_ITEM_STATUS, IMPACT_TONE, CITATION_STATUS } from './labels';
+import { AGENCY_NOTICE_KIND, ALERT_STATUS, ASK_MESSAGE_STATUS, BILLING_EVENT_REASON, BILLING_STATE, HEALTH_STATUS, INVOICE_STATUS, KB_ARTICLE_STATUS, billingReasonLabel, CLIENT_AUDIENCE_MAPS, CLIENT_STATUS, EVIDENCE_KIND, LEAD_STATUS, MEMBERSHIP_ROLE, REPORT_STATUS, REVIEW_STATUS, TOPIC_PROPOSAL_STATUS, WEBHOOK_KIND, labelFor, MOVE_STATUS, EVENT_ROUTE, CAPTURE_STATUS, PAGE_TYPE, CADENCE, RECOMMENDATION_STATUS, LEVEL, SETUP_STEP_STATUS, CLIENT_PLAN_STATUS, AD_STATE, BRIEF_ITEM_STATUS, IMPACT_TONE, CITATION_STATUS, AGENCY_DOMAIN_STATUS, SENDING_DOMAIN_STATUS } from './labels';
 import { CADENCES, CAPTURE_STATUSES, PAGE_TYPES } from '@cs/core';
 
 const NEW_MAPS = [MOVE_STATUS, EVENT_ROUTE, CAPTURE_STATUS, PAGE_TYPE, CADENCE, RECOMMENDATION_STATUS, LEVEL, SETUP_STEP_STATUS, CLIENT_PLAN_STATUS, AD_STATE, BRIEF_ITEM_STATUS];
@@ -90,6 +90,20 @@ describe('15c-2b-2 maps', () => {
       not_checked: { label: 'Not checked yet', tone: 'neutral' },
     });
     expect(CLIENT_AUDIENCE_MAPS.includes(CITATION_STATUS as never)).toBe(true);
+  });
+  it('domain statuses: decided chips, fixed tints, agency-only (13a1)', () => {
+    expect(AGENCY_DOMAIN_STATUS).toEqual({
+      pending: { label: 'Waiting for DNS', tone: 'info' },
+      verifying: { label: 'Checking certificate', tone: 'info' },
+      live: { label: 'Live', tone: 'success' },
+      failed: { label: 'Failed', tone: 'danger' },
+    });
+    expect(SENDING_DOMAIN_STATUS).toEqual({
+      pending: { label: 'Waiting for DNS', tone: 'info' },
+      verified: { label: 'Verified', tone: 'success' },
+      failed: { label: 'Failed', tone: 'danger' },
+    });
+    expect(CLIENT_AUDIENCE_MAPS.includes(AGENCY_DOMAIN_STATUS as never)).toBe(false);
   });
   it('ALERTS_PER_DAY is exported from @cs/engine and equals 3', async () => {
     const { ALERTS_PER_DAY } = await import('@cs/engine');

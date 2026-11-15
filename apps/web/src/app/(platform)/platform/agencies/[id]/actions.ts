@@ -103,6 +103,11 @@ export async function renameAgencyAction(_p: FormResult, fd: FormData): Promise<
   return manage<{ name: string }>(fd, 'platform_rename_agency', { name: str(fd, 'name').slice(0, 200) }, () => 'Agency renamed.');
 }
 
+/** 13a1: the agency's client host label (platform owner only, enforced by the tool; a taken or invalid name comes back as its copy). */
+export async function setHostSlugAction(_p: FormResult, fd: FormData): Promise<FormResult> {
+  return manage<{ hostSlug: string }>(fd, 'platform_set_agency_host_slug', { hostSlug: str(fd, 'hostSlug').slice(0, 64) }, () => 'Web address changed.');
+}
+
 export async function changeMemberRoleAction(_p: FormResult, fd: FormData): Promise<FormResult> {
   return manage(fd, 'platform_change_member_role', { membershipId: str(fd, 'membershipId'), role: str(fd, 'role') }, () => 'Role changed.');
 }
