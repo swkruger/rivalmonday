@@ -112,6 +112,8 @@ pnpm --filter @cs/worker purge-archived --older-than 90d [--dry-run]
 ```
 `archive` hides the row everywhere at once (archived = deleted; `--undo` restores it losslessly). It **refuses** while a live Stripe/Connect subscription exists: cancel it in Stripe first. `purge-archived` hard-deletes agencies/clients archived more than n days ago (**n >= 30**, planned 90) and cascades; ledger and audit rows stay, detached and anonymised; evidence and captures are not pruned; Better Auth users stay (sign-in lands on `/no-access`). Always `--dry-run` first. Verified leads nobody actioned are deleted after 180 days and pending notifications over 7 days overdue become `skipped` by the daily jobs (no command).
 
+Purge skips (with a `warn` log) an archived agency that still has a custom domain or sending domain not `removed`: remove them first (Domains page or platform tool) before it can be purged.
+
 ## Spend guard (7b1)
 Two guards stop runaway AI spend (spec `2026-10-22-phase-7b-money-design.md` §3/§4). Tenants see credits (1 USD = 100), you see USD. Nothing here touches `client.paused_at`, seats or Stripe.
 - **Client pause:** the hourly `spend-guard` job (cron `7 * * * *`) sets `client.spend_paused_at` when a client's month-to-date spend reaches 130 % of its limit (default $15, per-client override). It lifts on the 1st (UTC) or when the limit is raised. Schedulers use `clientWorkAllowed`; in-flight AI calls for that client throw `AiPausedError` and the worker completes the job as `{ skipped: 'spend_paused' }`.

@@ -1,5 +1,5 @@
 import { hashInput } from '@cs/core/server';
-import { agency, agencyBilling, type Db, auditLog, capture, client, clientBilling, contact, evidence, llmCall, membership, notification, platformAuditLog, trackedPage, vendorCall } from '@cs/db';
+import { agency, agencyBilling, agencyDomain, agencySendingDomain, type Db, auditLog, capture, client, clientBilling, contact, evidence, llmCall, membership, notification, platformAuditLog, trackedPage, vendorCall } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq, sql } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -61,6 +61,26 @@ describe('purgeArchived', () => {
     const rows = await platformRows();
     expect(rows.map((r) => [r.userId, r.tool, r.outcome])).toEqual([['cli', 'purge_archived', 'ok']]);
     expect(rows[0]!.inputHash).toBe(hashInput({ olderThanDays: 90 }));
+  });
+
+  it('does not purge an archived agency that still has a custom or sending domain; purges it once both are removed (13a1 I2)', async () => {
+    await dbs.owner.update(agency).set({ archivedAt: daysAgo(91) }).where(eq(agency.id, IDS.agencyA));
+    await dbs.owner.update(agency).set({ archivedAt: daysAgo(91) }).where(eq(agency.id, IDS.agencyB));
+    await dbs.owner.insert(agencyDomain).values({ agencyId: IDS.agencyA, hostname: 'intel.a.test', status: 'live' });
+    await dbs.owner.insert(agencySendingDomain).values({ agencyId: IDS.agencyA, domain: 'mail.a.test', status: 'verified' });
+    const warned = vi.spyOn(workerLog, 'warn').mockImplementation(() => {});
+
+    expect(await purgeArchived(dbs.service, { olderThanDays: 90, dryRun: true, now: NOW })).toMatchObject({ agencies: 1 });
+    expect(await purgeArchived(dbs.service, { olderThanDays: 90, dryRun: false, now: NOW })).toMatchObject({ agencies: 1 });
+    expect(await exists(agency, IDS.agencyA)).toBe(true);
+    expect(await exists(agency, IDS.agencyB)).toBe(false);
+    expect(warned).toHaveBeenCalledWith(expect.objectContaining({ agencyId: IDS.agencyA, domains: 2 }), expect.any(String));
+
+    await dbs.owner.update(agencyDomain).set({ status: 'removed' }).where(eq(agencyDomain.agencyId, IDS.agencyA));
+    await dbs.owner.delete(agencySendingDomain).where(eq(agencySendingDomain.agencyId, IDS.agencyA));
+    expect(await purgeArchived(dbs.service, { olderThanDays: 90, dryRun: false, now: NOW })).toMatchObject({ agencies: 1 });
+    expect(await exists(agency, IDS.agencyA)).toBe(false);
+    warned.mockRestore();
   });
 
   it('skips one archived 10 days ago', async () => {

@@ -16,6 +16,9 @@ type Exec = Pick<Db | Tx, 'execute'>;
 
 const CLI_USER = 'cli';
 const rows = async <T extends Record<string, unknown>>(db: Exec, q: SQL): Promise<T[]> => [...(await db.execute<T>(q))] as T[];
+/** 13a1 I2: live hostnames/sending domains an archived agency still holds (rows not yet `removed`); purge would orphan them at the host. */
+const domainCount = (col: SQL) => sql`(SELECT count(*) FROM agency_domain d WHERE d.agency_id = ${col} AND d.status <> 'removed')
+  + (SELECT count(*) FROM agency_sending_domain s WHERE s.agency_id = ${col} AND s.status <> 'removed')`;
 const ts = (d: Date) => sql`${d.toISOString()}::timestamptz`;
 
 /** Agency purge: every audit row of the agency. (`user_id <> 'purged'` only keeps the count honest; the update is a no-op otherwise.) */
@@ -55,15 +58,19 @@ export async function purgeArchived(db: Db, o: { olderThanDays: number; dryRun: 
   const counts: PurgeCounts = { agencies: 0, clients: 0, auditAnonymised: 0 };
   let outcome = 'internal';
   try {
-    const agencies = await rows<{ id: string }>(db, sql`SELECT id FROM agency WHERE archived_at < ${cutoff} ORDER BY archived_at, id`);
-    for (const { id } of agencies) {
+    const agencies = await rows<{ id: string; domains: number }>(db, sql`SELECT a.id, (${domainCount(sql`a.id`)})::int AS domains FROM agency a WHERE a.archived_at < ${cutoff} ORDER BY a.archived_at, a.id`);
+    for (const { id, domains } of agencies) {
+      if (Number(domains) > 0) {
+        workerLog.warn({ agencyId: id, domains: Number(domains) }, 'purge skipped: archived agency still has custom or sending domains; remove them first');
+        continue;
+      }
       if (o.dryRun) {
         counts.agencies += 1;
         counts.auditAnonymised += await anonymise(db, agencyAuditWhere(id), true);
         continue;
       }
       const n = await db.transaction(async (tx) => {
-        const [locked] = await rows(tx, sql`SELECT id FROM agency WHERE id = ${id} AND archived_at < ${cutoff} FOR UPDATE`);
+        const [locked] = await rows(tx, sql`SELECT id FROM agency WHERE id = ${id} AND archived_at < ${cutoff} AND (${domainCount(sql`agency.id`)}) = 0 FOR UPDATE`);
         if (!locked) return null;
         const anonymised = await anonymise(tx, agencyAuditWhere(id), false);
         await tx.execute(sql`DELETE FROM agency WHERE id = ${id} AND archived_at < ${cutoff}`);
