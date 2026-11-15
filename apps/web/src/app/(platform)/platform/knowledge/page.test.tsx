@@ -11,7 +11,7 @@ const h = vi.hoisted(() => ({
 }));
 vi.mock('next/navigation', () => ({ notFound: h.notFound, useRouter: () => ({ push: () => {} }) }));
 vi.mock('@/server/current-viewer', () => ({ requireOperatorContext: async () => ({ ctx: {} }) }));
-vi.mock('@cs/tools', () => ({ createToolRegistry: () => ({ invoke: h.invoke }) }));
+vi.mock('@cs/tools', () => ({ createToolRegistry: () => ({ invoke: h.invoke }), domainVendorsFor: () => ({ vercel: null, postmark: null, fake: false }) }));
 vi.mock('@/server/db', () => ({ dbs: () => ({ app: {}, service: {} }) }));
 vi.mock('@/server/env', () => ({ webEnv: () => ({ webMonitoring: false, get kbImport() { return h.kbImport; }, appUrl: 'http://localhost' }) }));
 vi.mock('@/server/queue', () => ({ enqueueFor: () => undefined, jobStatusFor: () => undefined, queueStatsFor: () => undefined }));

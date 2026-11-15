@@ -10,7 +10,7 @@ const h = vi.hoisted(() => ({
 vi.mock('next/navigation', () => ({ notFound: h.notFound }));
 vi.mock('@/server/current-viewer', () => ({ requireContext: async () => ({ ctx: {} }) }));
 // Mock only below the REAL `callTool`: the registry and the dependencies `toolDeps` resolves.
-vi.mock('@cs/tools', () => ({ createToolRegistry: () => ({ invoke: h.invoke }) }));
+vi.mock('@cs/tools', () => ({ createToolRegistry: () => ({ invoke: h.invoke }), domainVendorsFor: () => ({ vercel: null, postmark: null, fake: false }) }));
 vi.mock('@/server/db', () => ({ dbs: () => ({ app: {}, service: {} }) }));
 vi.mock('@/server/env', () => ({ webEnv: () => ({ webMonitoring: false, kbImport: false, appUrl: 'http://localhost' }) }));
 vi.mock('@/server/queue', () => ({ enqueueFor: () => undefined, jobStatusFor: () => undefined, queueStatsFor: () => undefined }));
