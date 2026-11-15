@@ -67,7 +67,7 @@ export const toolDeps = perEnv((name: EnvName): ToolDeps => {
     app,
     service,
     catalog,
-    delivery: deliveryConfigFromEnv(process.env),
+    delivery: deliveryConfigFromEnv(process.env, webEnv().hostEnv),
     enqueue: enqueueFor(name),
     jobStatus: jobStatusFor(name),
     queueStats: queueStatsFor(name),

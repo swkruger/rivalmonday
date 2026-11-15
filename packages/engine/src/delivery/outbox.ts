@@ -17,11 +17,14 @@ export interface DeliveryConfig {
   platformFrom: string;
 }
 
-/** Null (delivery idles) without APP_URL, a long enough LINK_SIGNING_SECRET, or a host env (13a1 N2: fails closed without NEUTRAL_DOMAIN). */
-export function deliveryConfigFromEnv(env: NodeJS.ProcessEnv): DeliveryConfig | null {
+/**
+ * Null (delivery idles) without APP_URL, a long enough LINK_SIGNING_SECRET, or a host env (13a1 N2: fails closed without NEUTRAL_DOMAIN).
+ * 13a1 I1: the web passes its already-resolved `webEnv().hostEnv` so it never re-parses NEUTRAL_DOMAIN differently; the worker omits it.
+ */
+export function deliveryConfigFromEnv(env: NodeJS.ProcessEnv, resolvedHostEnv?: HostEnv): DeliveryConfig | null {
   const secret = env.LINK_SIGNING_SECRET ?? '';
   if (!env.APP_URL || secret.length < MIN_LINK_SECRET_LENGTH) return null;
-  const { hostEnv } = parseHostEnv(env);
+  const hostEnv = resolvedHostEnv ?? parseHostEnv(env).hostEnv;
   if (!hostEnv) return null;
   const appUrl = env.APP_URL.replace(/\/+$/, '');
   const previous = env.LINK_SIGNING_SECRET_PREVIOUS && env.LINK_SIGNING_SECRET_PREVIOUS.length >= MIN_LINK_SECRET_LENGTH ? [env.LINK_SIGNING_SECRET_PREVIOUS] : [];

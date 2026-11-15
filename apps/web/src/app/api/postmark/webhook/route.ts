@@ -34,7 +34,7 @@ export async function POST(req: Request) {
     return ok();
   }
   try {
-    const outcome = await handlePostmarkEvent({ db: dbs(activeEnvName()).service, delivery: deliveryConfigFromEnv(process.env) }, event);
+    const outcome = await handlePostmarkEvent({ db: dbs(activeEnvName()).service, delivery: deliveryConfigFromEnv(process.env, webEnv().hostEnv) }, event);
     log.info({ ...meta(event), outcome }, 'postmark webhook handled');
   } catch (e) {
     log.error({ ...meta(event), err: e instanceof Error ? { name: e.name, message: e.message } : String(e) }, 'postmark webhook failed');

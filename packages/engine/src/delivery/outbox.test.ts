@@ -344,6 +344,14 @@ describe('deliveryConfigFromEnv', () => {
     expect(deliveryConfigFromEnv({ ...base, NEUTRAL_DOMAIN: '' })).toBeNull();
     expect(deliveryConfigFromEnv({ ...base, NEUTRAL_DOMAIN: 'x.rivalmonday.app' })).toBeNull();
   });
+  it('uses a passed, already-resolved host env instead of parsing NEUTRAL_DOMAIN (13a1 I1)', () => {
+    const { NEUTRAL_DOMAIN: _n, ...noNeutral } = base;
+    expect(deliveryConfigFromEnv(noNeutral)).toBeNull();
+    const hostEnv = { appUrl: 'https://app.rm.test', neutralDomain: 'web.resolved', extraPlatformHosts: [] };
+    expect(deliveryConfigFromEnv(noNeutral, hostEnv)).toMatchObject({ appUrl: 'https://app.rm.test', hostEnv });
+    expect(deliveryConfigFromEnv(base, hostEnv)!.hostEnv).toBe(hostEnv);
+    expect(deliveryConfigFromEnv({ ...noNeutral, APP_URL: '' }, hostEnv)).toBeNull();
+  });
 });
 
 describe('dispatchDue and billing state (9a)', () => {
