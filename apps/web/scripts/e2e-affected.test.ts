@@ -164,6 +164,7 @@ describe('resolveAffected', () => {
     for (const f of ['apps/web/src/server/hosts.ts', 'apps/web/src/server/host-viewer.ts']) {
       expect(resolve(f).tags, f).toEqual(['@ai-connections', '@auth', '@guest', '@hosts', '@smoke']);
     }
+    expect(resolve('apps/web/src/app/rm-internal/host-redirect/route.ts').tags).toEqual(['@hosts', '@kb', '@navigation', '@smoke']);
     // The proxy and per-origin auth run on every page: everything (which includes @hosts).
     for (const f of ['apps/web/src/proxy.ts', 'apps/web/src/server/auth.ts', 'apps/web/src/server/request-host.ts']) expect(resolve(f).mode, f).toBe('all');
     expect(resolve('apps/web/e2e/hosts.spec.ts').tags).toContain('@hosts');

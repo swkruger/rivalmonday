@@ -31,6 +31,15 @@ export async function resolveHost(host: string | null, d: { env: HostEnv; envNam
   cache.set(key, { v, at: now }); // negative results too: random Host headers can't hammer the DB
   return v;
 }
+/**
+ * Cross-host redirects (P5) are issued by an internal route, not by the proxy: self-hosted Next (`next start`/`next dev`) turns a
+ * middleware `Location` on its own listen origin into a relative path, which loops on an agency host. The proxy rewrites to
+ * `HOST_REDIRECT_PATH` with the `routeForHost` target in `HOST_REDIRECT_HEADER`; it drops client copies of the header and 404s any
+ * direct request under `/rm-internal`.
+ */
+export const HOST_REDIRECT_PATH = '/rm-internal/host-redirect';
+export const HOST_REDIRECT_HEADER = 'x-rm-redirect-to';
+export const INTERNAL_PATH = /^\/rm-internal(?:\/|$)/;
 const ANY_HOST = /^\/health$/;
 const MCP_ALLOWED = [/^\/mcp$/, /^\/oauth\//, /^\/\.well-known\/oauth-(?:authorization-server|protected-resource)(?:\/|$)/, /^\/api\/auth\//, /^\/sign-in(?:\/|$)/, /^\/_next\//, /^\/link-expired$/, /^\/favicon/, /^\/icon\.svg$/];
 /** Staff-only paths: agency hosts 307 them to the platform; the platform never bounces them to an agency host (host-viewer). Tested against the pathname. */

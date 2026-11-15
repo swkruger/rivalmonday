@@ -24,10 +24,14 @@ async function withDb<T>(fn: (db: ReturnType<typeof createDb>['db']) => Promise<
   }
 }
 
+/** Idempotent: every non-removed E2E Agency domain row (whatever its hostname) and this spec's rows are marked removed. */
 const removeAll = () => withDb(async (db) => {
-  await db.execute(sql`update agency_domain set status = 'removed', removed_at = now() where hostname = ${HOSTNAME} and status <> 'removed'`);
-  await db.execute(sql`update agency_sending_domain set status = 'removed' where domain = ${SENDING} and status <> 'removed'`);
+  const agency = sql`(select id from agency where host_slug = ${hostsFixture().slug})`;
+  await db.execute(sql`update agency_domain set status = 'removed', removed_at = now() where (agency_id = ${agency} or hostname = ${HOSTNAME}) and status <> 'removed'`);
+  await db.execute(sql`update agency_sending_domain set status = 'removed' where (agency_id = ${agency} or domain = ${SENDING}) and status <> 'removed'`);
 });
+// A crashed earlier run must not leave E2E Agency with a live custom domain (its slug host would turn non-canonical).
+test.beforeAll(removeAll);
 test.afterAll(removeAll);
 
 const panel = (page: Page, title: string) => page.locator('section').filter({ has: page.getByRole('heading', { name: title, exact: true }) });

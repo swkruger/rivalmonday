@@ -105,7 +105,7 @@ test.describe.serial('knowledge base', () => {
   });
 
   test('a non-operator at /platform/knowledge gets 404', { tag: ['@kb', '@platform'] }, async ({ browser }, testInfo) => {
-    // 13a1: on the agency host /platform/* goes to the platform, so the check runs with the client's session on the platform host.
+    // 13a1: client sessions are host-only and /platform lives on the platform host, so the check runs with the client's session there.
     await ensureAskerState(browser, testInfo);
     const context = await contextOnHost(browser, ASKER_STATE, PLATFORM_ORIGIN);
     try {

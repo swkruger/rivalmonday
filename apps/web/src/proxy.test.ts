@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { proxy } from './proxy';
-import { clearHostCache } from './server/hosts';
+import { clearHostCache, HOST_REDIRECT_HEADER, HOST_REDIRECT_PATH } from './server/hosts';
 
 const AGENCY = '11111111-1111-4111-8111-111111111111';
 const lookup = vi.hoisted(() => vi.fn());
@@ -138,15 +138,39 @@ describe('proxy', () => {
     }
   });
 
-  it('redirect is 307 + no-store', async () => {
-    const staff = await onHost('acme.neutral.example', '/agency/clients', { headers: { cookie: 'better-auth.session_token=t' } });
-    expect(staff.status).toBe(307);
-    expect(staff.headers.get('location')).toBe('https://app.example/agency/clients');
-    expect(staff.headers.get('cache-control')).toBe('no-store');
+  it('cross-host redirects are rewritten to the internal redirect route with the target in a proxy-set header (self-hosted Next relativises a middleware Location)', async () => {
+    const staff = await onHost('acme.neutral.example', '/agency/clients?x=1', { headers: { cookie: 'better-auth.session_token=t' } });
+    expect(staff.headers.get('location')).toBeNull();
+    expect(new URL(staff.headers.get('x-middleware-rewrite')!).pathname).toBe(HOST_REDIRECT_PATH);
+    expect(staff.headers.get(`x-middleware-request-${HOST_REDIRECT_HEADER}`)).toBe('https://app.example/agency/clients?x=1');
+    // POST too (a 307 keeps the method), with no session cookie at all.
+    const post = await onHost('acme.neutral.example', '/agency/x', { method: 'POST' });
+    expect(post.headers.get(`x-middleware-request-${HOST_REDIRECT_HEADER}`)).toBe('https://app.example/agency/x');
     const canon = await onHost('old.neutral.example', '/c/x?tab=1');
-    expect(canon.status).toBe(307);
-    expect(canon.headers.get('location')).toBe('https://reports.acme.com/c/x?tab=1');
-    expect(canon.headers.get('cache-control')).toBe('no-store');
+    expect(new URL(canon.headers.get('x-middleware-rewrite')!).pathname).toBe(HOST_REDIRECT_PATH);
+    expect(canon.headers.get(`x-middleware-request-${HOST_REDIRECT_HEADER}`)).toBe('https://reports.acme.com/c/x?tab=1');
+  });
+
+  it('a client-sent redirect-target header is dropped and never reaches a page', async () => {
+    const forged = { [HOST_REDIRECT_HEADER]: 'https://evil.example/x', cookie: 'better-auth.session_token=t' };
+    for (const [host, p] of [['app.example', '/agency'], ['acme.neutral.example', '/c/x'], ['acme.neutral.example', '/sign-in']]) {
+      const res = await onHost(host!, p!, { headers: forged });
+      expect(res.headers.get('x-middleware-rewrite'), `${host}${p}`).toBeNull();
+      expect(res.headers.get(`x-middleware-request-${HOST_REDIRECT_HEADER}`), `${host}${p}`).toBeNull();
+    }
+    // On a redirecting path the proxy's own target wins.
+    const staff = await onHost('acme.neutral.example', '/agency', { headers: forged });
+    expect(staff.headers.get(`x-middleware-request-${HOST_REDIRECT_HEADER}`)).toBe('https://app.example/agency');
+  });
+
+  it('a direct request to the internal redirect path is 404 on every host', async () => {
+    for (const host of ['app.example', 'acme.neutral.example', 'mcp.neutral.example', 'nobody.example']) {
+      for (const p of [HOST_REDIRECT_PATH, `${HOST_REDIRECT_PATH}/x`, '/rm-internal']) {
+        const res = await onHost(host, p, { headers: { [HOST_REDIRECT_HEADER]: 'https://evil.example/', cookie: 'better-auth.session_token=t' } });
+        expect(res.status, `${host}${p}`).toBe(404);
+        expect(res.headers.get('x-middleware-rewrite'), `${host}${p}`).toBeNull();
+      }
+    }
   });
 
   it('/health short-circuits before the host lookup and gets no host headers', async () => {

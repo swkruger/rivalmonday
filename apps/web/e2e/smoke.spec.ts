@@ -26,8 +26,8 @@ test('a client opens a signed email link as a read-only guest without agency dat
   await expect(page.getByRole('heading', { name: 'Smith HVAC cut AC tune-ups to $59' })).toBeVisible();
   await expect(page.getByText(/viewing this through an email link/i)).toBeVisible();
   await expect(page.getByText(/ppc_audit/)).toHaveCount(0);
-  // The guest cookie is host-only: agency pages (platform only) ask to sign in.
-  await page.goto(`${PLATFORM_ORIGIN}/agency`);
+  // Agency pages live on the platform, where the host-only guest cookie does not reach: sign in.
+  await page.goto(`${origin}/agency`);
   await expect(page).toHaveURL((u) => u.origin === PLATFORM_ORIGIN && u.pathname === '/sign-in');
   await expect(page.getByText(/ppc_audit/)).toHaveCount(0);
 });

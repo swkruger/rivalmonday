@@ -251,10 +251,13 @@ test('a client owner of one client gets no switcher and no Platform', { tag: ['@
     const links = await menuLinks(page);
     expect(links).not.toContain('Agencies');
     expect(links).not.toContain('Portfolio');
+    // /platform on the agency host goes to the platform, where this host-only session does not reach.
+    await page.goto('/platform');
+    await expect(page).toHaveURL((u) => u.origin === PLATFORM_ORIGIN && u.pathname === '/sign-in');
   } finally {
     await context.close();
   }
-  // 13a1: an agency host sends /platform to the platform, so the 404 is checked with the owner's session on the platform host.
+  // With a session on the platform host too, a client-only user at /platform gets the 404.
   const platform = await contextOnHost(browser, OWNER_STATE, PLATFORM_ORIGIN);
   try {
     expect((await (await platform.newPage()).goto('/platform'))?.status()).toBe(404);

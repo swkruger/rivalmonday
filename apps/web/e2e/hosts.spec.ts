@@ -109,15 +109,19 @@ test('unknown host → 404', { tag: ['@hosts'] }, async () => {
   expect((await hostRequest('no-such-agency.localhost', '/health')).status).toBe(200);
 });
 
-test('agency host /agency → platform', { tag: ['@hosts'] }, async () => {
+test('agency host /agency → platform', { tag: ['@hosts'] }, async ({ page }) => {
   const { slug } = hostsFixture();
   const res = await hostRequest(`${slug}.localhost`, '/agency/settings?x=1');
   expect(res.status).toBe(307);
-  // The proxy redirects to `${PLATFORM_ORIGIN}/agency/settings?x=1`. Self-hosted `next start` (E2E) relativises a middleware
-  // Location whose origin equals its own listen origin (localhost:<port>) — on Vercel `trustHostHeader` keeps it absolute — so
-  // resolve it against the platform origin here (Task 13 report, concern 1).
-  expect(new URL(String(res.headers.location), PLATFORM_ORIGIN).href).toBe(`${PLATFORM_ORIGIN}/agency/settings?x=1`);
+  expect(res.headers.location).toBe(`${PLATFORM_ORIGIN}/agency/settings?x=1`);
   expect(res.headers['cache-control']).toContain('no-store');
+  // A browser follows it to the platform (no redirect loop), where a signed-out visitor is asked to sign in.
+  await page.goto(`${agencyOriginOf()}/agency`);
+  await expect(page).toHaveURL((u) => u.origin === PLATFORM_ORIGIN && u.pathname === '/sign-in');
+  // The internal redirect route is not reachable directly, on any host.
+  for (const host of [`${slug}.localhost`, 'localhost', 'mcp.localhost']) {
+    expect((await hostRequest(host, '/rm-internal/host-redirect', { headers: { 'x-rm-redirect-to': 'https://evil.example/' } })).status, host).toBe(404);
+  }
   // Platform-only and MCP paths are not served on an agency host at all.
   for (const path of ['/mcp', '/sign-up', '/bot', '/.well-known/oauth-authorization-server']) {
     expect((await hostRequest(`${slug}.localhost`, path)).status, path).toBe(404);
