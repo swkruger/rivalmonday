@@ -27,6 +27,7 @@ const ownerActive = async () => (await dbs.owner.select({ active: contact.active
 beforeEach(async () => {
   env.secret = 'pm-secret';
   vi.stubEnv('APP_URL', 'https://app.example');
+  vi.stubEnv('NEUTRAL_DOMAIN', 'clients.example'); // 13a1 N2: delivery config fails closed without a neutral domain
   vi.stubEnv('LINK_SIGNING_SECRET', 's'.repeat(32));
   await truncateAll(dbs.owner);
   await seedTenancy(dbs.owner);
