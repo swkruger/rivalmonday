@@ -95,6 +95,10 @@ describe('stagingWorkerEnv', () => {
     expect(() => stagingWorkerEnv({ ...FILE, NEUTRAL_DOMAIN: 'clientintel.app' }, {})).toThrow(/Refusing: NEUTRAL_DOMAIN/);
   });
 
+  it('refuses a malformed APP_URL by name (no bare TypeError)', () => {
+    expect(() => stagingWorkerEnv({ ...FILE, APP_URL: 'staging.rivalmonday.app' }, {})).toThrow(/^Refusing: APP_URL is not a valid URL$/);
+  });
+
   it('refuses a bucket not ending in -staging', () => {
     expect(() => stagingWorkerEnv({ ...FILE, R2_BUCKET: 'rivalmonday' }, {})).toThrow(/-staging/);
   });

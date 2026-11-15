@@ -51,12 +51,13 @@ Spec D1–D7 and plan P1–P23 (2026-10-17) stand, amended by the 2026-11-14 ref
 - **Profiler:** `--filter <prefix>`, `*.localhost` requested on 127.0.0.1 + `Host`; gate flag `--no-strict-routes`.
 
 ## Owner verification steps
-1. Set the env on Vercel web (prod + staging) and the Railway worker: `NEUTRAL_DOMAIN`, `VERCEL_API_TOKEN`, `VERCEL_PROJECT_ID`, `VERCEL_TEAM_ID`, `POSTMARK_ACCOUNT_TOKEN`. Add the wildcard `*.<neutral>` and `mcp.<neutral>` domains to the web project.
+1. Before the merge deploy (order in Merge notes, F6), set the env on Vercel web (prod + staging) and the Railway worker: `NEUTRAL_DOMAIN`, `VERCEL_API_TOKEN`, `VERCEL_PROJECT_ID`, `VERCEL_TEAM_ID`, `POSTMARK_ACCOUNT_TOKEN`. Add the wildcard `*.<neutral>` and `mcp.<neutral>` domains to the web project.
 2. As a client, open `<slug>.<NEUTRAL_DOMAIN>` (staging: `<slug>.staging.rivalmonday.app`). Expect the agency's branding, no Rival Monday, and sign-in on that host.
 3. On Agency settings → Domains, add a real custom subdomain, set its DNS, and see it go live (sweep or Check now).
 4. Add a sending domain, set DKIM + Return-Path, wait for verified, and confirm a brief arrives From it.
 5. In Claude, connect `https://mcp.<neutral>/mcp`; OAuth completes and tools list.
 6. Old URL: platform `/mcp` returns 404 (per R9/R13, no moved notice).
+7. Before the merge, set `NEUTRAL_DOMAIN` on the Vercel **Preview** environment, or confirm previews are off. Otherwise previews refuse to boot (see OPS notes). The real Vercel preview env was not checked.
 
 ## Merge notes
 - **F6 env order:** before the merge deploy, set `NEUTRAL_DOMAIN=staging.rivalmonday.app` on the staging web project **and** the Railway staging worker (`pnpm staging:railway-vars`). Otherwise staging boot fails. On prod, set the neutral domain before `DEPLOY_ENABLED`.
@@ -67,7 +68,7 @@ Spec D1–D7 and plan P1–P23 (2026-10-17) stand, amended by the 2026-11-14 ref
   - Pool lead mail is skipped without `NEUTRAL_DOMAIN`.
   - A removed sending domain whose Postmark domain stays verified blocks re-adding until it is cleaned in Postmark.
   - Vercel branch-alias preview hosts must be in `extraPlatformHosts` (`VERCEL_URL`/`VERCEL_BRANCH_URL` only).
-  - Preview with `APP_URL=https://rivalmonday.app` and no `NEUTRAL_DOMAIN` refuses boot on `VERCEL_ENV=production`; non-prod falls back to the APP_URL host.
+  - Preview and production both refuse to boot unless `NEUTRAL_DOMAIN` is set or `APP_URL` is a non-root host such as staging. Off production, `hostEnvFor` retries with the `APP_URL` host, but `parseHostEnv` refuses `rivalmonday.app` (an RM root). So a preview with `APP_URL=https://rivalmonday.app` refuses too (owner step 7).
   - Next `redirect()` bounces can't set no-store (RSC responses are already no-store; P5 holds for proxy redirects).
 - **Copy:** owner signs the new strings in `pnpm copy:review`. About 86 items are on lines added by this branch: Domains page/panels and `DOMAIN_COPY`, the agency help copy, labels, the platform manage menu (host slug), the MCP tool text and the Domains guide. The list is in the SDD `task-15-report.md`.
 - Delete `docs/work/phase-13.md`.

@@ -49,7 +49,12 @@ export function stagingWorkerEnv(file: Record<string, string | undefined>, shell
   if (dummies.length) throw new Error(`Refusing: ${dummies.join(', ')} must be real keys (staging runs live vendors)`);
   if (file.SENTRY_ENVIRONMENT !== 'staging') throw new Error('Refusing: SENTRY_ENVIRONMENT must be staging');
   // 13a1 (R7, F6): the worker (NODE_ENV=production) refuses to start without NEUTRAL_DOMAIN; staging's is its own APP_URL host.
-  const stagingHost = new URL(file.APP_URL!.trim()).hostname;
+  let stagingHost: string;
+  try {
+    stagingHost = new URL(file.APP_URL!.trim()).hostname;
+  } catch {
+    throw new Error('Refusing: APP_URL is not a valid URL');
+  }
   if (file.NEUTRAL_DOMAIN!.trim().toLowerCase() !== stagingHost) throw new Error(`Refusing: NEUTRAL_DOMAIN must be ${stagingHost} (the APP_URL host)`);
   if (!file.R2_BUCKET!.trim().endsWith('-staging')) throw new Error('Refusing: only a bucket whose name ends in -staging is a target');
 
