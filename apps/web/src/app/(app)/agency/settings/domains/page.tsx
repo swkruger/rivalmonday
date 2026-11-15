@@ -36,7 +36,8 @@ export default async function DomainsSettingsPage() {
         breadcrumb={[{ label: 'Agency settings', href: '/agency/settings' }, { label: 'Domains' }]}
         description={
           <>
-            <HelpText text={COPY.description} /> Until they are ready, clients use {view.fallbackHost}.
+            <HelpText text={COPY.description} />
+            {view.custom?.status !== 'live' && ` Until they are ready, clients use ${view.fallbackHost}.`}
           </>
         }
         helpKey={HELP_KEY}

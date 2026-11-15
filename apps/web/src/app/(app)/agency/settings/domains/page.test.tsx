@@ -41,12 +41,22 @@ describe('/agency/settings/domains', () => {
     expect(m.callTool).toHaveBeenCalledWith(m.ctx, 'get_agency_domains', {});
     expect(screen.getByRole('heading', { level: 1, name: 'Domains' })).toBeTruthy();
     expect(screen.getByRole('link', { name: 'Agency settings' }).getAttribute('href')).toBe('/agency/settings');
-    expect(screen.getByText(/Give clients your own web address and email domain\./).textContent).toContain('Until they are ready, clients use brightline.clients.example.');
+    // live: the header drops the fallback sentence
+    expect(screen.getByText(/Give clients your own web address and email domain\./).textContent).not.toContain('Until they are ready');
     expect(screen.getByRole('heading', { name: 'Web address' })).toBeTruthy();
     expect(screen.getByRole('heading', { name: 'Email sending' })).toBeTruthy();
     expect(screen.getByText(/Client emails come from/).textContent).toBe('Client emails come from brightline@mail.clients.example.');
     // the live date in the viewer's time zone (03:00 UTC on Nov 10 is Nov 9 in Chicago)
     expect(screen.getByText(/Nov 9/)).toBeTruthy();
+  });
+
+  it('until the custom domain is live, the header names the fallback host', async () => {
+    for (const custom of [null, { ...VIEW.custom, status: 'pending', liveAt: null }, { ...VIEW.custom, status: 'failed', liveAt: null, error: 'x' }]) {
+      m.callTool.mockResolvedValue({ ...VIEW, custom });
+      await show();
+      expect(screen.getByText(/Give clients your own web address and email domain\./).textContent).toContain('Until they are ready, clients use brightline.clients.example.');
+      cleanup();
+    }
   });
 
   it('page 404 for account_manager and in support', async () => {

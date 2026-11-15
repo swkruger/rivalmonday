@@ -34,7 +34,7 @@ export function DnsRecordsTable({ records }: { records: DnsRow[] }) {
               <TableCell>{r.type}</TableCell>
               <TableCell className="font-mono text-ink">{r.name}</TableCell>
               <TableCell className="max-w-96 font-mono break-all whitespace-normal text-ink">{r.value}</TableCell>
-              <TableCell className="text-right"><CopyButton text={r.value} label="Copy" ariaLabel={`Copy ${r.type} value`} /></TableCell>
+              <TableCell className="text-right"><CopyButton text={r.value} label="Copy" ariaLabel={`Copy ${r.type} value for ${r.name}`} /></TableCell>
             </TableRow>
           ))}
         </TableBody>

@@ -44,6 +44,7 @@ export function SendingPanel({ fromAddress, sending, save, remove }: {
   }, OK);
   const [removing, startRemove] = useTransition();
   const status = sending ? labelFor(SENDING_DOMAIN_STATUS, sending.status) : null;
+  const records = sending ? sendingRecords(sending) : [];
   const confirmRemove: FormAction = async (prev, fd) => {
     setResult(await remove(prev, fd));
     return OK;
@@ -75,7 +76,7 @@ export function SendingPanel({ fromAddress, sending, save, remove }: {
               <Alert tone="warning">Add a DMARC record for {sending.domain} so inboxes trust these emails.</Alert>
             )}
             {sending.status === 'failed' && sending.error && <ErrorNote passive>{sending.error}</ErrorNote>}
-            {sending.status !== 'verified' && sendingRecords(sending).length > 0 && <DnsRecordsTable records={sendingRecords(sending)} />}
+            {sending.status !== 'verified' && records.length > 0 && <DnsRecordsTable records={records} />}
             {sending.status === 'failed' ? (
               <WriteGuard>
                 <div>

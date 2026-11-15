@@ -58,10 +58,11 @@ describe('SendingPanel', () => {
     expect(screen.getByText('Waiting for DNS')).toBeTruthy();
     const dkim = screen.getByRole('row', { name: /_domainkey/ });
     expect(within(dkim).getByText('TXT')).toBeTruthy();
-    expect(within(dkim).getByRole('button', { name: 'Copy TXT value' })).toBeTruthy();
+    expect(within(dkim).getByRole('button', { name: 'Copy TXT value for 20261114pm._domainkey.brightline.co' })).toBeTruthy();
     const rp = screen.getByRole('row', { name: /pm-bounces/ });
     expect(within(rp).getByText('CNAME')).toBeTruthy();
     expect(within(rp).getByText('pm.mtasv.net')).toBeTruthy();
+    expect(within(rp).getByRole('button', { name: 'Copy CNAME value for pm-bounces.brightline.co' })).toBeTruthy();
     expect(screen.getByText(/Client emails come from/).textContent).toBe(`Client emails come from ${FALLBACK_FROM}.`);
   });
 

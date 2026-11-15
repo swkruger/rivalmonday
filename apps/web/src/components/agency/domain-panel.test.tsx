@@ -42,7 +42,7 @@ describe('DomainPanel', () => {
     const row = screen.getByRole('row', { name: /cname\.vercel-dns\.example/ });
     expect(within(row).getByText('CNAME')).toBeTruthy();
     expect(within(row).getByText('intel')).toBeTruthy();
-    expect(within(row).getByRole('button', { name: 'Copy CNAME value' })).toBeTruthy();
+    expect(within(row).getByRole('button', { name: 'Copy CNAME value for intel' })).toBeTruthy();
     expect(screen.queryByLabelText('Domain')).toBeNull();
     expect(screen.getByText(/Until then, clients use/)).toBeTruthy();
     cleanup();

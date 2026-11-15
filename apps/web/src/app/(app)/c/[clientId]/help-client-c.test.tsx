@@ -24,7 +24,7 @@ vi.mock('@/server/current-viewer', () => ({
 vi.mock('@/server/db', () => ({ dbs: () => ({ service: {} }) }));
 vi.mock('@/server/viewer-tz', () => ({ viewerTimeZone: async () => 'America/Chicago' }));
 vi.mock('@/server/theme', () => ({ themeForViewer: async () => ({ branding: { displayName: 'Cool Comfort' } }) }));
-vi.mock('@/server/env', () => ({ webEnv: () => ({ appUrl: 'https://app.test' }) }));
+vi.mock('@/server/env', () => ({ webEnv: () => ({ appUrl: 'https://app.test', hostEnv: { appUrl: 'https://app.test', neutralDomain: 'neutral.test', extraPlatformHosts: [] } }) }));
 vi.mock('@/server/timezones', () => ({ timezoneOptions: () => ['America/Chicago'] }));
 vi.mock('@/server/verticals', () => ({ verticalOptions: async () => [{ id: 'hvac_plumbing', name: 'HVAC & Plumbing', services: [{ id: 'ac_repair', name: 'AC repair' }] }] }));
 vi.mock('@/server/client-settings-nav', () => ({ hasClientSettings: async () => true }));

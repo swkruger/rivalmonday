@@ -28,7 +28,7 @@ vi.mock('@/server/db', () => ({ dbs: () => ({ service: {} }) }));
 vi.mock('@/server/viewer-tz', () => ({ viewerTimeZone: async () => 'UTC' }));
 vi.mock('@/server/ask', () => ({ assistantNameFor: async () => 'Sunny' }));
 vi.mock('@/server/theme', () => ({ themeForViewer: async () => ({ branding: { displayName: 'Cool Comfort', primary: '#47A8E7' }, style: {}, assistantName: 'Sunny' }) }));
-vi.mock('@/server/env', () => ({ webEnv: () => ({ appUrl: 'https://app.test' }) }));
+vi.mock('@/server/env', () => ({ webEnv: () => ({ appUrl: 'https://app.test', hostEnv: { appUrl: 'https://app.test', neutralDomain: 'neutral.test', extraPlatformHosts: [] } }) }));
 vi.mock('@cs/tools', () => ({}));
 vi.mock('@/components/spend-badge', () => ({ SpendBadge: () => <span /> }));
 vi.mock('@/components/runbook/runbook-editor', () => ({ RunbookEditor: () => <div data-testid="editor" /> }));
