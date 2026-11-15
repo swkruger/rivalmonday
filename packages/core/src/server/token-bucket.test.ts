@@ -172,4 +172,8 @@ describe('DEFAULT_VENDOR_LIMITS', () => {
   it('caps ad_media (Google ad image downloads) at 4 concurrent fetches', () => {
     expect(DEFAULT_VENDOR_LIMITS.ad_media).toEqual({ concurrent: 4 });
   });
+  it('caps the domain vendors (Vercel, Postmark) at 2 concurrent calls each (13a1 N6)', () => {
+    expect(DEFAULT_VENDOR_LIMITS.vercel).toEqual({ concurrent: 2 });
+    expect(DEFAULT_VENDOR_LIMITS.postmark).toEqual({ concurrent: 2 });
+  });
 });

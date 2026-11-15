@@ -81,3 +81,10 @@ export { sendWaitlistEmail, type WaitlistEmailKind } from './waitlist/emails';
 export { getSampleBrief, type SampleEvidenceRef, sampleEvidenceKey } from './waitlist/sample';
 export { COUNTER_FLOOR, publicCount, type SiteStatus, siteStatus } from './waitlist/site-status';
 export * from './link-base';
+// Phase 13a1: custom web domains (Vercel) and sending domains (Postmark): hostname rules, vendor wrappers and fakes.
+export { customHostnameProblem, normaliseHostname, sendingDomainProblem } from './domains/hostname';
+export { domainVendorsFor, type DomainVendorOptions } from './domains/vendors';
+export { DomainVendorError, type DomainVendorErrorCode, type PostmarkDomainState, type PostmarkDomains, type VercelDomainState, type VercelDomains } from './domains/errors';
+export { type FakePostmarkDomains, type FakeVercelDomains, fakePostmarkDomains, fakeVercelDomains, resetFakeDomainVendors } from './domains/fakes';
+export { createPostmarkDomains } from './domains/postmark';
+export { createVercelDomains } from './domains/vercel';

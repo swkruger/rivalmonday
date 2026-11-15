@@ -80,6 +80,8 @@ export function parseWebEnv(env: NodeJS.ProcessEnv): WebEnv {
   if (emailFrom && !isBareEmailAddress(emailFrom)) problems.push(EMAIL_FROM_PROBLEM);
   const billingFake = env.BILLING_FAKE_GATEWAY?.trim() || undefined;
   if (billingFake && env.VERCEL_ENV?.trim()) problems.push('BILLING_FAKE_GATEWAY must not be set on Vercel (any VERCEL_ENV)');
+  // 13a1 R8: fake Vercel/Postmark domain vendors are an E2E-only switch (`domainVendorsFor`), like BILLING_FAKE_GATEWAY.
+  if (env.DOMAINS_FAKE_VENDORS?.trim() && env.VERCEL_ENV?.trim()) problems.push('DOMAINS_FAKE_VENDORS must not be set on Vercel (any VERCEL_ENV)');
   const siteOrigins = [env.SITE_ORIGIN, ...(env.SITE_ORIGIN_EXTRA?.split(',') ?? [])]
     .map((x) => x?.trim().replace(/\/+$/, ''))
     .filter((x): x is string => !!x && isOrigin(x));

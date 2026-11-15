@@ -54,6 +54,14 @@ describe('parseWebEnv', () => {
     expect(parseWebEnv({ ...ok, BILLING_FAKE_GATEWAY: '1', VERCEL_ENV: '' } as unknown as NodeJS.ProcessEnv).stripe?.BILLING_FAKE_GATEWAY).toBe('1');
   });
 
+  it('DOMAINS_FAKE_VENDORS with VERCEL_ENV=preview is a problem (R8)', () => {
+    for (const VERCEL_ENV of ['production', 'preview', 'development']) {
+      expect(() => parseWebEnv({ ...ok, DOMAINS_FAKE_VENDORS: '1', VERCEL_ENV } as unknown as NodeJS.ProcessEnv)).toThrow(/DOMAINS_FAKE_VENDORS must not be set on Vercel/);
+    }
+    expect(() => parseWebEnv({ ...ok, DOMAINS_FAKE_VENDORS: '1' } as unknown as NodeJS.ProcessEnv)).not.toThrow();
+    expect(() => parseWebEnv({ ...ok, DOMAINS_FAKE_VENDORS: '1', VERCEL_ENV: '' } as unknown as NodeJS.ProcessEnv)).not.toThrow();
+  });
+
   it('refuses an EMAIL_FROM with a display name (templates wrap it as "Name <EMAIL_FROM>")', () => {
     expect(parseWebEnv({ ...ok, EMAIL_FROM: 'support@mail.rivalmonday.app' } as unknown as NodeJS.ProcessEnv).emailFrom).toBe('support@mail.rivalmonday.app');
     expect(() => parseWebEnv({ ...ok, EMAIL_FROM: 'Rival Monday Staging <support@mail.rivalmonday.app>' } as unknown as NodeJS.ProcessEnv)).toThrow(/EMAIL_FROM must be a bare address/);
