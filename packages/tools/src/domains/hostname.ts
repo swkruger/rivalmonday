@@ -25,8 +25,10 @@ export function customHostnameProblem(input: string, env: HostEnv): 'invalid' | 
   if (h.split('.').length < 3) return 'apex';
   return reservedRoots(env).some((r) => isUnder(h, r)) ? 'reserved' : null;
 }
-export function sendingDomainProblem(input: string, env: HostEnv): 'invalid' | 'reserved' | null {
+/** `extraReserved`: more roots refused with their subdomains (Task 10 review: the platform sender's `EMAIL_FROM` domain). */
+export function sendingDomainProblem(input: string, env: HostEnv, extraReserved: readonly string[] = []): 'invalid' | 'reserved' | null {
   const h = normaliseHostname(input);
   if (!h) return 'invalid';
-  return reservedRoots(env).some((r) => isUnder(h, r)) ? 'reserved' : null;
+  const extra = extraReserved.map((r) => r.trim().toLowerCase().replace(/\.$/, '')).filter(Boolean);
+  return [...reservedRoots(env), ...extra].some((r) => isUnder(h, r)) ? 'reserved' : null;
 }

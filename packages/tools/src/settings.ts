@@ -25,8 +25,15 @@ async function requireOwnClient(service: Db, ctx: AccessContext, clientId: strin
 
 /** True for a Postgres unique-violation (SQLSTATE 23505), including Drizzle 0.44's driver-error wrapper (HANDOVER §6). */
 export function isUniqueViolation(err: unknown): boolean {
-  const e = err as { code?: string; cause?: { code?: string } } | null | undefined;
-  return e?.code === '23505' || e?.cause?.code === '23505';
+  return uniqueViolationConstraint(err) !== null;
+}
+
+/** For a unique violation (same matching as `isUniqueViolation`): the violated constraint's name (`''` when the driver gave none); else null. */
+export function uniqueViolationConstraint(err: unknown): string | null {
+  const e = err as { code?: string; constraint_name?: string; cause?: { code?: string; constraint_name?: string } } | null | undefined;
+  if (e?.code === '23505') return e.constraint_name ?? '';
+  if (e?.cause?.code === '23505') return e.cause.constraint_name ?? '';
+  return null;
 }
 
 // ---- branding (global constraint: accent #F5A524 is never overridable — it is dropped here, not merely defaulted) ----

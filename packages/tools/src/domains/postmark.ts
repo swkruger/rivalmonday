@@ -89,10 +89,12 @@ export function createPostmarkDomains(o: { token: string; fetch?: TimedFetch }):
       const r = await call('POST', '/domains', { Name: d, ReturnPathDomain: returnPathFor(d) });
       if (r.status === 200) return toPostmarkState(r.body as PmDomain);
       const code = Number(pmCode(r));
-      // 512 "Domain already exists" on our account: a create that crashed before the DB write. Read it back so a retry recovers.
+      // 512 "Domain already exists" on our account: possibly a create that crashed before the DB write, so read it back and
+      // let a retry recover. Never adopt a verified domain (the platform's own sender, another agency's live domain): in use.
       if (r.status === 422 && code === PM_DOMAIN_EXISTS) {
         const found = await findByName(d);
-        if (found) return found;
+        if (found && !found.dkim.verified && !found.returnPath.verified) return { ...found, existing: true };
+        if (found) throw new DomainVendorError('in_use', `Postmark POST /domains: HTTP 422 (ErrorCode ${PM_DOMAIN_EXISTS}), already verified`);
         throw new DomainVendorError('in_use', `Postmark POST /domains: HTTP 422 (ErrorCode ${PM_DOMAIN_EXISTS}), not on this account`);
       }
       // 513 "You do not own this Domain": another Postmark account has it.

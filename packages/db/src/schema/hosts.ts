@@ -36,7 +36,7 @@ export const agencyDomain = pgTable(
 );
 
 /**
- * Phase 13a: the agency's own email sending domain (Postmark). At most one non-removed row per agency. RLS (0112) as
+ * Phase 13a: the agency's own email sending domain (Postmark). At most one non-removed row per agency and per domain. RLS (0112) as
  * `agency_domain`.
  */
 export const agencySendingDomain = pgTable(
@@ -62,6 +62,8 @@ export const agencySendingDomain = pgTable(
     check('agency_sending_domain_status_check', sql`${t.status} IN ('pending','verified','failed','removed')`),
     check('agency_sending_domain_local_part_check', sql`${t.localPart} ~ '^[a-z0-9][a-z0-9._-]{0,39}$'`),
     uniqueIndex('agency_sending_domain_one_per_agency').on(t.agencyId).where(sql`${t.status} <> 'removed'`),
+    // 0113 (Task 10 review): a domain is held by one agency at a time (shared Postmark account).
+    uniqueIndex('agency_sending_domain_domain_active').on(t.domain).where(sql`${t.status} <> 'removed'`),
   ],
 );
 

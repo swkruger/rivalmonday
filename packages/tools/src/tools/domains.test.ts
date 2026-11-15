@@ -2,6 +2,8 @@ import { type AccessContext, createAccessContext } from '@cs/core';
 import { agency, agencyDomain, agencySendingDomain, type HostEnv } from '@cs/db';
 import { IDS, openTestDbs, pauseAgency, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
+import { createMemoryTransport } from '@cs/email';
+import { testDeliveryConfig, testSenderConfig } from '@cs/engine/test-config';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ToolDeps } from '../deps';
 import { type FakePostmarkDomains, type FakeVercelDomains, fakePostmarkDomains, fakeVercelDomains, resetFakeDomainVendors } from '../domains/fakes';
@@ -200,7 +202,77 @@ describe('set_sending_domain / remove_sending_domain', () => {
     expect((await sendingRows())[0]).toMatchObject({ localPart: 'briefs' });
     const e = await fails(call(adminB, 'set_sending_domain', { domain: 'agency-b.com', localPart: 'Big Boss' }));
     expect(e.code).toBe('invalid_input');
-    expect(e.message).toContain('Use lower-case letters, digits, dots, hyphens or underscores.');
+    expect(e.message).toBe('Use lower-case letters, digits, dots, hyphens or underscores.');
+    expect(e.userFacing).toBe(true);
+    expect(await sendingRows(B)).toEqual([]);
+  });
+
+  it('the EMAIL_FROM domain is refused (and its subdomains)', async () => {
+    registry = build({ delivery: testDeliveryConfig({ platformFrom: 'team@rm-sender.example' }) });
+    for (const domain of ['rm-sender.example', 'Mail.RM-Sender.example']) {
+      expect(await fails(call(admin, 'set_sending_domain', { domain })), domain).toMatchObject({ code: 'invalid_input', message: DOMAIN_COPY.reserved });
+    }
+    // without delivery, the lead-email sender's address counts too
+    registry = build({ leadEmail: { transport: createMemoryTransport(), appUrl: HOST_ENV.appUrl, sender: testSenderConfig({ platformFrom: 'briefs@lead-sender.example' }), platformAdmins: [] } });
+    expect(await fails(call(admin, 'set_sending_domain', { domain: 'lead-sender.example' }))).toMatchObject({ message: DOMAIN_COPY.reserved });
+    expect(await sendingRows()).toEqual([]);
+  });
+
+  it('unverified orphan read-back (512) still recovers: the existing Postmark domain is adopted', async () => {
+    const orphan = await postmark.create('agency-a.com'); // a create that crashed before the DB write
+    expect(await call(admin, 'set_sending_domain', { domain: 'agency-a.com' })).toEqual({ ok: true });
+    expect((await sendingRows())[0]).toMatchObject({ postmarkDomainId: orphan.id, status: 'pending' });
+  });
+
+  it('512 read-back of a verified domain → in_use', async () => {
+    const live = await postmark.create('agency-a.com');
+    postmark.setVerified(live.id);
+    await postmark.verifyDkim(live.id);
+    expect(await fails(call(admin, 'set_sending_domain', { domain: 'agency-a.com' }))).toMatchObject({ code: 'conflict', message: DOMAIN_COPY.inUse });
+    expect(await sendingRows()).toEqual([]);
+    expect((await postmark.verifyDkim(live.id)).dkim.verified).toBe(true); // untouched
+  });
+
+  it("512 read-back of a domain held by another agency's row → in_use (the Postmark domain stays)", async () => {
+    const held = await postmark.create('agency-a.com');
+    await dbs.owner.insert(agencySendingDomain).values({ agencyId: B, domain: 'legacy-b.com', postmarkDomainId: held.id, status: 'pending' });
+    const remove = vi.spyOn(postmark, 'remove');
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {});
+    expect(await fails(call(admin, 'set_sending_domain', { domain: 'agency-a.com' }))).toMatchObject({ code: 'conflict', message: DOMAIN_COPY.inUse });
+    err.mockRestore();
+    expect(await sendingRows()).toEqual([]);
+    expect(await sendingRows(B)).toMatchObject([{ postmarkDomainId: held.id }]);
+    expect(remove).not.toHaveBeenCalled();
+    expect(enqueued).toEqual([]);
+  });
+
+  it('concurrent duplicate sending domain hits the unique index → in_use', async () => {
+    // B's row lands between A's pre-check and A's insert (both passed the DB pre-check)
+    let raced = false;
+    const racing = new Proxy(dbs.service, {
+      get(t, p, r) {
+        if (p !== 'insert') return Reflect.get(t, p, r);
+        return (table: unknown) => {
+          const b = t.insert(table as typeof agencySendingDomain);
+          if (table !== agencySendingDomain || raced) return b;
+          raced = true;
+          return {
+            values: (v: typeof agencySendingDomain.$inferInsert) => ({
+              returning: async (sel: { id: typeof agencySendingDomain.id }) => {
+                await dbs.owner.insert(agencySendingDomain).values({ agencyId: B, domain: 'race.com' });
+                return b.values(v).returning(sel);
+              },
+            }),
+          };
+        };
+      },
+    });
+    registry = build({ service: racing });
+    const create = vi.spyOn(postmark, 'create');
+    expect(await fails(call(admin, 'set_sending_domain', { domain: 'race.com' }))).toMatchObject({ code: 'conflict', message: DOMAIN_COPY.inUse });
+    expect(raced).toBe(true);
+    expect(create).not.toHaveBeenCalled();
+    expect(await sendingRows()).toEqual([]);
   });
 
   it('invalid / reserved / in use (DB or Postmark) refusals; vendor failure leaves no row', async () => {

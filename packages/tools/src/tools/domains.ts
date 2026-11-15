@@ -1,11 +1,12 @@
 import { type AccessContext, toolkit, ToolError, type ToolErrorCode } from '@cs/core';
 import { agency, agencyDomain, agencySendingDomain, fallbackHostname, type HostEnv } from '@cs/db';
 import { clientFromAddress } from '@cs/engine';
-import { and, eq, ne } from 'drizzle-orm';
+import { and, eq, ne, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import type { EnqueueJob, QueueJob, ToolDeps } from '../deps';
 import { DomainVendorError, type PostmarkDomains, type VercelDomains } from '../domains/errors';
 import { customHostnameProblem, normaliseHostname, sendingDomainProblem } from '../domains/hostname';
+import { uniqueViolationConstraint } from '../settings';
 import { AgencyDomainsView } from './schemas';
 
 /**
@@ -52,13 +53,11 @@ function vendorOf<K extends 'vercel' | 'postmark'>(deps: ToolDeps, k: K): K exte
   return v as K extends 'vercel' ? VercelDomains : PostmarkDomains;
 }
 
-/** The Postgres unique-violation constraint name (`''` when unnamed) anywhere in the error's cause chain, else null. */
-export function uniqueViolationOf(e: unknown): string | null {
-  let x = e as { code?: string; constraint_name?: string; constraint?: string; cause?: unknown } | null | undefined;
-  for (let i = 0; x && i < 4; i++, x = x.cause as typeof x) {
-    if (x.code === '23505') return x.constraint_name ?? x.constraint ?? '';
-  }
-  return null;
+/** The platform sender's domain (`EMAIL_FROM`, else briefs@<APP_URL host>): never an agency sending domain. */
+function platformSenderDomains(deps: ToolDeps): string[] {
+  const from = deps.delivery?.platformFrom || deps.leadEmail?.sender.platformFrom || '';
+  const at = from.lastIndexOf('@');
+  return at > 0 ? [from.slice(at + 1).replace(/>\s*$/, '').trim()] : [];
 }
 
 /** A vendor failure as decided copy (`invalid` → `invalidCopy` when given, else the retry copy); logs only the (log-safe) vendor code and message, never to the user. */
@@ -157,7 +156,7 @@ export const setCustomDomainTool = defineTool({
     try {
       [{ id }] = (await deps.service.insert(agencyDomain).values({ agencyId: ctx.agencyId, hostname, status: 'pending' }).returning({ id: agencyDomain.id })) as [{ id: string }];
     } catch (e) {
-      const c = uniqueViolationOf(e);
+      const c = uniqueViolationConstraint(e);
       if (c === null) throw e;
       throw refuse('conflict', c === 'agency_domain_one_per_agency' ? DOMAIN_COPY.oneAtATime : DOMAIN_COPY.inUse);
     }
@@ -203,13 +202,14 @@ export const setSendingDomainTool = defineTool({
   name: 'set_sending_domain',
   access: 'write',
   description: "Set the agency's own email sending domain (e.g. youragency.com) and the address name before the @ (default briefs); returns once the DKIM and Return-Path records are ready to show.",
-  input: z.object({ domain: z.string().trim().max(253), localPart: z.string().regex(LOCAL_PART_RE, DOMAIN_COPY.localPartInvalid).optional() }),
+  input: z.object({ domain: z.string().trim().max(253), localPart: z.string().trim().max(64).optional() }),
   output: OK,
   permission: 'agency',
   async handler(ctx, input, deps) {
     requireAdmin(ctx);
     const postmark = vendorOf(deps, 'postmark');
-    const problem = sendingDomainProblem(input.domain, hostEnvOf(deps));
+    if (input.localPart !== undefined && !LOCAL_PART_RE.test(input.localPart)) throw refuse('invalid_input', DOMAIN_COPY.localPartInvalid);
+    const problem = sendingDomainProblem(input.domain, hostEnvOf(deps), platformSenderDomains(deps));
     if (problem) throw refuse('invalid_input', problem === 'reserved' ? DOMAIN_COPY.reserved : DOMAIN_COPY.sendingInvalid);
     const domain = normaliseHostname(input.domain)!;
 
@@ -227,20 +227,30 @@ export const setSendingDomainTool = defineTool({
         .values({ agencyId: ctx.agencyId, domain, localPart: input.localPart ?? DEFAULT_LOCAL_PART, status: 'pending' })
         .returning({ id: agencySendingDomain.id })) as [{ id: string }];
     } catch (e) {
-      if (uniqueViolationOf(e) === null) throw e;
-      throw refuse('conflict', DOMAIN_COPY.oneAtATime);
+      const c = uniqueViolationConstraint(e);
+      if (c === null) throw e;
+      throw refuse('conflict', c === 'agency_sending_domain_domain_active' ? DOMAIN_COPY.inUse : DOMAIN_COPY.oneAtATime);
     }
 
     let pm;
     try {
-      pm = await postmark.create(domain); // a domain already on our account (an earlier crashed create) is read back
+      // An unverified domain already on our (shared) account is read back (an earlier crashed create); a verified one is in_use.
+      pm = await postmark.create(domain);
     } catch (e) {
       await deps.service.delete(agencySendingDomain).where(eq(agencySendingDomain.id, id));
       throw vendorRefusal(e, 'postmark create', ctx.agencyId, DOMAIN_COPY.sendingInvalid);
     }
-    await deps.service.update(agencySendingDomain).set({
-      postmarkDomainId: pm.id, dkimHost: pm.dkim.host, dkimValue: pm.dkim.value, returnPathHost: pm.returnPath.host, returnPathValue: pm.returnPath.value, lastCheckedAt: new Date(),
-    }).where(eq(agencySendingDomain.id, id));
+    // Adopt the Postmark domain only if no other current row holds it (a read-back must never hand one agency another's domain).
+    const pmId = pm.id;
+    const adopted = await deps.service.update(agencySendingDomain).set({
+      postmarkDomainId: pmId, dkimHost: pm.dkim.host, dkimValue: pm.dkim.value, returnPathHost: pm.returnPath.host, returnPathValue: pm.returnPath.value, lastCheckedAt: new Date(),
+    }).where(and(eq(agencySendingDomain.id, id), sql`NOT EXISTS (SELECT 1 FROM agency_sending_domain o WHERE o.postmark_domain_id = ${pmId} AND o.id <> ${id} AND o.status <> 'removed')`))
+      .returning({ id: agencySendingDomain.id });
+    if (adopted.length === 0) {
+      await deps.service.delete(agencySendingDomain).where(eq(agencySendingDomain.id, id));
+      console.error('[domains] postmark domain already held by another row', { agencyId: ctx.agencyId, existing: !!pm.existing });
+      throw refuse('conflict', DOMAIN_COPY.inUse); // the Postmark domain stays (it belongs to the other row)
+    }
     await enqueueVerify(deps, 'sender-verify', { sendingDomainId: id }, `sender:${id}`);
     return { ok: true as const };
   },

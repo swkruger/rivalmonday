@@ -8,8 +8,12 @@ export interface VercelDomains {
   remove(hostname: string): Promise<void>;
   status(hostname: string): Promise<VercelDomainState>;
 }
-/** Phase 13a1: the agency's sending domain on the Postmark account. `id` = Postmark's integer domain id. */
-export interface PostmarkDomainState { id: number; dkim: { host: string; value: string; verified: boolean }; returnPath: { host: string; value: string; verified: boolean } }
+/**
+ * Phase 13a1: the agency's sending domain on the Postmark account. `id` = Postmark's integer domain id. `existing` (create
+ * only): the domain was already on the account (ErrorCode 512) and was read back — unverified only; callers must also check
+ * that no other agency row holds `id` before adopting it.
+ */
+export interface PostmarkDomainState { id: number; dkim: { host: string; value: string; verified: boolean }; returnPath: { host: string; value: string; verified: boolean }; existing?: boolean }
 export interface PostmarkDomains {
   create(domain: string): Promise<PostmarkDomainState>;
   verifyDkim(id: number): Promise<PostmarkDomainState>;

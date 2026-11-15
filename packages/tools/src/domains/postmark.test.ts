@@ -52,8 +52,20 @@ describe('createPostmarkDomains', () => {
     });
     const s = await createPostmarkDomains({ token: TOKEN, fetch }).create('agency.com');
     expect(s.id).toBe(36735);
+    expect(s.existing).toBe(true);
     expect(s.dkim.host).toBe('20261114pm._domainkey.agency.com');
     expect(calls.map((c) => `${c.method} ${new URL(c.url).pathname}${new URL(c.url).search}`)).toEqual(['POST /domains', 'GET /domains?count=500&offset=0', 'GET /domains/36735']);
+  });
+
+  it('512 read-back of a verified domain → in_use (DKIM or Return-Path verified: never adopted)', async () => {
+    for (const verified of [{ DKIMVerified: true }, { ReturnPathDomainVerified: true }]) {
+      const { fetch } = fakeFetch((method, path) => {
+        if (method === 'POST') return json(422, { ErrorCode: 512 });
+        if (path === '/domains') return json(200, { TotalCount: 1, Domains: [{ ID: 36735, Name: 'agency.com' }] });
+        return json(200, domain(verified));
+      });
+      await expect(createPostmarkDomains({ token: TOKEN, fetch }).create('agency.com')).rejects.toMatchObject({ code: 'in_use' });
+    }
   });
 
   it('512 without a match on the account, or 513 (another account owns it) → in_use', async () => {

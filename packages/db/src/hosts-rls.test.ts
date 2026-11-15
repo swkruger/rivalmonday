@@ -119,6 +119,13 @@ describe('agency_domain / agency_sending_domain (0111, 0112)', () => {
     await dbs.service.insert(agencyDomain).values({ agencyId: IDS.agencyB, hostname: 'intel.shared.test', status: 'pending' });
   });
 
+  it("same sending domain for two agencies violates agency_sending_domain_domain_active (0113); removed rows don't count", async () => {
+    await dbs.service.insert(agencySendingDomain).values({ agencyId: IDS.agencyA, domain: 'shared.test', status: 'verified' });
+    expect(await errorText(dbs.service.insert(agencySendingDomain).values({ agencyId: IDS.agencyB, domain: 'shared.test' }))).toMatch(/agency_sending_domain_domain_active/);
+    await dbs.service.update(agencySendingDomain).set({ status: 'removed' }).where(eq(agencySendingDomain.agencyId, IDS.agencyA));
+    await dbs.service.insert(agencySendingDomain).values({ agencyId: IDS.agencyB, domain: 'shared.test' });
+  });
+
   it('account_manager reads own rows, client_owner sees none, other agency none', async () => {
     await dbs.service.insert(agencyDomain).values([
       { agencyId: IDS.agencyA, hostname: 'intel.a.test', dnsRecords: [{ type: 'CNAME', name: 'intel', value: 'cname.vercel-dns.com' }] },

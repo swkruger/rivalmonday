@@ -82,4 +82,13 @@ describe('fakes', () => {
     await pm.remove(s.id);
     expect((await pm.verifyDkim(s.id).catch((e) => e)).code).toBe('invalid');
   });
+
+  it('postmark fake mirrors 512: an unverified domain already there is read back (existing), a verified one is in_use', async () => {
+    const pm = fakePostmarkDomains();
+    const s = await pm.create('agency.com');
+    expect(await pm.create('Agency.com')).toMatchObject({ id: s.id, existing: true });
+    pm.setVerified(s.id);
+    await pm.verifyDkim(s.id);
+    expect((await pm.create('agency.com').catch((e) => e)).code).toBe('in_use');
+  });
 });

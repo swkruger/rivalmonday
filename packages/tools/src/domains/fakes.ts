@@ -81,8 +81,16 @@ function createFakePostmark(): FakePostmarkDomains {
     setVerified: (id) => { get(id).published = true; },
     async create(domain) {
       fail.check('Postmark create');
+      const name = domain.toLowerCase();
+      // Mirrors the real wrapper's ErrorCode 512 path: an unverified domain already on the account is read back, a verified one is in use.
+      const prior = [...domains.entries()].find(([, d]) => d.name === name);
+      if (prior) {
+        const [pid, d] = prior;
+        if (d.dkim || d.returnPath) throw new DomainVendorError('in_use', 'Fake Postmark create: already verified');
+        return { ...state(pid), existing: true };
+      }
       const id = nextId++;
-      domains.set(id, { name: domain.toLowerCase(), published: false, dkim: false, returnPath: false });
+      domains.set(id, { name, published: false, dkim: false, returnPath: false });
       return state(id);
     },
     async verifyDkim(id) {

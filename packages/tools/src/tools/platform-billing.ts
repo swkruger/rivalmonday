@@ -8,6 +8,7 @@ import { z } from 'zod';
 import type { ToolDeps } from '../deps';
 import { type PlatformRole, requirePlatformOperator } from '../platform';
 import { withPlatformAudit } from '../platform/audit';
+import { isUniqueViolation } from '../settings';
 import { ensureCustomer, gatewayOf, hasLiveSubscription } from './billing';
 
 /**
@@ -42,11 +43,6 @@ export async function requireAgency(
   if (!a) throw new ToolError('not_found', 'Agency not found');
   return a;
 }
-
-const isUniqueViolation = (e: unknown) => {
-  const x = e as { code?: string; cause?: { code?: string } } | null;
-  return x?.code === '23505' || x?.cause?.code === '23505';
-};
 
 /** Role check first (refusals never reach the audit log), then the body under one audit row. */
 export async function operate<T>(

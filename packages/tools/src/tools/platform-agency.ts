@@ -8,8 +8,8 @@ import { sendTeamInviteEmail } from '../access/team-invite-email';
 import type { ToolDeps } from '../deps';
 import { platformAgencyCtx } from '../platform/agency-ctx';
 import { archiveTenant } from '../platform/archive';
+import { uniqueViolationConstraint } from '../settings';
 import { sendAgencyHoldEmail } from '../platform/hold-email';
-import { uniqueViolationOf } from './domains';
 import { operate } from './platform-billing';
 
 /**
@@ -109,7 +109,7 @@ export const platformSetAgencyHostSlugTool = defineTool({
       try {
         await deps.service.update(agency).set({ hostSlug: slug }).where(eq(agency.id, input.agencyId));
       } catch (e) {
-        const c = uniqueViolationOf(e);
+        const c = uniqueViolationConstraint(e);
         if (c === 'agency_host_slug_unique' || c === '') throw new ToolError('conflict', HOST_SLUG_TAKEN_MESSAGE, { userFacing: true });
         throw e;
       }
