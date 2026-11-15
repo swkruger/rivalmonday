@@ -53,6 +53,13 @@ export async function resolveViewer(input: {
 }): Promise<Viewer | HostRedirect | null> {
   const { service, session, host } = input;
   if (session) {
+    // Launch gate (13a1 Task 15): the Decision 16 hint lookup starts beside `listMemberships` (it needs only the hint), so it
+    // adds no sequential stage. A 404 or page redirect resolves the viewer twice (fresh `cache()`), so each stage counts twice.
+    const hint = input.clientHint;
+    const hintAgency = hint && isUuid(hint)
+      ? service.select({ agencyId: client.agencyId }).from(client).where(eq(client.id, hint)).then((r) => r[0]?.agencyId ?? null)
+      : Promise.resolve(null);
+    void hintAgency.catch(() => undefined); // handled where used; an early return must not leave an unhandled rejection
     const all = await listMemberships(service, session.userId);
     const target = platformBounceTarget({ host, memberships: all, path: input.path, pickedAgencyId: pickMembership(all, input.membershipCookie)?.agencyId ?? null });
     const bounce = target && input.bounce ? await input.bounce(target) : null;
@@ -62,10 +69,9 @@ export async function resolveViewer(input: {
     const memberships = decision.memberships;
     let m = pickMembership(memberships, input.membershipCookie);
     // Decision 16 (5a carry-over): a link into /c/<id> opens under a membership that covers that client, without changing the cookie.
-    const hint = input.clientHint;
     if (m && hint && isUuid(hint) && memberships.length > 1) {
-      const [c] = await service.select({ agencyId: client.agencyId }).from(client).where(eq(client.id, hint));
-      if (c && !coversClient(m, hint, c.agencyId)) m = memberships.find((x) => coversClient(x, hint, c.agencyId)) ?? m;
+      const agencyId = await hintAgency;
+      if (agencyId && !coversClient(m, hint, agencyId)) m = memberships.find((x) => coversClient(x, hint, agencyId)) ?? m;
     }
     if (!m) return { kind: 'member-less', userId: session.userId, email: session.email, name: session.name };
     input.onMembership?.(m);

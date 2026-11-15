@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Launch gate (spec 2026-11-04-launch-gate § Profiler, D5/D7): every page ≤ 8 sequential app DB stages.
 #
-#   bash apps/web/scripts/profile-gate.sh [--db local|neon-dev] [--seed] [--skip-build] [-- <extra profile:pages args>]
+#   bash apps/web/scripts/profile-gate.sh [--db local|neon-dev] [--seed] [--skip-build] [--no-strict-routes] [-- <extra profile:pages args>]
 #
 # Builds the production server with the E2E server env (playwright.config.ts `E2E_SERVER_ENV`), starts it with
 # PROFILE_TOOLS=1 on port 3100, waits for /health, runs
@@ -14,6 +14,8 @@
 #   --seed         (local only) re-seed the test DB exactly as E2E global setup does, and drop the stale admin
 #                  storage state (the reset ends its session). Never while an E2E run uses the same test DB.
 #   --skip-build   reuse the existing .next build.
+#   --no-strict-routes  do not fail on routes left unresolved (the agency-host client pass: the seed has no alert/brief ids
+#                  for that client); every profiled page is still asserted.
 # Never run alongside another server on 3100 (E2E uses it too).
 set -uo pipefail
 
@@ -23,6 +25,7 @@ PORT=3100
 DB=local
 SEED=0
 BUILD=1
+STRICT=(--strict-routes)
 EXTRA=()
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -30,6 +33,7 @@ while [ $# -gt 0 ]; do
     --db=*) DB="${1#--db=}"; shift ;;
     --seed) SEED=1; shift ;;
     --skip-build) BUILD=0; shift ;;
+    --no-strict-routes) STRICT=(); shift ;;
     --) shift; EXTRA=("$@"); break ;;
     *) echo "profile-gate: unknown argument $1" >&2; exit 2 ;;
   esac
@@ -104,7 +108,7 @@ if [ "$up" != 1 ]; then
   exit 3
 fi
 
-pnpm exec tsx scripts/profile-pages.ts --base "http://localhost:$PORT" --params-from-seed --strict-routes --assert-db-stages 8 --json .profile/gate.json "${EXTRA[@]}"
+pnpm exec tsx scripts/profile-pages.ts --base "http://localhost:$PORT" --params-from-seed "${STRICT[@]}" --assert-db-stages 8 --json .profile/gate.json "${EXTRA[@]}"
 code=$?
 stop_server
 echo "profile-gate: exit $code (rows in apps/web/.profile/gate.json)"
