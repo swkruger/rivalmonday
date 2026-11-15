@@ -17,6 +17,8 @@ export interface ProfileArgs {
   paramsFromSeed: boolean;
   /** Also write the per-page rows (`ReportRow[]`) to this JSON file. */
   json: string | null;
+  /** Profile only the routes starting with this path prefix (e.g. `/c/` under a client cookie); null = every route. */
+  filter: string | null;
 }
 
 /** One measured page in `--json` output (launch-gate D5: only `dbStages` is asserted). */
@@ -30,7 +32,7 @@ export interface ReportRow {
   txStages: number;
 }
 
-export const PROFILE_USAGE = `Usage: pnpm --filter @cs/web profile:pages [--base URL] [--cookie FILE] [--assert-stages N] [--assert-db-stages N] [--strict-routes] [--param name=value]... [--params-from-seed] [--json FILE]
+export const PROFILE_USAGE = `Usage: pnpm --filter @cs/web profile:pages [--base URL] [--cookie FILE] [--assert-stages N] [--assert-db-stages N] [--strict-routes] [--param name=value]... [--params-from-seed] [--json FILE] [--filter PREFIX]
   --base URL           server to profile (default http://localhost:$E2E_PORT, port 3100 when unset); it must run with PROFILE_TOOLS=1
                        for per-tool timings (a server without it gives page times only)
   --cookie FILE        Playwright storage-state JSON or a raw Cookie header (default: the E2E admin's storage state,
@@ -43,14 +45,16 @@ export const PROFILE_USAGE = `Usage: pnpm --filter @cs/web profile:pages [--base
                        first one found by crawling
   --params-from-seed   take clientId, the Ask thread ids, reportId and the kb article id from the E2E seed (read via
                        TEST_SERVICE_DATABASE_URL, or PROFILE_SEED_DATABASE_URL); --param still overrides
-  --json FILE          also write the per-page rows (route, path, status, wallMs, dbStages, authStages, txStages)`;
+  --json FILE          also write the per-page rows (route, path, status, wallMs, dbStages, authStages, txStages)
+  --filter PREFIX      profile only the routes starting with PREFIX (e.g. /c/ with a client cookie on an agency host,
+                       so agency and platform routes are not visited)`;
 
 export function parseProfileArgs(argv: string[], env: Record<string, string | undefined>): ProfileArgs | { error: string } {
-  let values: { base?: string; cookie?: string; 'assert-stages'?: string; 'assert-db-stages'?: string; 'strict-routes'?: boolean; param?: string[]; 'params-from-seed'?: boolean; json?: string };
+  let values: { base?: string; cookie?: string; 'assert-stages'?: string; 'assert-db-stages'?: string; 'strict-routes'?: boolean; param?: string[]; 'params-from-seed'?: boolean; json?: string; filter?: string };
   try {
     ({ values } = parseArgs({
       args: argv, strict: true, allowPositionals: false,
-      options: { base: { type: 'string' }, cookie: { type: 'string' }, 'assert-stages': { type: 'string' }, 'assert-db-stages': { type: 'string' }, 'strict-routes': { type: 'boolean' }, param: { type: 'string', multiple: true }, 'params-from-seed': { type: 'boolean' }, json: { type: 'string' } },
+      options: { base: { type: 'string' }, cookie: { type: 'string' }, 'assert-stages': { type: 'string' }, 'assert-db-stages': { type: 'string' }, 'strict-routes': { type: 'boolean' }, param: { type: 'string', multiple: true }, 'params-from-seed': { type: 'boolean' }, json: { type: 'string' }, filter: { type: 'string' } },
     }));
   } catch (e) {
     return { error: (e as Error).message };
@@ -66,13 +70,19 @@ export function parseProfileArgs(argv: string[], env: Record<string, string | un
   if (assertStages !== null && typeof assertStages === 'object') return assertStages;
   const assertDbStages = stagesOpt('assert-db-stages');
   if (assertDbStages !== null && typeof assertDbStages === 'object') return assertDbStages;
+  if (values.filter !== undefined && !values.filter.startsWith('/')) return { error: '--filter must be a path prefix starting with /, e.g. /c/' };
   const params: Record<string, string> = {};
   for (const p of values.param ?? []) {
     const m = /^([\w/[\]-]+)=(.+)$/.exec(p);
     if (!m) return { error: `--param must be name=value (got "${p}")` };
     params[m[1]!] = m[2]!;
   }
-  return { base, cookie: values.cookie ?? null, assertStages, assertDbStages, strictRoutes: values['strict-routes'] === true, params, paramsFromSeed: values['params-from-seed'] === true, json: values.json ?? null };
+  return { base, cookie: values.cookie ?? null, assertStages, assertDbStages, strictRoutes: values['strict-routes'] === true, params, paramsFromSeed: values['params-from-seed'] === true, json: values.json ?? null, filter: values.filter ?? null };
+}
+
+/** True when `route` is in scope of `--filter` (every route when there is no filter). */
+export function matchesFilter(route: string, filter: string | null): boolean {
+  return filter === null || route.startsWith(filter);
 }
 
 /** `/c/[clientId]/briefs/[briefId]` → a whole-path regex with one named group per param. */

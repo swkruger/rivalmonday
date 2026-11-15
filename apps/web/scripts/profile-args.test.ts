@@ -1,14 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { cookieHeaderFrom, fillKnownParams, fillsStaticSibling, medianOf, medianVisit, parseProfileArgs, routePattern, routeOfPageDir } from './profile-args';
+import { cookieHeaderFrom, fillKnownParams, fillsStaticSibling, matchesFilter, medianOf, medianVisit, parseProfileArgs, routePattern, routeOfPageDir } from './profile-args';
 
 describe('parseProfileArgs', () => {
   it('defaults to the local E2E server on E2E_PORT (3100 when unset), no cookie file, no assertion', () => {
-    expect(parseProfileArgs([], {})).toEqual({ base: 'http://localhost:3100', cookie: null, assertStages: null, assertDbStages: null, strictRoutes: false, params: {}, paramsFromSeed: false, json: null });
+    expect(parseProfileArgs([], {})).toEqual({ base: 'http://localhost:3100', cookie: null, assertStages: null, assertDbStages: null, strictRoutes: false, params: {}, paramsFromSeed: false, json: null, filter: null });
     expect(parseProfileArgs([], { E2E_PORT: '3107' })).toMatchObject({ base: 'http://localhost:3107' });
   });
   it('takes --base (trailing slash dropped), --cookie and --assert-stages', () => {
     expect(parseProfileArgs(['--base', 'https://rivalmonday.app/', '--cookie', 'c.json', '--assert-stages', '4'], {}))
-      .toEqual({ base: 'https://rivalmonday.app', cookie: 'c.json', assertStages: 4, assertDbStages: null, strictRoutes: false, params: {}, paramsFromSeed: false, json: null });
+      .toEqual({ base: 'https://rivalmonday.app', cookie: 'c.json', assertStages: 4, assertDbStages: null, strictRoutes: false, params: {}, paramsFromSeed: false, json: null, filter: null });
     expect(parseProfileArgs(['--assert-stages=4'], {})).toMatchObject({ assertStages: 4 });
   });
   it('takes --assert-db-stages and --strict-routes (both off by default)', () => {
@@ -18,6 +18,16 @@ describe('parseProfileArgs', () => {
     expect(parseProfileArgs(['--params-from-seed', '--json', '.profile/gate.json'], {})).toMatchObject({ paramsFromSeed: true, json: '.profile/gate.json' });
     expect(parseProfileArgs(['--json=out.json'], {})).toMatchObject({ paramsFromSeed: false, json: 'out.json' });
     expect(parseProfileArgs(['--json'], {})).toHaveProperty('error');
+  });
+  it('takes --filter <prefix> (profile only routes starting with it; off by default)', () => {
+    expect(parseProfileArgs(['--filter', '/c/'], {})).toMatchObject({ filter: '/c/' });
+    expect(parseProfileArgs(['--filter=/agency'], {})).toMatchObject({ filter: '/agency' });
+    expect(parseProfileArgs([], {})).toMatchObject({ filter: null });
+  });
+  it('rejects a --filter that is not a path prefix', () => {
+    expect(parseProfileArgs(['--filter', 'c/'], {})).toHaveProperty('error');
+    expect(parseProfileArgs(['--filter', ''], {})).toHaveProperty('error');
+    expect(parseProfileArgs(['--filter'], {})).toHaveProperty('error');
   });
   it('collects repeated --param name=value overrides', () => {
     expect(parseProfileArgs(['--param', 'clientId=abc', '--param', 'briefId=def'], {})).toMatchObject({ params: { clientId: 'abc', briefId: 'def' } });
@@ -109,5 +119,14 @@ describe('medianOf / medianVisit (3 warm visits per page)', () => {
     const m = medianVisit([v(10, 1, 4, 90), v(9, 3, 4, 300), v(11, 1, 5, 80)]);
     expect(m).toMatchObject({ dbStages: 10, authStages: 1, txStages: 4, wallMs: 90 });
     expect(m.detail).toEqual(v(10, 1, 4, 90));
+  });
+});
+
+describe('matchesFilter', () => {
+  it('keeps every route without a filter, else only routes starting with the prefix', () => {
+    expect(matchesFilter('/agency', null)).toBe(true);
+    expect(matchesFilter('/c/[clientId]/briefs', '/c/')).toBe(true);
+    expect(matchesFilter('/agency/settings/domains', '/c/')).toBe(false);
+    expect(matchesFilter('/platform', '/c/')).toBe(false);
   });
 });

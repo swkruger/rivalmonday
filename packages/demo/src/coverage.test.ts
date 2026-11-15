@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { type AccessContext, isCurrentPdfKey, ToolError } from '@cs/core';
-import { databaseNameOf } from '@cs/db';
+import { databaseNameOf, parseHostEnv } from '@cs/db';
 import { openTestDbs, testUrls } from '@cs/db/test-helpers';
 import { createFsStore } from '@cs/storage';
 import { accessContextFor, createToolRegistry, getReviewableAskThread, listInbox, listMemberships, listReviewableAskThreads, seedKnowledge } from '@cs/tools';
@@ -24,7 +24,8 @@ afterAll(async () => {
 });
 
 const registry = createToolRegistry(
-  { app: dbs.app, service: dbs.service, platformAdmins: [DEMO_OPERATOR_EMAIL], jobStatus: async () => null, queueStats: async () => ({ queues: [], lastHeartbeatAt: null }) },
+  // 13a1: `hostEnv` for the Domains page (`get_agency_domains` refuses without it), as the local web server builds it.
+  { app: dbs.app, service: dbs.service, hostEnv: parseHostEnv({ APP_URL: 'http://localhost:3000' }).hostEnv, platformAdmins: [DEMO_OPERATOR_EMAIL], jobStatus: async () => null, queueStats: async () => ({ queues: [], lastHeartbeatAt: null }) },
   { audit: { record: async () => {} } },
 );
 let ids: DemoIds;

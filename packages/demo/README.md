@@ -31,6 +31,7 @@ A later phase that adds a screen adds its seed data (a new `src/<area>.ts`, call
 | `/c/[clientId]/setup/competitors (not asked, client owner)` | ownerLoneStar | `get_client_profile` | `get_client_setup`: a client owner gets a 404 unless the agency asked them to pick |
 | `/agency/leads` | admin | `list_leads`, `list_help_guides` | — |
 | `/agency/settings/intake` | admin | `get_intake_link`, `list_help_guides` | — |
+| `/agency/settings/domains` | admin | `get_agency_domains`, `list_help_guides` | `get_agency_domains`: a custom domain needs real DNS |
 | `/agency/settings/intake/preview` | admin | `get_intake_link`, `list_help_guides` | — |
 | `/agency/prospects` | admin | `list_prospects`, `list_help_guides` | — |
 | `/agency/prospects/[clientId]` | admin | `get_client_profile`, `get_prospect_report`, `list_client_competitors`, `list_help_guides` | — |

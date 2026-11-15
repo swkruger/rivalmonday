@@ -135,6 +135,13 @@ const SCREEN_ENTRIES: readonly ScreenCoverage[] = [
   // Phase 11c: the demo agency has a new lead with a ready preview, an accepted one, a declined one; the intake card reads the link and counts.
   { route: '/agency/leads', as: 'admin', calls: [{ tool: 'list_leads', input: none, path: 'leads' }, { tool: 'list_leads', input: () => ({ status: 'verified' }), path: 'leads.*.preview.facts' }] },
   { route: '/agency/settings/intake', as: 'admin', calls: [{ tool: 'get_intake_link', input: none, path: 'url' }] },
+  // 13a1: the custom web address and sending domain; the demo agency has set neither (fallback host only).
+  {
+    route: '/agency/settings/domains', as: 'admin', calls: [
+      { tool: 'get_agency_domains', input: none, path: 'fallbackHost' },
+      { tool: 'get_agency_domains', input: none, path: 'custom', expect: 'empty', why: 'a custom domain needs real DNS' },
+    ],
+  },
   // 15c-2a: the intake preview renders the same link (the demo agency has one) inside a frame.
   { route: '/agency/settings/intake/preview', as: 'admin', calls: [{ tool: 'get_intake_link', input: none, path: 'url' }] },
   { route: '/agency/prospects', as: 'admin', calls: [{ tool: 'list_prospects', input: none, path: 'items' }] },
@@ -422,7 +429,7 @@ const SCREEN_ENTRIES: readonly ScreenCoverage[] = [
 const GUIDE_ROUTES: readonly string[] = [
   '/agency', '/agency/alerts', '/agency/approvals', '/agency/approvals/[briefId]', '/agency/clients/new', '/agency/leads', '/agency/prospects',
   '/agency/prospects/new', '/agency/prospects/[clientId]', '/agency/settings/ai', '/agency/settings/billing', '/agency/settings/branding',
-  '/agency/settings/intake', '/agency/settings/intake/preview', '/agency/settings/platform-access', '/agency/settings/runbook', '/agency/settings/slack-teams',
+  '/agency/settings/domains', '/agency/settings/intake', '/agency/settings/intake/preview', '/agency/settings/platform-access', '/agency/settings/runbook', '/agency/settings/slack-teams',
   '/agency/settings/team', '/agency/settings/usage', '/inbox', '/onboarding', '/settings/profile',
   '/c/[clientId]/ads', '/c/[clientId]/alerts/[alertId]', '/c/[clientId]/briefs', '/c/[clientId]/briefs/[briefId]', '/c/[clientId]/competitors',
   '/c/[clientId]/competitors/[competitorId]', '/c/[clientId]/events', '/c/[clientId]/evidence/[evidenceId]', '/c/[clientId]/listings', '/c/[clientId]/moves', '/c/[clientId]/pitch-snapshot',

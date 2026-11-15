@@ -14,12 +14,13 @@
  * BEGIN/COMMIT or tagged `sql` (`txStages`) spans are reported in their own columns, never asserted.
  */
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { request as httpRequest } from 'node:http';
 import { dirname, join, resolve } from 'node:path';
 import { FEATURES } from '@cs/core';
 import { baseRoute, SCREENS } from '@cs/demo';
 import postgres from 'postgres';
 import { dbStageCounts, nowMs, sequentialStages, type ToolTiming } from '../src/server/tool-timing';
-import { cookieHeaderFrom, fillKnownParams, fillsStaticSibling, medianOf, medianVisit, parseProfileArgs, type ProfileArgs, PROFILE_USAGE, type ReportRow, routeOfPageDir, routePattern, WARM_VISITS } from './profile-args';
+import { cookieHeaderFrom, fillKnownParams, fillsStaticSibling, matchesFilter, medianOf, medianVisit, parseProfileArgs, type ProfileArgs, PROFILE_USAGE, type ReportRow, routeOfPageDir, routePattern, WARM_VISITS } from './profile-args';
 
 const parsed = parseProfileArgs(process.argv.slice(2), process.env);
 if ('error' in parsed) {
@@ -142,12 +143,41 @@ function appRoutes(): string[] {
 
 interface Visit { path: string; status: number; ms: number; startMs: number; endMs: number; html: string; location: string | null }
 
+/**
+ * 13a1: Node's resolver does not map `*.localhost` (an agency host in E2E, `NEUTRAL_DOMAIN=localhost`) to loopback, and
+ * fetch cannot set `Host`; such a base is requested on 127.0.0.1 with an explicit `Host` (as `e2e/helpers.ts` hostRequest).
+ */
+const subLocalhost = /\.localhost$/.test(host);
+
+function getViaLoopback(path: string, cookie: string): Promise<{ status: number; html: string; location: string | null }> {
+  const url = new URL(args.base);
+  return new Promise((done, fail) => {
+    const req = httpRequest({ host: '127.0.0.1', port: Number(url.port || 80), path, method: 'GET', headers: { host: url.host, cookie } }, (res) => {
+      const chunks: Buffer[] = [];
+      res.on('data', (c: Buffer) => chunks.push(c));
+      res.on('end', () => {
+        const loc = res.headers.location;
+        done({ status: res.statusCode ?? 0, html: Buffer.concat(chunks).toString('utf8'), location: typeof loc === 'string' ? loc : null });
+      });
+      res.on('error', fail);
+    });
+    req.on('error', fail);
+    req.end();
+  });
+}
+
 async function visit(path: string, cookie: string): Promise<Visit> {
   const startMs = nowMs();
-  const res = await fetch(`${args.base}${path}`, { headers: { cookie }, redirect: 'manual' });
-  const html = await res.text();
+  let status: number, html: string, location: string | null;
+  if (subLocalhost) ({ status, html, location } = await getViaLoopback(path, cookie));
+  else {
+    const res = await fetch(`${args.base}${path}`, { headers: { cookie }, redirect: 'manual' });
+    html = await res.text();
+    status = res.status;
+    location = res.headers.get('location');
+  }
   const endMs = nowMs();
-  return { path, status: res.status, ms: endMs - startMs, startMs, endMs, html, location: res.headers.get('location') };
+  return { path, status, ms: endMs - startMs, startMs, endMs, html, location };
 }
 
 /** In-app link paths (no query or hash) found in a page. */
@@ -174,8 +204,14 @@ async function main(): Promise<number> {
   }
 
   // --- Discovery: visit what can be visited, learn ids from links, repeat until nothing new resolves. ---
-  const routes = [...new Set(SCREENS.map((s) => baseRoute(s.route)))];
-  const allRoutes = [...new Set([...routes, ...appRoutes()])];
+  const allScreens = [...new Set(SCREENS.map((s) => baseRoute(s.route)))];
+  // `--filter`: only routes under the prefix (a client cookie on an agency host would be redirected off the others).
+  const routes = allScreens.filter((r) => matchesFilter(r, args.filter));
+  if (!routes.length) {
+    console.error(`--filter ${args.filter}: no coverage route starts with it.`);
+    return 2;
+  }
+  const allRoutes = [...new Set([...allScreens, ...appRoutes()])];
   /**
    * Chosen ids, keyed by param: `clientId` is one id for every `/c/` route (one client throughout); any other param is
    * keyed by the route prefix that owns it (`/platform/agencies/[id]` and `/kb/[id]` are different things; a prospect
@@ -211,7 +247,7 @@ async function main(): Promise<number> {
     }
   };
   // A cookie the server does not accept (expired session, reset database) sends every page to sign-in: say so and stop.
-  const probe = await visit(fillKnownParams(routes[0]!, {}) ?? '/agency', cookie);
+  const probe = await visit(fillKnownParams(routes[0]!, paramsFor(routes[0]!)) ?? '/agency', cookie);
   if (probe.location?.includes('/sign-in')) {
     console.error(`${probe.path} redirects to sign-in: the session cookie is not accepted (expired, or the database was reset — delete the storage state and re-run).`);
     return 2;
@@ -282,7 +318,7 @@ async function main(): Promise<number> {
     writeFileSync(resolve(args.json), JSON.stringify({ base: args.base, at: new Date().toISOString(), assertDbStages: args.assertDbStages, rows: out, unresolved }, null, 2));
   }
 
-  console.log(`Profiled ${rows.length} of ${routes.length} routes on ${args.base}, ${WARM_VISITS} warm visits each, medians reported (${toolCount} tool timings, ${dbCount} DB timings${timings.length ? '' : ' — is the server running with PROFILE_TOOLS=1?'})`);
+  console.log(`Profiled ${rows.length} of ${routes.length} routes${args.filter ? ` under ${args.filter}` : ''} on ${args.base}, ${WARM_VISITS} warm visits each, medians reported (${toolCount} tool timings, ${dbCount} DB timings${timings.length ? '' : ' — is the server running with PROFILE_TOOLS=1?'})`);
   console.log(`Agency/workspace p75 ${p75(workspace.map((r) => r.wallMs))} ms; slowest page ${rows[0]?.wallMs ?? 0} ms`);
   console.log(`Max sequential tool stages ${max(rows.map((r) => r.stages))}; max sequential DB stages (incl. shell) ${max(rows.map((r) => r.dbStages))}, median ${[...rows.map((r) => r.dbStages)].sort((a, b) => a - b)[Math.floor(rows.length / 2)] ?? 0}; max auth stages ${max(rows.map((r) => r.authStages))}, max tx stages ${max(rows.map((r) => r.txStages))} (reported, not asserted)\n`);
   console.log('Slowest 15 (ms · tool stages · DB stages/queries · auth stages · tx stages · status · tools as name:ms@start):');
