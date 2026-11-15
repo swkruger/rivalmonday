@@ -90,7 +90,9 @@ test("other agency's client on the agency host → 404", { tag: ['@hosts'] }, as
       const p2 = await theirs.newPage();
       const res = await p2.goto(`${agencyOrigin(other.slug)}/c/${clients().first.id}`);
       expect(hostOf(p2.url())).toBe(hostOf(agencyOrigin(other.slug)));
-      expect(res?.status() === 404 || new URL(p2.url()).pathname === '/no-access').toBe(true);
+      // No membership counts on that host (host-viewer: own agency's client roles only), so the user lands on /no-access.
+      expect(res?.status()).toBe(200);
+      expect(new URL(p2.url()).pathname).toBe('/no-access');
       await expect(p2.getByText(clients().first.name)).toHaveCount(0);
     } finally {
       await theirs.close();

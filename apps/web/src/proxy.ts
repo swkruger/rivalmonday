@@ -1,3 +1,4 @@
+import { createLogger } from '@cs/core/server';
 import { agencyByHostname, platformOrigin } from '@cs/db';
 import { type NextRequest, NextResponse } from 'next/server';
 import { dbs } from './server/db';
@@ -11,6 +12,8 @@ const PUBLIC = [/^\/sign-in(\/|$)/, /^\/sign-up(\/|$)/, /^\/start(\/|$)/, /^\/jo
 
 /** 13a1 (P4, P9): headers only this proxy sets; any client-sent copy is dropped first. */
 const PROXY_HEADERS = ['x-rm-path', 'x-rm-host-kind', 'x-rm-host-agency', 'x-rm-origin', HOST_REDIRECT_HEADER];
+
+const log = createLogger(process.env.VITEST ? { pretty: false } : {}).child({ role: 'web' });
 
 const notFound = () => new NextResponse('Not found', { status: 404, headers: { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' } });
 
@@ -40,7 +43,7 @@ export async function proxy(req: NextRequest) {
     host = await resolveHost(rawHost, { env, envName, lookup: (h) => agencyByHostname(dbs(envName).service, h, env) });
   } catch (e) {
     // Fail closed: a host we could not resolve is served nothing (and `resolveHost` caches no failed lookup).
-    console.error(`[proxy] host lookup failed: ${e instanceof Error ? e.message : String(e)}`);
+    log.error({ err: e instanceof Error ? { name: e.name, message: e.message } : { name: 'Error', message: String(e) } }, 'proxy host lookup failed');
     return notFound();
   }
   const route = routeForHost(host, { pathname, search, method: req.method }, platformOrigin(env));

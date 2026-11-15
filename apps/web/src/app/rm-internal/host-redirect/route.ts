@@ -1,7 +1,28 @@
+import { agencyByHostname } from '@cs/db';
 import { NextResponse } from 'next/server';
-import { HOST_REDIRECT_HEADER } from '@/server/hosts';
+import { dbs } from '@/server/db';
+import { activeEnvName } from '@/server/dev-guard';
+import { webEnv } from '@/server/env';
+import { HOST_REDIRECT_HEADER, requestOriginFor, resolveHost } from '@/server/hosts';
 
 export const dynamic = 'force-dynamic';
+
+const notFound = () => new NextResponse('Not found', { status: 404, headers: { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' } });
+
+/**
+ * Defence in depth: the target must be on a host we serve, with exactly the origin we build for it (APP_URL's scheme and port) —
+ * the platform, the mcp host, or an agency host (`<slug>.<neutral>` or a live custom domain) via the proxy's cached `resolveHost`.
+ */
+async function servedOrigin(target: URL): Promise<boolean> {
+  const env = webEnv().hostEnv;
+  const envName = activeEnvName();
+  try {
+    const host = await resolveHost(target.host, { env, envName, lookup: (h) => agencyByHostname(dbs(envName).service, h, env) });
+    return !!host && requestOriginFor(host, target.hostname, env) === target.origin;
+  } catch {
+    return false; // a failed lookup fails closed
+  }
+}
 
 /**
  * 13a1 P5: the proxy's cross-host redirects (agency host → platform for staff-only paths, fallback host → live custom domain).
@@ -17,9 +38,7 @@ async function handle(req: Request): Promise<Response> {
   } catch {
     target = null;
   }
-  if (!target || (target.protocol !== 'https:' && target.protocol !== 'http:')) {
-    return new NextResponse('Not found', { status: 404, headers: { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' } });
-  }
+  if (!target || (target.protocol !== 'https:' && target.protocol !== 'http:') || !(await servedOrigin(target))) return notFound();
   return new NextResponse(null, { status: 307, headers: { location: target.href, 'cache-control': 'no-store' } });
 }
 
@@ -29,4 +48,3 @@ export const POST = handle;
 export const PUT = handle;
 export const PATCH = handle;
 export const DELETE = handle;
-export const OPTIONS = handle;

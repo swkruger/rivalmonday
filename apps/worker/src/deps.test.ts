@@ -27,6 +27,9 @@ vi.mock('@cs/collectors', async (orig) => {
   }
   return { ...real, ...vendorMocks, RobotsPolicy };
 });
+// 13a1 Task 13: the SSRF-guarded probe is stubbed, so no test does real DNS or HTTPS.
+const realProbe = vi.hoisted(() => vi.fn(async (_hostname: string) => false));
+vi.mock('@cs/tools', async (orig) => ({ ...(await orig<typeof import('@cs/tools')>()), createDomainProbe: () => realProbe }));
 import { HostRateLimiter } from '@cs/collectors';
 import { createWorkerDeps, parseLiveClientIds, reviewsSkipReason } from './deps';
 
@@ -69,23 +72,22 @@ describe('aiGuard', () => {
 describe('domainProbe (13a1 Task 13: fake vendors use a fake probe)', () => {
   const env = { SERVICE_DATABASE_URL: 'postgres://u:p@127.0.0.1:1/x' } as NodeJS.ProcessEnv;
 
-  it('with fake domain vendors (DEMO/TEST) answers without DNS or HTTPS: true unless the hostname contains "fail"', async () => {
-    const fetchSpy = vi.spyOn(globalThis, 'fetch');
-    try {
-      const deps = createWorkerDeps(env);
-      expect(deps.domainVendors('test').fake).toBe(true);
-      expect(await deps.domainProbe('portal.e2e-probe.invalid', 'test')).toBe(true);
-      expect(await deps.domainProbe('fail.e2e-probe.invalid', 'test')).toBe(false);
-      expect(fetchSpy).not.toHaveBeenCalled();
-    } finally {
-      fetchSpy.mockRestore();
-    }
+  it('with fake domain vendors (DEMO/TEST) answers without the real probe: true unless the hostname contains "fail"', async () => {
+    realProbe.mockClear();
+    const deps = createWorkerDeps(env);
+    expect(deps.domainVendors('test').fake).toBe(true);
+    expect(await deps.domainProbe('portal.e2e-probe.invalid', 'test')).toBe(true);
+    expect(await deps.domainProbe('fail.e2e-probe.invalid', 'test')).toBe(false);
+    expect(realProbe).not.toHaveBeenCalled();
   });
 
-  it('with real vendors uses the SSRF-guarded probe (a non-resolving host is false)', async () => {
+  it('with real vendors uses the SSRF-guarded probe (its answer, for that hostname)', async () => {
+    realProbe.mockClear();
+    realProbe.mockResolvedValueOnce(true);
     const deps = createWorkerDeps({ ...env, NODE_ENV: 'production' } as NodeJS.ProcessEnv);
     expect(deps.domainVendors('dev').fake).toBe(false);
-    expect(await deps.domainProbe('portal.e2e-probe.invalid', 'dev')).toBe(false);
+    expect(await deps.domainProbe('portal.e2e-probe.invalid', 'dev')).toBe(true);
+    expect(realProbe).toHaveBeenCalledWith('portal.e2e-probe.invalid');
   });
 });
 

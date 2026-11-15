@@ -184,20 +184,15 @@ describe('proxy', () => {
   });
 
   it('a host lookup error fails closed: plain 404 + no-store, and the failure is not cached', async () => {
-    const logged = vi.spyOn(console, 'error').mockImplementation(() => {});
-    try {
-      lookup.mockRejectedValueOnce(new Error('connection refused'));
-      const res = await onHost('acme.neutral.example', '/c/x', { headers: { cookie: 'better-auth.session_token=t' } });
-      expect(res.status).toBe(404);
-      expect(res.headers.get('cache-control')).toBe('no-store');
-      expect(await res.text()).toBe('Not found');
-      const again = await onHost('acme.neutral.example', '/c/x', { headers: { cookie: 'better-auth.session_token=t' } });
-      expect(again.status).toBe(200);
-      expect(again.headers.get('x-middleware-request-x-rm-host-agency')).toBe(AGENCY);
-      expect(lookup).toHaveBeenCalledTimes(2);
-    } finally {
-      logged.mockRestore();
-    }
+    lookup.mockRejectedValueOnce(new Error('connection refused'));
+    const res = await onHost('acme.neutral.example', '/c/x', { headers: { cookie: 'better-auth.session_token=t' } });
+    expect(res.status).toBe(404);
+    expect(res.headers.get('cache-control')).toBe('no-store');
+    expect(await res.text()).toBe('Not found');
+    const again = await onHost('acme.neutral.example', '/c/x', { headers: { cookie: 'better-auth.session_token=t' } });
+    expect(again.status).toBe(200);
+    expect(again.headers.get('x-middleware-request-x-rm-host-agency')).toBe(AGENCY);
+    expect(lookup).toHaveBeenCalledTimes(2);
   });
 
   it('keeps the sign-in redirect on the agency host', async () => {
