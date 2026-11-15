@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { type Browser, expect, test, type TestInfo } from '@playwright/test';
 import { ADMIN_STATE, ensureAdminState } from './admin-session';
-import { signIn } from './helpers';
+import { agencyBaseURL, agencyOriginOf, signIn } from './helpers';
 import { ASK_FIXTURE_FILE, STARTING_FIXTURE_FILE } from '../playwright.config';
 import type { AskFixture, StartingPointFixture } from './seed';
 
@@ -18,10 +18,10 @@ const fx = (): StartingPointFixture => JSON.parse(readFileSync(STARTING_FIXTURE_
 /** The Ask client user; one shared sign-in per run (Better Auth's per-IP limit, see helpers.ts). */
 async function ensureAskerState(browser: Browser, testInfo: TestInfo): Promise<void> {
   if (existsSync(OWNER_STATE)) return;
-  const context = await browser.newContext({ baseURL: testInfo.project.use.baseURL, storageState: { cookies: [], origins: [] } });
+  const context = await browser.newContext({ baseURL: agencyOriginOf(), storageState: { cookies: [], origins: [] } });
   const page = await context.newPage();
   const askCo = (JSON.parse(readFileSync(ASK_FIXTURE_FILE, 'utf8')) as AskFixture).askCo.id;
-  await signIn(page, 'asker@e2e.test', `/c/${askCo}`);
+  await signIn(page, 'asker@e2e.test', `/c/${askCo}`, agencyOriginOf());
   await expect(page).toHaveURL(new RegExp(`/c/${askCo}$`));
   await context.storageState({ path: OWNER_STATE });
   await context.close();
@@ -33,7 +33,7 @@ test.beforeAll(async ({ browser }, testInfo) => {
 });
 
 test.describe('client user', () => {
-  test.use({ storageState: OWNER_STATE });
+  test.use({ storageState: OWNER_STATE, baseURL: agencyBaseURL() });
 
   test('new client shows progress card', { tag: ['@starting-point', '@overview'] }, async ({ page }) => {
     await page.goto(`/c/${fx().fresh.id}`);
@@ -102,7 +102,7 @@ test('agency approves starting point → client sees tiles, scorecard, cards', {
   await expect(page.getByRole('link', { name: 'Open brief' })).toHaveCount(0);
   await agency.close();
 
-  const clientCtx = await browser.newContext({ storageState: OWNER_STATE });
+  const clientCtx = await browser.newContext({ baseURL: agencyOriginOf(), storageState: OWNER_STATE });
   const client = await clientCtx.newPage();
   await client.goto(`/c/${ready.id}/briefs/${ready.briefId}`);
   await expect(client.getByText('Your starting point', { exact: true })).toBeVisible();

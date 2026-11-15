@@ -10,7 +10,7 @@ import { testSenderConfig } from '@cs/engine/test-config';
 import { clientOwnerEmails } from '@cs/tools';
 import { and, eq } from 'drizzle-orm';
 import { OUTBOX } from '../playwright.config';
-import { openMagicLink, outboxSnapshot, requestMagicLink, signIn } from './helpers';
+import { agencyOriginOf, openMagicLink, outboxSnapshot, requestMagicLink, signIn } from './helpers';
 import { SI_ADMIN, SI_AGENCY, SI_BILLING, SI_PENDING_OWNER, SI_STEP3, SI_STEP4 } from './seed';
 
 /**
@@ -120,7 +120,9 @@ test.describe.serial('client setup: invite and billing', () => {
     const startUrl = /https?:\/\/\S+\/sign-in\?email=\S+/.exec(mail.text)?.[0];
     expect(startUrl).toBeTruthy();
 
-    const context = await browser.newContext({ baseURL: testInfo.project.use.baseURL, storageState: { cookies: [], origins: [] } });
+    // 13a1: the invitation's sign-in link is on the agency's client host.
+    expect(new URL(startUrl!).origin).toBe(agencyOriginOf(SI_AGENCY));
+    const context = await browser.newContext({ baseURL: agencyOriginOf(SI_AGENCY), storageState: { cookies: [], origins: [] } });
     try {
       const ownerPage = await context.newPage();
       await ownerPage.goto(startUrl!);
@@ -155,7 +157,7 @@ test.describe.serial('client setup: invite and billing', () => {
   });
 
   test('a client owner opening setup lands on their Overview; another client of the agency is a 404', { tag: ['@setup', '@client-billing'] }, async ({ browser }, testInfo) => {
-    const context = await browser.newContext({ baseURL: testInfo.project.use.baseURL, storageState: OWNER_STATE });
+    const context = await browser.newContext({ baseURL: agencyOriginOf(SI_AGENCY), storageState: OWNER_STATE });
     try {
       const page = await context.newPage();
       // Phase 16 P8: owners never open /setup; they are sent to the Overview.

@@ -1,7 +1,92 @@
+import { readFileSync } from 'node:fs';
 import { readdir, readFile } from 'node:fs/promises';
+import { request as httpRequest } from 'node:http';
 import { join } from 'node:path';
-import { expect, type Page } from '@playwright/test';
-import { OUTBOX } from '../playwright.config';
+import { type Browser, type BrowserContext, type Cookie, expect, type Page } from '@playwright/test';
+import { HOSTS_FIXTURE_FILE, OUTBOX } from '../playwright.config';
+import type { HostsFixture } from './seed';
+
+const PORT = Number(process.env.E2E_PORT ?? 3100);
+/** The platform origin (`APP_URL` in the E2E server env). */
+export const PLATFORM_ORIGIN = `http://localhost:${PORT}`;
+/** 13a1: an agency's client-facing host in E2E (`NEUTRAL_DOMAIN=localhost`). */
+export const agencyOrigin = (slug: string) => `http://${slug}.localhost:${PORT}`;
+/** 13a1 (P16): MCP and its OAuth issuer live on `mcp.<NEUTRAL_DOMAIN>`. */
+export const MCP_ORIGIN = `http://mcp.localhost:${PORT}`;
+
+/** Read lazily: test files are collected before global setup writes the fixture. */
+export const hostsFixture = (): HostsFixture => JSON.parse(readFileSync(HOSTS_FIXTURE_FILE, 'utf8')) as HostsFixture;
+/** The client-facing origin of a seeded agency, by its seed name (default: E2E Agency). */
+export const agencyOriginOf = (agencyName = 'E2E Agency'): string => {
+  const slug = hostsFixture().slugs[agencyName];
+  if (!slug) throw new Error(`no host slug for agency ${agencyName} in ${HOSTS_FIXTURE_FILE}`);
+  return agencyOrigin(slug);
+};
+/**
+ * `test.use({ baseURL: agencyBaseURL(name) })`: a describe whose pages run as a client user on that agency's host (a client-only
+ * user on the platform host is bounced there). A fixture function, so the slug is read after global setup.
+ */
+export const agencyBaseURL = (agencyName = 'E2E Agency') =>
+  async ({}, use: (url: string) => Promise<void>) => {
+    await use(agencyOriginOf(agencyName));
+  };
+
+/** A Node-side response from `hostRequest` (redirects are never followed). */
+export type HostResponse = { status: number; headers: Record<string, string | string[] | undefined>; text: string; json<T = unknown>(): T };
+
+/**
+ * A request to the E2E server with an explicit `Host` (Node's resolver does not map `*.localhost` to loopback, Chromium does):
+ * `http.request` to `127.0.0.1:${E2E_PORT}` with `Host: <host>:<port>`. `host` is a hostname (`mcp.localhost`, `<slug>.localhost`).
+ * `body`: a string as is; an object as JSON, or form-encoded when `form: true`.
+ */
+export function hostRequest(
+  host: string,
+  path: string,
+  init: { method?: string; headers?: Record<string, string>; body?: string | Record<string, unknown>; form?: boolean } = {},
+): Promise<HostResponse> {
+  const headers: Record<string, string> = { host: `${host}:${PORT}`, ...init.headers };
+  let body: string | undefined;
+  if (typeof init.body === 'string') body = init.body;
+  else if (init.body && init.form) {
+    body = new URLSearchParams(Object.entries(init.body).map(([k, v]) => [k, String(v)])).toString();
+    headers['content-type'] ??= 'application/x-www-form-urlencoded';
+  } else if (init.body) {
+    body = JSON.stringify(init.body);
+    headers['content-type'] ??= 'application/json';
+  }
+  if (body !== undefined) headers['content-length'] = String(Buffer.byteLength(body));
+  return new Promise((resolve, reject) => {
+    const req = httpRequest({ host: '127.0.0.1', port: PORT, path, method: init.method ?? (body === undefined ? 'GET' : 'POST'), headers }, (res) => {
+      const chunks: Buffer[] = [];
+      res.on('data', (c: Buffer) => chunks.push(c));
+      res.on('end', () => {
+        const text = Buffer.concat(chunks).toString('utf8');
+        resolve({ status: res.statusCode ?? 0, headers: res.headers, text, json: <T>() => JSON.parse(text) as T });
+      });
+      res.on('error', reject);
+    });
+    req.on('error', reject);
+    req.setTimeout(60_000, () => req.destroy(new Error(`hostRequest ${host}${path} timed out`)));
+    if (body !== undefined) req.write(body);
+    req.end();
+  });
+}
+
+/**
+ * Session cookies saved for one host, re-scoped to another (13a1: cookies are host-only, every origin shares the auth secret),
+ * so a cross-host case reuses a session instead of a new magic-link sign-in.
+ */
+export function cookiesFor(cookies: Cookie[], hostname: string): Cookie[] {
+  return cookies.map((c) => ({ ...c, domain: hostname }));
+}
+
+/** A new context on `origin` with a saved state's cookies on their own host plus a copy re-scoped to `origin`'s host. */
+export async function contextOnHost(browser: Browser, statePath: string, origin: string): Promise<BrowserContext> {
+  const saved = JSON.parse(readFileSync(statePath, 'utf8')) as { cookies: Cookie[] };
+  const context = await browser.newContext({ baseURL: origin, storageState: { cookies: [], origins: [] } });
+  await context.addCookies([...saved.cookies, ...cookiesFor(saved.cookies, new URL(origin).hostname)]);
+  return context;
+}
 
 async function outboxFiles(): Promise<string[]> {
   return (await readdir(OUTBOX).catch(() => [] as string[])).filter((f) => f.endsWith('.json')).sort();
@@ -81,7 +166,11 @@ export async function openMagicLink(page: Page, link: string): Promise<void> {
   }
 }
 
-export async function signIn(page: Page, email: string, next = '/agency'): Promise<void> {
-  await page.goto(`/sign-in?next=${encodeURIComponent(next)}`);
+/**
+ * Signs in on `origin` (default: the page's baseURL, the platform). 13a1: a client-only user signs in on their agency's host
+ * (`agencyOriginOf(...)`); on the platform they would be bounced there without a session.
+ */
+export async function signIn(page: Page, email: string, next = '/agency', origin = ''): Promise<void> {
+  await page.goto(`${origin}/sign-in?next=${encodeURIComponent(next)}`);
   await openMagicLink(page, await requestMagicLink(page, email));
 }

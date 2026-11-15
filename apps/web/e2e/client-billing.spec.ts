@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { type Browser, expect, type Page, test, type TestInfo } from '@playwright/test';
 import { agency, agencyConnect, client, clientBilling, createDb } from '@cs/db';
 import { eq } from 'drizzle-orm';
-import { signIn } from './helpers';
+import { agencyOriginOf, signIn } from './helpers';
 import { CB_AGENCY, CB_CLIENT, CB_USERS } from './seed';
 
 /**
@@ -17,12 +17,14 @@ import { CB_AGENCY, CB_CLIENT, CB_USERS } from './seed';
  */
 const STATE = (who: Who) => fileURLToPath(new URL(`../test-results/client-billing-${who}-state.json`, import.meta.url));
 type Who = keyof typeof CB_USERS;
+/** 13a1: client users sign in on (and use) the agency's client host; the admin stays on the platform. */
+const originOf = (testInfo: TestInfo, who: Who) => (who === 'admin' ? testInfo.project.use.baseURL! : agencyOriginOf(CB_AGENCY));
 
 async function ensureState(browser: Browser, testInfo: TestInfo, who: Who): Promise<void> {
   if (existsSync(STATE(who))) return;
-  const context = await browser.newContext({ baseURL: testInfo.project.use.baseURL, storageState: { cookies: [], origins: [] } });
+  const context = await browser.newContext({ baseURL: originOf(testInfo, who), storageState: { cookies: [], origins: [] } });
   try {
-    await signIn(await context.newPage(), CB_USERS[who], who === 'admin' ? '/agency' : '/');
+    await signIn(await context.newPage(), CB_USERS[who], who === 'admin' ? '/agency' : '/', who === 'admin' ? '' : originOf(testInfo, who));
     await context.storageState({ path: STATE(who) });
   } finally {
     await context.close();
@@ -31,7 +33,7 @@ async function ensureState(browser: Browser, testInfo: TestInfo, who: Who): Prom
 
 async function as<T>(browser: Browser, testInfo: TestInfo, who: Who, fn: (page: Page) => Promise<T>): Promise<T> {
   await ensureState(browser, testInfo, who);
-  const context = await browser.newContext({ baseURL: testInfo.project.use.baseURL, storageState: STATE(who) });
+  const context = await browser.newContext({ baseURL: originOf(testInfo, who), storageState: STATE(who) });
   try {
     return await fn(await context.newPage());
   } finally {

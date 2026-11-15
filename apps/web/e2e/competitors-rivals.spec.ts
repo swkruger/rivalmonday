@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { type Browser, expect, test, type TestInfo } from '@playwright/test';
 import { ADMIN_STATE, ensureAdminState } from './admin-session';
-import { signIn } from './helpers';
+import { agencyBaseURL, agencyOriginOf, signIn } from './helpers';
 import { ASK_FIXTURE_FILE, RIVALS_FIXTURE_FILE } from '../playwright.config';
 import type { AskFixture, RivalsFixture } from './seed';
 
@@ -16,10 +16,10 @@ const fx = (): RivalsFixture => JSON.parse(readFileSync(RIVALS_FIXTURE_FILE, 'ut
 /** The Ask client user (also a client owner of the Rivals client); one shared sign-in per run (Better Auth's per-IP limit, see helpers.ts). */
 async function ensureAskerState(browser: Browser, testInfo: TestInfo): Promise<void> {
   if (existsSync(OWNER_STATE)) return;
-  const context = await browser.newContext({ baseURL: testInfo.project.use.baseURL, storageState: { cookies: [], origins: [] } });
+  const context = await browser.newContext({ baseURL: agencyOriginOf(), storageState: { cookies: [], origins: [] } });
   const page = await context.newPage();
   const askCo = (JSON.parse(readFileSync(ASK_FIXTURE_FILE, 'utf8')) as AskFixture).askCo.id;
-  await signIn(page, 'asker@e2e.test', `/c/${askCo}`);
+  await signIn(page, 'asker@e2e.test', `/c/${askCo}`, agencyOriginOf());
   await expect(page).toHaveURL(new RegExp(`/c/${askCo}$`));
   await context.storageState({ path: OWNER_STATE });
   await context.close();
@@ -86,7 +86,7 @@ test.describe('agency', () => {
 });
 
 test.describe('client user', () => {
-  test.use({ storageState: OWNER_STATE });
+  test.use({ storageState: OWNER_STATE, baseURL: agencyBaseURL() });
 
   test('client user sees tiers on tracked list and no suggestions panel', { tag: ['@rivals', '@competitors'] }, async ({ page }) => {
     await page.goto(`/c/${fx().clientId}/competitors`);

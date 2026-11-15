@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { expect, test } from '@playwright/test';
 import { OWNER_LINK_FILE } from '../playwright.config';
-import { openMagicLink, requestMagicLink } from './helpers';
+import { agencyOriginOf, openMagicLink, PLATFORM_ORIGIN, requestMagicLink } from './helpers';
 
 test('an invited admin signs in by magic link and sees the themed client list', { tag: ['@smoke', '@auth', '@clients', '@briefs'] }, async ({ page }) => {
   await page.goto('/agency');
@@ -19,12 +19,17 @@ test('an invited admin signs in by magic link and sees the themed client list', 
 });
 
 test('a client opens a signed email link as a read-only guest without agency data', { tag: ['@smoke', '@guest', '@auth', '@briefs'] }, async ({ page }) => {
+  // The seeded link is on the platform host (an email sent before 13a1); it is re-opened on the agency's client host (13a1 N3).
   await page.goto((await readFile(OWNER_LINK_FILE, 'utf8')).trim());
+  const origin = agencyOriginOf();
+  expect(new URL(page.url()).origin).toBe(origin);
   await expect(page.getByRole('heading', { name: 'Smith HVAC cut AC tune-ups to $59' })).toBeVisible();
   await expect(page.getByText(/viewing this through an email link/i)).toBeVisible();
   await expect(page.getByText(/ppc_audit/)).toHaveCount(0);
-  const res = await page.goto('/agency');
-  expect(res?.status()).toBe(404);
+  // The guest cookie is host-only: agency pages (platform only) ask to sign in.
+  await page.goto(`${PLATFORM_ORIGIN}/agency`);
+  await expect(page).toHaveURL((u) => u.origin === PLATFORM_ORIGIN && u.pathname === '/sign-in');
+  await expect(page.getByText(/ppc_audit/)).toHaveCount(0);
 });
 
 test('a guest opens the evidence behind a brief item and gets no agency-only pages', { tag: ['@guest', '@evidence', '@briefs', '@prospects'] }, async ({ page }) => {
@@ -34,7 +39,7 @@ test('a guest opens the evidence behind a brief item and gets no agency-only pag
   await expect(page.getByRole('img', { name: /Snapshot of/ })).toBeVisible();
   await expect(page.getByText('SHA-256').first()).toBeVisible();
   await expect(page.getByRole('button', { name: 'Useful' })).toHaveCount(0);
-  const res = await page.goto(`/c/${clientId}/pitch-snapshot`);
+  const res = await page.goto(`${new URL(page.url()).origin}/c/${clientId}/pitch-snapshot`);
   expect(res?.status()).toBe(404);
 });
 

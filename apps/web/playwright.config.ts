@@ -19,6 +19,8 @@ export const RIVALS_FIXTURE_FILE = fileURLToPath(new URL('./test-results/rivals-
 export const STARTING_FIXTURE_FILE = fileURLToPath(new URL('./test-results/starting-point-fixture.json', import.meta.url));
 /** Phase 11a: the seeded setup-wizard clients (`SetupFixture` in `e2e/seed.ts`). */
 export const SETUP_FIXTURE_FILE = fileURLToPath(new URL('./test-results/setup-fixture.json', import.meta.url));
+/** 13a1 Task 13: agency host slugs and another agency's client (`HostsFixture` in `e2e/seed.ts`). */
+export const HOSTS_FIXTURE_FILE = fileURLToPath(new URL('./test-results/hosts-fixture.json', import.meta.url));
 export const E2E_LINK_SECRET = 'e2e-link-secret-'.repeat(3);
 
 /**
@@ -61,6 +63,11 @@ export const E2E_SERVER_ENV: Record<string, string> = {
   // Phase 10: no Turnstile keys, so no widget renders and the fake verifier applies (blank wins over the repo .env).
   TURNSTILE_SITE_KEY: '',
   TURNSTILE_SECRET_KEY: '',
+  // 13a1: agency hosts are `<host_slug>.localhost:<port>` and MCP is `mcp.localhost:<port>` (Chromium resolves *.localhost itself;
+  // Node-side requests use `hostRequest` in e2e/helpers.ts).
+  NEUTRAL_DOMAIN: 'localhost',
+  // 13a1 R8: in-memory Vercel/Postmark domain vendors (never the real APIs); refused on any VERCEL_ENV.
+  DOMAINS_FAKE_VENDORS: '1',
 };
 
 /** `E2E_SKIP_BUILD=1` (set by `e2e:affected` after its own, stamp-checked build) only starts the server. */

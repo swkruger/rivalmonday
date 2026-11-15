@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { type Browser, expect, type Page, test, type TestInfo } from '@playwright/test';
 import { ASK_FIXTURE_FILE } from '../playwright.config';
 import { ADMIN_STATE, ensureAdminState } from './admin-session';
-import { signIn } from './helpers';
+import { agencyOriginOf, contextOnHost, PLATFORM_ORIGIN, signIn } from './helpers';
 import type { AskFixture } from './seed';
 
 /**
@@ -24,16 +24,16 @@ const TITLE = `Quokka harbour policy ${run}`;
 
 async function ensureAskerState(browser: Browser, testInfo: TestInfo): Promise<void> {
   if (existsSync(ASKER_STATE)) return;
-  const context = await browser.newContext({ baseURL: testInfo.project.use.baseURL, storageState: { cookies: [], origins: [] } });
+  const context = await browser.newContext({ baseURL: agencyOriginOf(), storageState: { cookies: [], origins: [] } });
   const page = await context.newPage();
-  await signIn(page, ASKER, `/c/${fx().askCo.id}`);
+  await signIn(page, ASKER, `/c/${fx().askCo.id}`, agencyOriginOf());
   await expect(page).toHaveURL(new RegExp(`/c/${fx().askCo.id}$`));
   await context.storageState({ path: ASKER_STATE });
   await context.close();
 }
 
 async function asClient<T>(browser: Browser, testInfo: TestInfo, fn: (page: Page) => Promise<T>): Promise<T> {
-  const context = await browser.newContext({ baseURL: testInfo.project.use.baseURL, storageState: ASKER_STATE });
+  const context = await browser.newContext({ baseURL: agencyOriginOf(), storageState: ASKER_STATE });
   try {
     return await fn(await context.newPage());
   } finally {
@@ -105,9 +105,14 @@ test.describe.serial('knowledge base', () => {
   });
 
   test('a non-operator at /platform/knowledge gets 404', { tag: ['@kb', '@platform'] }, async ({ browser }, testInfo) => {
-    await asClient(browser, testInfo, async (page) => {
-      const res = await page.goto('/platform/knowledge');
+    // 13a1: on the agency host /platform/* goes to the platform, so the check runs with the client's session on the platform host.
+    await ensureAskerState(browser, testInfo);
+    const context = await contextOnHost(browser, ASKER_STATE, PLATFORM_ORIGIN);
+    try {
+      const res = await (await context.newPage()).goto('/platform/knowledge');
       expect(res?.status()).toBe(404);
-    });
+    } finally {
+      await context.close();
+    }
   });
 });

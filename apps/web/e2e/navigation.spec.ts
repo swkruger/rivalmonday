@@ -4,8 +4,8 @@ import { type Browser, expect, type Locator, type Page, test, type TestInfo } fr
 import { createDb } from '@cs/db';
 import { sql } from 'drizzle-orm';
 import { ADMIN_STATE, ensureAdminState } from './admin-session';
-import { signIn } from './helpers';
-import { CB_CLIENT, CB_USERS, NAV_ARCHIVE_BRIEFS, NAV_ARCHIVE_NAME } from './seed';
+import { agencyOriginOf, contextOnHost, PLATFORM_ORIGIN, signIn } from './helpers';
+import { CB_AGENCY, CB_CLIENT, CB_USERS, NAV_ARCHIVE_BRIEFS, NAV_ARCHIVE_NAME } from './seed';
 
 /**
  * Phase 15a shell (spec §2): the context switcher (Platform → Agency → Client and back), the grouped menus, the old
@@ -34,9 +34,9 @@ async function idOf(table: 'client' | 'agency', name: string): Promise<string> {
 /** The same storage state `client-billing.spec` writes (one magic-link sign-in per run, whichever spec runs first). */
 async function ensureOwnerState(browser: Browser, testInfo: TestInfo): Promise<void> {
   if (existsSync(OWNER_STATE)) return;
-  const context = await browser.newContext({ baseURL: testInfo.project.use.baseURL, storageState: { cookies: [], origins: [] } });
+  const context = await browser.newContext({ baseURL: agencyOriginOf(CB_AGENCY), storageState: { cookies: [], origins: [] } });
   try {
-    await signIn(await context.newPage(), CB_USERS.owner, '/');
+    await signIn(await context.newPage(), CB_USERS.owner, '/', agencyOriginOf(CB_AGENCY));
     await context.storageState({ path: OWNER_STATE });
   } finally {
     await context.close();
@@ -240,7 +240,7 @@ test('a support session switcher offers "Back to platform" and the session conti
 
 test('a client owner of one client gets no switcher and no Platform', { tag: ['@navigation', '@client-billing'] }, async ({ browser }, testInfo) => {
   await ensureOwnerState(browser, testInfo);
-  const context = await browser.newContext({ baseURL: testInfo.project.use.baseURL, storageState: OWNER_STATE });
+  const context = await browser.newContext({ baseURL: agencyOriginOf(CB_AGENCY), storageState: OWNER_STATE });
   try {
     const page = await context.newPage();
     await page.goto('/');
@@ -251,8 +251,14 @@ test('a client owner of one client gets no switcher and no Platform', { tag: ['@
     const links = await menuLinks(page);
     expect(links).not.toContain('Agencies');
     expect(links).not.toContain('Portfolio');
-    expect((await page.goto('/platform'))?.status()).toBe(404);
   } finally {
     await context.close();
+  }
+  // 13a1: an agency host sends /platform to the platform, so the 404 is checked with the owner's session on the platform host.
+  const platform = await contextOnHost(browser, OWNER_STATE, PLATFORM_ORIGIN);
+  try {
+    expect((await (await platform.newPage()).goto('/platform'))?.status()).toBe(404);
+  } finally {
+    await platform.close();
   }
 });

@@ -153,6 +153,23 @@ describe('resolveAffected', () => {
     expect(resolve('apps/web/e2e/new.spec.ts').mode).toBe('all');
   });
 
+  it('maps the Domains page, its panels and the domain tools to @domains; host decisions to @hosts (13a1)', () => {
+    expect(resolve('apps/web/src/app/(app)/agency/settings/domains/page.tsx')).toMatchObject({ mode: 'some', tags: ['@domains', '@smoke'] });
+    expect(resolve('apps/web/src/components/agency/domain-panel.tsx').tags).toEqual(['@domains', '@smoke']);
+    expect(resolve('apps/web/src/components/agency/sending-panel.tsx').tags).toEqual(['@domains', '@smoke']);
+    expect(resolve('apps/web/src/components/copy-button.tsx').tags).toEqual(['@domains', '@leads', '@smoke']);
+    for (const f of ['packages/tools/src/tools/domains.ts', 'packages/tools/src/domains/vercel.ts', 'packages/tools/src/domains/fakes.ts']) {
+      expect(resolve(f).tags, f).toEqual(['@domains', '@smoke']);
+    }
+    for (const f of ['apps/web/src/server/hosts.ts', 'apps/web/src/server/host-viewer.ts']) {
+      expect(resolve(f).tags, f).toEqual(['@ai-connections', '@auth', '@guest', '@hosts', '@smoke']);
+    }
+    // The proxy and per-origin auth run on every page: everything (which includes @hosts).
+    for (const f of ['apps/web/src/proxy.ts', 'apps/web/src/server/auth.ts', 'apps/web/src/server/request-host.ts']) expect(resolve(f).mode, f).toBe('all');
+    expect(resolve('apps/web/e2e/hosts.spec.ts').tags).toContain('@hosts');
+    expect(resolve('apps/web/e2e/domains.spec.ts').tags).toContain('@domains');
+  });
+
   it('maps the Slack & Teams page to @settings (15c-2a)', () => {
     expect(resolve('apps/web/src/app/(app)/agency/settings/slack-teams/page.tsx')).toMatchObject({ mode: 'some', tags: ['@settings', '@smoke'] });
   });
@@ -166,7 +183,7 @@ describe('resolveAffected', () => {
     expect(resolve('apps/web/src/app/(app)/agency/settings/team/page.tsx').tags).toEqual(['@navigation', '@smoke', '@support']);
     expect(resolve('apps/web/src/app/(app)/agency/settings/branding/page.tsx').tags).toEqual(['@navigation', '@smoke']);
     for (const f of ['apps/web/src/app/(app)/agency/settings/layout.tsx', 'apps/web/src/app/(app)/agency/settings/page.tsx']) {
-      expect(resolve(f).tags, f).toEqual(['@ai-connections', '@billing', '@client-billing', '@leads', '@navigation', '@runbook', '@settings', '@smoke', '@support', '@usage']);
+      expect(resolve(f).tags, f).toEqual(['@ai-connections', '@billing', '@client-billing', '@domains', '@leads', '@navigation', '@runbook', '@settings', '@smoke', '@support', '@usage']);
     }
   });
 
@@ -175,7 +192,7 @@ describe('resolveAffected', () => {
     for (const f of ['apps/web/src/app/(app)/c/[clientId]/settings/layout.tsx', 'apps/web/src/app/(app)/c/[clientId]/settings/page.tsx', 'apps/web/src/server/client-settings-nav.ts']) {
       expect(resolve(f).tags, f).toEqual(client);
     }
-    expect(resolve('apps/web/src/components/settings-nav.tsx').tags).toEqual(['@ai-connections', '@alert-rules', '@ask', '@billing', '@client-billing', '@clients', '@leads', '@navigation', '@profile', '@runbook', '@settings', '@setup', '@smoke', '@support', '@usage']);
+    expect(resolve('apps/web/src/components/settings-nav.tsx').tags).toEqual(['@ai-connections', '@alert-rules', '@ask', '@billing', '@client-billing', '@clients', '@domains', '@leads', '@navigation', '@profile', '@runbook', '@settings', '@setup', '@smoke', '@support', '@usage']);
   });
 
   it('maps the shell, page header and Briefs & reports to @navigation (15a)', () => {

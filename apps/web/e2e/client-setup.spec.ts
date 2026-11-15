@@ -4,7 +4,7 @@ import { client, competitorSuggestion, createDb, discoveryRun } from '@cs/db';
 import { type Browser, expect, type Page, test, type TestInfo } from '@playwright/test';
 import { desc, eq } from 'drizzle-orm';
 import { ADMIN_STATE, ensureAdminState } from './admin-session';
-import { signIn } from './helpers';
+import { agencyBaseURL, agencyOriginOf, signIn } from './helpers';
 import { SETUP_FIXTURE_FILE } from '../playwright.config';
 import { SETUP_OWNER_EMAIL, type SetupFixture } from './seed';
 
@@ -19,9 +19,9 @@ const fx = (): SetupFixture => JSON.parse(readFileSync(SETUP_FIXTURE_FILE, 'utf8
 /** The setup owner owns two seeded clients; one shared sign-in per run (Better Auth's per-IP magic-link limit). */
 async function ensureOwnerState(browser: Browser, testInfo: TestInfo): Promise<void> {
   if (existsSync(OWNER_STATE)) return;
-  const context = await browser.newContext({ baseURL: testInfo.project.use.baseURL, storageState: { cookies: [], origins: [] } });
+  const context = await browser.newContext({ baseURL: agencyOriginOf(), storageState: { cookies: [], origins: [] } });
   const page = await context.newPage();
-  await signIn(page, SETUP_OWNER_EMAIL, `/c/${fx().owner.id}`);
+  await signIn(page, SETUP_OWNER_EMAIL, `/c/${fx().owner.id}`, agencyOriginOf());
   await expect(page).toHaveURL(new RegExp(`/c/${fx().owner.id}$`));
   await context.storageState({ path: OWNER_STATE });
   await context.close();
@@ -221,7 +221,7 @@ test.describe('agency staff', () => {
 });
 
 test.describe('client owner', () => {
-  test.use({ storageState: OWNER_STATE });
+  test.use({ storageState: OWNER_STATE, baseURL: agencyBaseURL() });
 
   // Phase 16 P8: owners never open /setup. Their one setup screen (picking competitors while asked to) is /setup/competitors (Task 9).
   test('client owner opening setup lands on the Overview', { tag: ['@setup'] }, async ({ page }) => {

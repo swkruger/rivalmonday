@@ -4,8 +4,8 @@ import { type Browser, expect, type Page, test, type TestInfo } from '@playwrigh
 import { createDb, agency, client } from '@cs/db';
 import { eq, sql } from 'drizzle-orm';
 import { ADMIN_STATE, ensureAdminState } from './admin-session';
-import { signIn } from './helpers';
-import { CB_CLIENT, CB_USERS } from './seed';
+import { agencyOriginOf, signIn } from './helpers';
+import { CB_AGENCY, CB_CLIENT, CB_USERS } from './seed';
 
 /**
  * Profile page (`/settings/profile`). The agency admin reuses the shared admin session; the client owner reuses the
@@ -19,15 +19,15 @@ const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR
 
 async function asOwner<T>(browser: Browser, testInfo: TestInfo, fn: (page: Page) => Promise<T>): Promise<T> {
   if (!existsSync(OWNER_STATE)) {
-    const ctx = await browser.newContext({ baseURL: testInfo.project.use.baseURL, storageState: { cookies: [], origins: [] } });
+    const ctx = await browser.newContext({ baseURL: agencyOriginOf(CB_AGENCY), storageState: { cookies: [], origins: [] } });
     try {
-      await signIn(await ctx.newPage(), CB_USERS.owner, '/');
+      await signIn(await ctx.newPage(), CB_USERS.owner, '/', agencyOriginOf(CB_AGENCY));
       await ctx.storageState({ path: OWNER_STATE });
     } finally {
       await ctx.close();
     }
   }
-  const context = await browser.newContext({ baseURL: testInfo.project.use.baseURL, storageState: OWNER_STATE });
+  const context = await browser.newContext({ baseURL: agencyOriginOf(CB_AGENCY), storageState: OWNER_STATE });
   try {
     return await fn(await context.newPage());
   } finally {

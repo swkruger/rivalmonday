@@ -8,7 +8,7 @@ import { eq } from 'drizzle-orm';
 import { createFakeAi, noul } from '../../../packages/engine/test/fake-ai';
 import { day, seedScoredEvent } from '../../../packages/engine/test/seed';
 import { ADMIN_STATE, ensureAdminState } from './admin-session';
-import { signIn } from './helpers';
+import { agencyBaseURL, agencyOriginOf, signIn } from './helpers';
 import { ASK_USER_EMAIL, RB_CLIENT, RB_TAILORED_KEY } from './seed';
 
 /**
@@ -35,9 +35,9 @@ async function clientId(): Promise<string> {
 async function ensureAskerState(browser: Browser, testInfo: TestInfo): Promise<void> {
   if (existsSync(ASKER_STATE)) return;
   const id = await clientId();
-  const context = await browser.newContext({ baseURL: testInfo.project.use.baseURL, storageState: { cookies: [], origins: [] } });
+  const context = await browser.newContext({ baseURL: agencyOriginOf(), storageState: { cookies: [], origins: [] } });
   const page = await context.newPage();
-  await signIn(page, ASK_USER_EMAIL, `/c/${id}`);
+  await signIn(page, ASK_USER_EMAIL, `/c/${id}`, agencyOriginOf());
   await expect(page).toHaveURL(new RegExp(`/c/${id}$`));
   await context.storageState({ path: ASKER_STATE });
   await context.close();
@@ -98,7 +98,7 @@ test.describe.serial('runbooks', () => {
   });
 
   test.describe('as the client owner', () => {
-    test.use({ storageState: ASKER_STATE });
+    test.use({ storageState: ASKER_STATE, baseURL: agencyBaseURL() });
 
     test('the client runbook page is a 404', { tag: ['@runbook', '@clients'] }, async ({ page }) => {
       const response = await page.goto(`/c/${await clientId()}/settings/runbook`);

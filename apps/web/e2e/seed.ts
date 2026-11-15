@@ -9,7 +9,7 @@ import { createCatalog } from '@cs/verticals';
 import { and, eq, sql } from 'drizzle-orm';
 import { acceptInvitations, createInvitation, seedKnowledge } from '@cs/tools';
 import { resolveEvidenceDir } from '../src/server/files';
-import { ASK_FIXTURE_FILE, E2E_LINK_SECRET, MCP_CLIENTS_FILE, OUTBOX, OWNER_LINK_FILE, RIVALS_FIXTURE_FILE, SETUP_FIXTURE_FILE, STARTING_FIXTURE_FILE } from '../playwright.config';
+import { ASK_FIXTURE_FILE, E2E_LINK_SECRET, HOSTS_FIXTURE_FILE, MCP_CLIENTS_FILE, OUTBOX, OWNER_LINK_FILE, RIVALS_FIXTURE_FILE, SETUP_FIXTURE_FILE, STARTING_FIXTURE_FILE } from '../playwright.config';
 
 /**
  * Seeds `cs_test` for the E2E smoke run: one agency, one client, one competitor, a sent brief, an invitation and a
@@ -258,6 +258,13 @@ export async function seed(): Promise<void> {
       { kind: 'business', contactName: 'Bob Business', email: WAITLIST_BUSINESS_EMAIL, orgName: WAITLIST_BUSINESS, location: 'Granbury, TX', verticalId: 'hvac_plumbing', ipHash: 'e2e', emailConfirmedAt: new Date() },
     ]);
 
+    // 13a1 Task 13: every seeded agency's host slug (the trigger fills it from the name) and another agency's client.
+    const slugRows = (await db.execute(sql`select name, host_slug from agency`)) as unknown as { name: string; host_slug: string }[];
+    const slugs = Object.fromEntries(slugRows.map((r) => [r.name, r.host_slug]));
+    const [otherClient] = await db.select({ id: client.id }).from(client).where(eq(client.agencyId, target!.id));
+    await mkdir(dirname(HOSTS_FIXTURE_FILE), { recursive: true });
+    await writeFile(HOSTS_FIXTURE_FILE, JSON.stringify({ slug: slugs['E2E Agency']!, other: { clientId: otherClient!.id, slug: slugs['Support Target Agency']! }, slugs } satisfies HostsFixture));
+
     // Phase 10: the seeded agencies stand in for pre-Phase-10 agencies, which migration 0066 backfills as completed
     // `legacy` onboarding. Without a row the getting-started checklist shows on /agency (and pushes the portfolio down).
     await db.execute(sql`
@@ -271,6 +278,16 @@ export async function seed(): Promise<void> {
   await rm(OUTBOX, { recursive: true, force: true });
   await mkdir(OUTBOX, { recursive: true });
 }
+
+/** 13a1 Task 13: what `e2e/helpers.ts` (`hostsFixture`) reads from `HOSTS_FIXTURE_FILE`. */
+export type HostsFixture = {
+  /** E2E Agency's `host_slug`. */
+  slug: string;
+  /** Support Target Agency's client (Target Plumbing) and that agency's slug: never visible on E2E Agency's host. */
+  other: { clientId: string; slug: string };
+  /** Every seeded agency's `host_slug`, by name. */
+  slugs: Record<string, string>;
+};
 
 // Sorts after 'E2E Agency': kb.spec.ts picks the agency select's index 1.
 export const WAITLIST_AGENCY = 'Waitlist Agency E2E';

@@ -5,7 +5,7 @@ import { type Browser, expect, type Page, test, type TestInfo } from '@playwrigh
 import { sql } from 'drizzle-orm';
 import { ASK_FIXTURE_FILE } from '../playwright.config';
 import { ADMIN_STATE, ensureAdminState } from './admin-session';
-import { signIn } from './helpers';
+import { agencyBaseURL, agencyOriginOf, signIn } from './helpers';
 import type { AskFixture } from './seed';
 
 /**
@@ -23,9 +23,9 @@ const fx = (): AskFixture => JSON.parse(readFileSync(ASK_FIXTURE_FILE, 'utf8')) 
 /** One magic-link sign-in for the client user per run (Better Auth's per-IP limit, see helpers.ts). */
 async function ensureAskerState(browser: Browser, testInfo: TestInfo): Promise<void> {
   if (existsSync(ASKER_STATE)) return;
-  const context = await browser.newContext({ baseURL: testInfo.project.use.baseURL, storageState: { cookies: [], origins: [] } });
+  const context = await browser.newContext({ baseURL: agencyOriginOf(), storageState: { cookies: [], origins: [] } });
   const page = await context.newPage();
-  await signIn(page, ASKER, `/c/${fx().askCo.id}`);
+  await signIn(page, ASKER, `/c/${fx().askCo.id}`, agencyOriginOf());
   await expect(page).toHaveURL(new RegExp(`/c/${fx().askCo.id}$`));
   await context.storageState({ path: ASKER_STATE });
   await context.close();
@@ -52,7 +52,7 @@ async function expectNoUsageNumbers(page: Page): Promise<void> {
 
 test.describe('as a client user', () => {
   test.beforeAll(async ({ browser }, testInfo) => ensureAskerState(browser, testInfo));
-  test.use({ storageState: ASKER_STATE });
+  test.use({ storageState: ASKER_STATE, baseURL: agencyBaseURL() });
 
   test('starter chip → cited answer with chip opening evidence viewer → save as recommendation appears on Recommendations', { tag: ['@ask', '@overview', '@evidence', '@recommendations'] }, async ({ page }) => {
     const { askCo, starters } = fx();

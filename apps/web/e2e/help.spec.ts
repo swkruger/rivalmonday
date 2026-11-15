@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { type Browser, expect, test, type TestInfo } from '@playwright/test';
 import { ASK_FIXTURE_FILE } from '../playwright.config';
 import { ADMIN_STATE, ensureAdminState } from './admin-session';
-import { signIn } from './helpers';
+import { agencyBaseURL, agencyOriginOf, signIn } from './helpers';
 import type { AskFixture } from './seed';
 
 /**
@@ -23,9 +23,9 @@ const AGENCY_COPY = "The client's home page: how Ask Demo Heating stands against
 /** One magic-link sign-in for the client user per run (Better Auth's per-IP limit, see helpers.ts). */
 async function ensureAskerState(browser: Browser, testInfo: TestInfo): Promise<void> {
   if (existsSync(ASKER_STATE)) return;
-  const context = await browser.newContext({ baseURL: testInfo.project.use.baseURL, storageState: { cookies: [], origins: [] } });
+  const context = await browser.newContext({ baseURL: agencyOriginOf(), storageState: { cookies: [], origins: [] } });
   const page = await context.newPage();
-  await signIn(page, ASKER, `/c/${fx().askCo.id}`);
+  await signIn(page, ASKER, `/c/${fx().askCo.id}`, agencyOriginOf());
   await expect(page).toHaveURL(new RegExp(`/c/${fx().askCo.id}$`));
   await context.storageState({ path: ASKER_STATE });
   await context.close();
@@ -33,7 +33,7 @@ async function ensureAskerState(browser: Browser, testInfo: TestInfo): Promise<v
 
 test.describe('as a client owner', () => {
   test.beforeAll(async ({ browser }, testInfo) => ensureAskerState(browser, testInfo));
-  test.use({ storageState: ASKER_STATE });
+  test.use({ storageState: ASKER_STATE, baseURL: agencyBaseURL() });
 
   test('the Overview guide shows the client version, not the agency one', { tag: ['@help', '@overview'] }, async ({ page }) => {
     await page.goto(`/c/${fx().askCo.id}`);

@@ -2,7 +2,7 @@ import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { type Browser, expect, type Page, test, type TestInfo } from '@playwright/test';
 import { ADMIN_STATE, ensureAdminState } from './admin-session';
-import { signIn } from './helpers';
+import { agencyOriginOf, signIn } from './helpers';
 
 /**
  * Phase 9a billing, against the fake gateway. `seed.ts` adds two agencies that are not exempt pilots: "Trial Agency E2E"
@@ -17,14 +17,16 @@ const USERS = {
   pausedOwner: 'paused-owner@e2e.test',
 } as const;
 type Who = keyof typeof USERS;
+/** 13a1: the client owner signs in on (and uses) the paused agency's client host; staff stay on the platform. */
+const originOf = (testInfo: TestInfo, who: Who) => (who === 'pausedOwner' ? agencyOriginOf('Paused Agency E2E') : testInfo.project.use.baseURL!);
 
 const COPY_TEXT = "Copy link — it won't be shown again.";
 
 async function ensureState(browser: Browser, testInfo: TestInfo, who: Who): Promise<void> {
   if (existsSync(STATE(who))) return;
-  const context = await browser.newContext({ baseURL: testInfo.project.use.baseURL, storageState: { cookies: [], origins: [] } });
+  const context = await browser.newContext({ baseURL: originOf(testInfo, who), storageState: { cookies: [], origins: [] } });
   try {
-    await signIn(await context.newPage(), USERS[who], '/');
+    await signIn(await context.newPage(), USERS[who], '/', who === 'pausedOwner' ? originOf(testInfo, who) : '');
     await context.storageState({ path: STATE(who) });
   } finally {
     await context.close();
@@ -33,7 +35,7 @@ async function ensureState(browser: Browser, testInfo: TestInfo, who: Who): Prom
 
 async function as<T>(browser: Browser, testInfo: TestInfo, who: Who, fn: (page: Page) => Promise<T>): Promise<T> {
   await ensureState(browser, testInfo, who);
-  const context = await browser.newContext({ baseURL: testInfo.project.use.baseURL, storageState: STATE(who) });
+  const context = await browser.newContext({ baseURL: originOf(testInfo, who), storageState: STATE(who) });
   try {
     return await fn(await context.newPage());
   } finally {

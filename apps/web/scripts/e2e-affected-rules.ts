@@ -13,7 +13,7 @@ export type Affected = { mode: 'none' | 'some' | 'all'; tags: string[]; reasons:
 export const KNOWN_TAGS = [
   '@smoke', '@auth', '@guest', '@dev-panel', '@clients', '@briefs', '@recommendations', '@alerts', '@usage', '@runbook',
   '@profile', '@platform', '@prospects', '@changes', '@evidence', '@moves', '@competitors', '@overview', '@alert-rules',
-  '@pricing', '@ads', '@reviews', '@rankings', '@nav', '@responsive', '@ai-connections', '@ask', '@kb', '@support', '@costs', '@rivals', '@starting-point', '@billing', '@client-billing', '@onboarding', '@setup', '@leads', '@navigation', '@catalogue', '@help', '@ops', '@errors', '@settings', '@waitlist', '@profile-page',
+  '@pricing', '@ads', '@reviews', '@rankings', '@nav', '@responsive', '@ai-connections', '@ask', '@kb', '@support', '@costs', '@rivals', '@starting-point', '@billing', '@client-billing', '@onboarding', '@setup', '@leads', '@navigation', '@catalogue', '@help', '@ops', '@errors', '@settings', '@waitlist', '@profile-page', '@hosts', '@domains',
 ] as const;
 
 const WEB = 'apps/web/';
@@ -29,7 +29,7 @@ const re = (s: string) => new RegExp(`^${s}`);
 
 const GUEST_FILES = ['@guest', '@evidence', '@briefs'];
 /** Every tag whose tests open an agency settings page (`/agency/settings/*`). */
-const SETTINGS_PAGES = ['@usage', '@runbook', '@support', '@billing', '@client-billing', '@leads', '@ai-connections', '@navigation', '@settings'];
+const SETTINGS_PAGES = ['@usage', '@runbook', '@support', '@billing', '@client-billing', '@leads', '@ai-connections', '@navigation', '@settings', '@domains'];
 /** Every tag whose tests open a client settings page (`/c/<id>/settings/*`). */
 const CLIENT_SETTINGS_PAGES = ['@profile', '@clients', '@ask', '@support', '@billing', '@client-billing', '@setup', '@alert-rules', '@ai-connections', '@navigation', '@runbook'];
 
@@ -69,13 +69,17 @@ export const RULES: Rule[] = [
   { pattern: re(`${COMP}radius-select\\.tsx$`), tags: ['@rankings', '@setup', '@profile'], why: 'radius select (rank settings, setup business step, client profile form)' },
   { pattern: re(`${COMP}page-header-guard\\.ts$`), tags: [], why: 'test-only PageHeader guard rail (countPrimaryActions), no browser flow' },
   { pattern: re(`${COMP}page-skeleton\\.tsx$`), tags: [], why: 'Suspense fallback, not used by a page until 15c-2' },
-  { pattern: re(`${WEB}src/proxy\\.ts$`), tags: 'all', why: 'request proxy runs on every page' },
+  // 13a1: the host rules (proxy, per-origin auth, request host) run on every page, so they stay 'all' (which includes @hosts).
+  { pattern: re(`${WEB}src/proxy\\.ts$`), tags: 'all', why: 'request proxy (host routing) runs on every page' },
   { pattern: re(`${APP}(?:layout\\.tsx|globals\\.css|fonts/|health/)`), tags: 'all', why: 'root layout/styles/fonts/health check' },
   { pattern: re(`${APP}(?:bot/|robots\\.ts$)`), tags: ['@ops'], why: 'public crawler page and robots.txt' },
   { pattern: re(`${APP}(?:favicon\\.ico|icon\\.svg)$`), tags: [], why: 'static tab icons, no browser flow' },
   { pattern: re(`${APP}\\((?:app|platform)\\)/(?:layout\\.tsx|actions\\.ts)$`), tags: 'all', why: 'signed-in app shell (agency/client and platform groups)' },
   { pattern: re(`${COMP}shell/spend-banner`), tags: ['@usage', '@navigation'], why: 'spend pause banner in the shell' },
   { pattern: re(`${COMP}shell/`), tags: 'all', why: 'app shell (sidebar, top bar, nav)' },
+  // 13a1: pure host decisions (host kinds and path rules; which memberships count on a host). The proxy and the viewer that call
+  // them stay 'all' above/below; these modules alone are covered by the hosts spec, the guest link and the client sign-ins.
+  { pattern: re(`${SERVER}(?:hosts|host-viewer)\\.ts$`), tags: ['@hosts', '@guest', '@auth', '@ai-connections'], why: 'host routing rules and host-scoped viewer decisions (13a1)' },
   {
     pattern: re(`${SERVER}(?:auth|auth-options|request-host|env|db|run-tool|tools|viewer|current-viewer|theme|branding|nav|safe-next|runtime-env|billing-redirect|billing-state)\\.ts$`),
     tags: 'all',
@@ -93,8 +97,8 @@ export const RULES: Rule[] = [
   { pattern: /^packages\/mcp\//, tags: ['@ai-connections'], why: 'AI connections (MCP server)' },
   { pattern: re(`${APP}(?:mcp/|\\.well-known/|oauth/)`), tags: ['@ai-connections'], why: 'AI connections (MCP route, OAuth metadata/consent)' },
   { pattern: re(`${COMP}agency/intake-link-card\\.`), tags: ['@leads'], why: 'intake link card and its button snippet (agency intake settings)' },
-  { pattern: re(`${COMP}agency/(?:domain|sending)-panel\\.`), tags: ['@settings'], why: 'Domains page panels: web address and email sending (13a1; @domains arrives with its E2E)' },
-  { pattern: re(`${COMP}copy-button\\.tsx$`), tags: ['@leads', '@settings'], why: 'copy button (intake link card, Domains DNS tables)' },
+  { pattern: re(`${COMP}agency/(?:domain|sending)-panel\\.`), tags: ['@domains'], why: 'Domains page panels: web address and email sending (13a1)' },
+  { pattern: re(`${COMP}copy-button\\.tsx$`), tags: ['@leads', '@domains'], why: 'copy button (intake link card, Domains DNS tables)' },
   { pattern: re(`${APP}\\(app\\)/(?:agency/settings|c/\\[clientId\\]/settings|settings)/ai/`), tags: ['@ai-connections'], why: 'AI connections settings' },
   { pattern: re(`${SERVER}(?:mcp|oauth-consent|ai-connections)\\.ts$`), tags: ['@ai-connections'], why: 'AI connections server module' },
   { pattern: re(`${COMP}ai-connections\\.tsx$`), tags: ['@ai-connections'], why: 'AI connections cards' },
@@ -144,7 +148,7 @@ export const RULES: Rule[] = [
   { pattern: re(`${AGENCY}settings/team/`), tags: ['@support', '@navigation'], why: 'agency team page (a support session opens it; old /agency/team redirects here)' },
   { pattern: re(`${AGENCY}settings/branding/`), tags: ['@navigation'], why: 'agency branding page (old /agency/branding redirects here)' },
   { pattern: re(`${AGENCY}settings/slack-teams/`), tags: ['@settings'], why: 'Slack & Teams webhooks (add, send test, delete)' },
-  { pattern: re(`${AGENCY}settings/domains/`), tags: ['@settings'], why: 'Domains page and its actions (13a1; @domains arrives with its E2E)' },
+  { pattern: re(`${AGENCY}settings/domains/`), tags: ['@domains'], why: 'Domains page and its actions (13a1)' },
   { pattern: re(`${AGENCY}settings/(?:layout|page)\\.tsx$`), tags: SETTINGS_PAGES, why: 'agency settings layout and index redirect (wrap every agency settings page)' },
   { pattern: re(`${C}settings/(?:layout|page)\\.tsx$|${SERVER}client-settings-nav\\.ts$`), tags: CLIENT_SETTINGS_PAGES, why: 'client settings layout, index redirect and tab list (wrap every client settings page)' },
   { pattern: re(`${COMP}settings-nav\\.tsx$`), tags: [...new Set([...SETTINGS_PAGES, ...CLIENT_SETTINGS_PAGES])], why: 'settings sub-nav (every agency and client settings page)' },
@@ -242,6 +246,7 @@ export const RULES: Rule[] = [
   { pattern: re(`${SERVER}(?:email-transport|sign-out|signup-cookie|pending-signup|pending-email|onboarding-start|turnstile)\\.ts$`), tags: ['@auth', '@onboarding'], why: 'sign-in email / sign-out / sign-up' },
 
   // --- Domain packages: keyword rules (more specific first) ---
+  kw('domains', ['@domains'], 'custom and sending domains (tools, vendor wrappers, fakes, verify)'),
   kw('alert-rules', ['@alert-rules'], 'alert rules'),
   kw('\\bask\\b', ['@ask'], 'Ask (threads, starters, write allowlist, demo threads)'),
   kw('api-tokens|oauth', ['@ai-connections'], 'AI connections (tokens, OAuth)'),
