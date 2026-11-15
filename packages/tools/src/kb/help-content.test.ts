@@ -37,7 +37,7 @@ const BATCH_C = [...BATCH_C_SPLIT.flatMap((k) => [`${k}#agency`, `${k}#client`])
 /** 15b-2 Task 7, agency batch A: every page is reachable by agency roles only, so each has one `agency` guide and no client version. */
 const AGENCY_A = ['page:agency.portfolio', 'page:agency.clients.new', 'page:agency.approvals', 'page:agency.approvals.detail', 'page:agency.alerts', 'page:agency.prospects', 'page:agency.prospects.new', 'page:agency.prospects.detail', 'page:agency.leads'];
 /** 15b-2 Task 8, agency batch B: the agency settings pages (15c-2a adds the intake preview). All reachable by agency roles only, so each has one `agency` guide. */
-const AGENCY_B = ['page:agency.settings.ai', 'page:agency.settings.billing', 'page:agency.settings.branding', 'page:agency.settings.intake', 'page:agency.settings.intake.preview', 'page:agency.settings.platform-access', 'page:agency.settings.runbook', 'page:agency.settings.slack-teams', 'page:agency.settings.team', 'page:agency.settings.usage'];
+const AGENCY_B = ['page:agency.settings.ai', 'page:agency.settings.billing', 'page:agency.settings.branding', 'page:agency.settings.domains', 'page:agency.settings.intake', 'page:agency.settings.intake.preview', 'page:agency.settings.platform-access', 'page:agency.settings.runbook', 'page:agency.settings.slack-teams', 'page:agency.settings.team', 'page:agency.settings.usage'];
 /**
  * 15b-2 Task 9a, platform pages: operator-only (`requireOperatorContext`), so every page has one `operator` guide and nothing else.
  */
@@ -277,7 +277,7 @@ describe('help content (real docs/help + GLOSSARY)', () => {
     for (const t of GLOSSARY.filter((x) => x.audience === 'all' || x.audience === 'client')) expect(`${t.term}\n${t.short}\n${t.long ?? ''}`, t.id).not.toMatch(AGENCY_ONLY);
   });
 
-  it('agency batches A and B: agency roles read the nineteen guides in the agency context, with the three standard sections; client roles read none', async () => {
+  it('agency batches A and B: agency roles read the twenty guides in the agency context, with the three standard sections; client roles read none', async () => {
     const list = (c: AccessContext) => registry.invoke(c, 'list_help_guides', { context: 'agency' }) as Promise<{ guides: { helpKey: string }[] }>;
     const agencyGuide = (c: AccessContext, helpKey: string) => registry.invoke(c, 'get_page_guide', { helpKey, context: 'agency' }) as Promise<Guide>;
     for (const c of [admin, am]) expect((await list(c)).guides.map((g) => g.helpKey).sort(), c.role).toEqual([...AGENCY_KEYS, ...ACCOUNT_AGENCY_ROLE].sort());
