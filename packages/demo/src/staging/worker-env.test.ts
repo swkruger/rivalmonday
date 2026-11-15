@@ -13,6 +13,7 @@ const FILE: Record<string, string> = {
   SERVICE_DATABASE_URL: url('app_service', DIRECT),
   SERVICE_DATABASE_POOLED_URL: url('app_service', POOLED),
   APP_URL: 'https://staging.rivalmonday.app',
+  NEUTRAL_DOMAIN: 'staging.rivalmonday.app',
   LINK_SIGNING_SECRET: 'link',
   EMAIL_FROM: 'Staging <staging@mail.rivalmonday.app>',
   POSTMARK_SERVER_TOKEN: 'postmark',
@@ -84,6 +85,16 @@ describe('stagingWorkerEnv', () => {
     expect(() => stagingWorkerEnv({ ...FILE, WORKER_DATABASE_URL: 'not a url' }, {})).toThrow(/WORKER_DATABASE_URL/);
   });
 
+  it('passes NEUTRAL_DOMAIN (13a1: the worker refuses to start without it) and requires it', () => {
+    expect(stagingWorkerEnv(FILE, {}).NEUTRAL_DOMAIN).toBe('staging.rivalmonday.app');
+    expect(() => stagingWorkerEnv({ ...FILE, NEUTRAL_DOMAIN: '' }, {})).toThrow(/Fill in NEUTRAL_DOMAIN/);
+  });
+
+  it('refuses a NEUTRAL_DOMAIN other than the staging host (R7: staging uses its own APP_URL host)', () => {
+    expect(() => stagingWorkerEnv({ ...FILE, NEUTRAL_DOMAIN: 'rivalmonday.app' }, {})).toThrow(/Refusing: NEUTRAL_DOMAIN must be staging\.rivalmonday\.app/);
+    expect(() => stagingWorkerEnv({ ...FILE, NEUTRAL_DOMAIN: 'clientintel.app' }, {})).toThrow(/Refusing: NEUTRAL_DOMAIN/);
+  });
+
   it('refuses a bucket not ending in -staging', () => {
     expect(() => stagingWorkerEnv({ ...FILE, R2_BUCKET: 'rivalmonday' }, {})).toThrow(/-staging/);
   });
@@ -135,7 +146,8 @@ describe('railwayWorkerVars', () => {
     for (const k of ['NODE_ENV', 'PORT', 'STRIPE_SECRET_KEY', 'WEB_DATABASE_URL', 'WORKER_DATABASE_URL', 'STAGING_DB_DIRECT_HOST']) {
       expect(vars).not.toHaveProperty(k);
     }
-    expect(Object.keys(vars)).toHaveLength(20);
+    expect(vars.NEUTRAL_DOMAIN).toBe('staging.rivalmonday.app');
+    expect(Object.keys(vars)).toHaveLength(21);
   });
 
   it('applies the local worker checks (refused line, wrong host)', () => {

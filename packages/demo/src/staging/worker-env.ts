@@ -2,7 +2,7 @@ const VENDOR_KEYS = ['DATAFORSEO_LOGIN', 'DATAFORSEO_PASSWORD', 'APIFY_TOKEN', '
 
 const REQUIRED = [
   'STAGING_DB_DIRECT_HOST', 'STAGING_DB_POOLED_HOST', 'WORKER_DATABASE_URL', 'SERVICE_DATABASE_URL', 'SERVICE_DATABASE_POOLED_URL',
-  'APP_URL', 'LINK_SIGNING_SECRET', 'EMAIL_FROM', 'POSTMARK_SERVER_TOKEN', 'R2_ACCOUNT_ID', 'R2_ACCESS_KEY_ID', 'R2_SECRET_ACCESS_KEY', 'R2_BUCKET',
+  'APP_URL', 'NEUTRAL_DOMAIN', 'LINK_SIGNING_SECRET', 'EMAIL_FROM', 'POSTMARK_SERVER_TOKEN', 'R2_ACCOUNT_ID', 'R2_ACCESS_KEY_ID', 'R2_SECRET_ACCESS_KEY', 'R2_BUCKET',
   'OPENROUTER_API_KEY', 'REVIEWER_HASH_SALT', 'SENTRY_DSN', 'SENTRY_ENVIRONMENT', ...VENDOR_KEYS,
 ] as const;
 
@@ -48,6 +48,9 @@ export function stagingWorkerEnv(file: Record<string, string | undefined>, shell
   const dummies = VENDOR_KEYS.filter((k) => file[k]!.trim().toLowerCase() === 'fixture');
   if (dummies.length) throw new Error(`Refusing: ${dummies.join(', ')} must be real keys (staging runs live vendors)`);
   if (file.SENTRY_ENVIRONMENT !== 'staging') throw new Error('Refusing: SENTRY_ENVIRONMENT must be staging');
+  // 13a1 (R7, F6): the worker (NODE_ENV=production) refuses to start without NEUTRAL_DOMAIN; staging's is its own APP_URL host.
+  const stagingHost = new URL(file.APP_URL!.trim()).hostname;
+  if (file.NEUTRAL_DOMAIN!.trim().toLowerCase() !== stagingHost) throw new Error(`Refusing: NEUTRAL_DOMAIN must be ${stagingHost} (the APP_URL host)`);
   if (!file.R2_BUCKET!.trim().endsWith('-staging')) throw new Error('Refusing: only a bucket whose name ends in -staging is a target');
 
   const direct = file.STAGING_DB_DIRECT_HOST!.trim();

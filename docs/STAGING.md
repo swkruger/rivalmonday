@@ -210,6 +210,7 @@ These settings come first, because the same project will also host production la
    | `SENTRY_DSN` | **`WEB_SENTRY_DSN`** |
    | `NEXT_PUBLIC_SENTRY_DSN` | **`WEB_SENTRY_DSN`** |
    | Same name in both | `APP_DATABASE_URL`, `SERVICE_DATABASE_URL`, `APP_URL`, `LINK_SIGNING_SECRET`, `BETTER_AUTH_SECRET`, `EMAIL_FROM`, `POSTMARK_SERVER_TOKEN`, `POSTMARK_WEBHOOK_SECRET`, `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`, `OPENROUTER_API_KEY`, `REVIEWER_HASH_SALT`, `SENTRY_ENVIRONMENT`, `SENTRY_ISSUES_URL`, `PLATFORM_ADMIN_EMAILS`, `TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_CONNECT_WEBHOOK_SECRET`, `STRIPE_TAX_ENABLED`, `SITE_ORIGIN`, `SUPPORT_REPLY_TO` |
+   | `NEUTRAL_DOMAIN` | `staging.rivalmonday.app` (13a1: agency hosts are `<slug>.staging.rivalmonday.app`; also in `.env.staging` for the worker) |
    | Optional | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` |
 
    Don't add `WORKER_DATABASE_URL`, `SERVICE_DATABASE_POOLED_URL`, the vendor keys, or anything in the GitHub section of the file.
@@ -370,7 +371,7 @@ The worker does background jobs, so staging needs it running whenever you're tes
    ```powershell
    pnpm staging:railway-vars
    ```
-   It runs the same checks as the local worker on `.env.staging` (roles and staging hosts in the three database addresses, a `-staging` bucket, `SENTRY_ENVIRONMENT=staging`, five real vendor keys, none of the refused lines), then sets the 20 worker variables on `rivalmonday-worker`. `DATABASE_URL` gets the value of `WORKER_DATABASE_URL`. It prints names only. `pnpm staging:railway-vars --check` only runs the checks.
+   It runs the same checks as the local worker on `.env.staging` (roles and staging hosts in the three database addresses, a `-staging` bucket, `SENTRY_ENVIRONMENT=staging`, `NEUTRAL_DOMAIN` = the `APP_URL` host (`staging.rivalmonday.app`), five real vendor keys, none of the refused lines), then sets the 21 worker variables on `rivalmonday-worker`. `DATABASE_URL` gets the value of `WORKER_DATABASE_URL`. It prints names only. `pnpm staging:railway-vars --check` only runs the checks.
 8. Run it again whenever a worker value in `.env.staging` changes. The change applies at the next deploy. The command never deletes a Railway variable, so remove an old one under **Variables** yourself. **Never add** `NODE_ENV` or `PORT` (the image sets both), `WEB_MONITORING_ENABLED`, `VENDOR_FAKE_MODE`, `VENDOR_LIVE_RANK_SCANS`, `AI_PROVIDER_MODE`, `REHEARSAL_LIVE_CLIENT_IDS`, `CRAWL_HOST_ALLOWLIST`, `DEV_PANEL` or `EVIDENCE_FS_DIR`. The Railway worker doesn't refuse them.
 
 **D. Link the worker folder**
