@@ -18,7 +18,7 @@ export function createDomainJobs(
   opts: { envName: EnvName },
 ) {
   const notify = (n: Parameters<WorkerDeps['domainEmail']>[0]) => deps.domainEmail(n);
-  const probe = (hostname: string) => deps.domainProbe(hostname);
+  const probe = (hostname: string) => deps.domainProbe(hostname, opts.envName);
 
   const domainVerify = defineJob({
     name: 'domain-verify',

@@ -56,7 +56,7 @@ describe('domain jobs', () => {
     await d.notify({ agencyId: 'a', kind: 'domain_live', name: 'x' });
     expect(deps.domainEmail).toHaveBeenCalled();
     await d.probe('x.example.com');
-    expect(deps.domainProbe).toHaveBeenCalledWith('x.example.com');
+    expect(deps.domainProbe).toHaveBeenCalledWith('x.example.com', 'dev');
   });
 
   it('done → no re-enqueue', async () => {

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { DomainVendorError } from './errors';
-import { fakePostmarkDomains, fakeVercelDomains, resetFakeDomainVendors } from './fakes';
+import { fakeDomainProbe, fakePostmarkDomains, fakeVercelDomains, resetFakeDomainVendors } from './fakes';
 import { domainVendorsFor } from './vendors';
 
 const tokens = { VERCEL_API_TOKEN: 'v_tok', VERCEL_PROJECT_ID: 'prj_1', POSTMARK_ACCOUNT_TOKEN: 'pm_tok' };
@@ -104,5 +104,13 @@ describe('fakes', () => {
     expect((await pm.verifyReturnPath(4242)).returnPath.verified).toBe(true);
     await pm.remove(4242);
     expect((await pm.verifyDkim(4242).catch((e) => e)).code).toBe('invalid');
+  });
+});
+
+describe('fakeDomainProbe (Task 11 ruling: no real DNS/HTTPS for fake hosts)', () => {
+  it('passes every hostname unless it contains "fail"', async () => {
+    expect(await fakeDomainProbe('portal.example.com')).toBe(true);
+    expect(await fakeDomainProbe('fail.example.com')).toBe(false);
+    expect(await fakeDomainProbe('portal-fail.example.com')).toBe(false);
   });
 });

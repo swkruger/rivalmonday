@@ -85,7 +85,7 @@ export * from './link-base';
 export { customHostnameProblem, normaliseHostname, sendingDomainProblem } from './domains/hostname';
 export { domainVendorsFor, type DomainVendorOptions } from './domains/vendors';
 export { DomainVendorError, type DomainVendorErrorCode, type PostmarkDomainState, type PostmarkDomains, type VercelDomainState, type VercelDomains } from './domains/errors';
-export { type FakePostmarkDomains, type FakeVercelDomains, fakePostmarkDomains, fakeVercelDomains, resetFakeDomainVendors } from './domains/fakes';
+export { fakeDomainProbe, type FakePostmarkDomains, type FakeVercelDomains, fakePostmarkDomains, fakeVercelDomains, resetFakeDomainVendors } from './domains/fakes';
 export { createPostmarkDomains } from './domains/postmark';
 export { createVercelDomains } from './domains/vercel';
 export {

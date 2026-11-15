@@ -66,6 +66,29 @@ describe('aiGuard', () => {
   });
 });
 
+describe('domainProbe (13a1 Task 13: fake vendors use a fake probe)', () => {
+  const env = { SERVICE_DATABASE_URL: 'postgres://u:p@127.0.0.1:1/x' } as NodeJS.ProcessEnv;
+
+  it('with fake domain vendors (DEMO/TEST) answers without DNS or HTTPS: true unless the hostname contains "fail"', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
+    try {
+      const deps = createWorkerDeps(env);
+      expect(deps.domainVendors('test').fake).toBe(true);
+      expect(await deps.domainProbe('portal.e2e-probe.invalid', 'test')).toBe(true);
+      expect(await deps.domainProbe('fail.e2e-probe.invalid', 'test')).toBe(false);
+      expect(fetchSpy).not.toHaveBeenCalled();
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  it('with real vendors uses the SSRF-guarded probe (a non-resolving host is false)', async () => {
+    const deps = createWorkerDeps({ ...env, NODE_ENV: 'production' } as NodeJS.ProcessEnv);
+    expect(deps.domainVendors('dev').fake).toBe(false);
+    expect(await deps.domainProbe('portal.e2e-probe.invalid', 'dev')).toBe(false);
+  });
+});
+
 describe('adImagesEnabled (18a-3 R3: the crawler-ban gate)', () => {
   const base = { SERVICE_DATABASE_URL: 'postgres://u:p@127.0.0.1:1/x' } as NodeJS.ProcessEnv;
   it('is true only when WEB_MONITORING_ENABLED is "true" (trimmed)', () => {

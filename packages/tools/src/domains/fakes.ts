@@ -135,6 +135,11 @@ let vercel: FakeVercelDomains | null = null;
 let postmark: FakePostmarkDomains | null = null;
 export const fakeVercelDomains = (): FakeVercelDomains => (vercel ??= createFakeVercel());
 export const fakePostmarkDomains = (): FakePostmarkDomains => (postmark ??= createFakePostmark());
+/**
+ * The worker's probe while domain vendors are fakes (13a1 Task 11 ruling): no DNS or HTTPS for fake hosts, so a domain can
+ * reach `live` in demo/test — true unless the hostname contains `fail`.
+ */
+export const fakeDomainProbe = async (hostname: string): Promise<boolean> => !hostname.toLowerCase().includes('fail');
 /** Tests: drop the process-wide fakes (the next call starts empty). */
 export function resetFakeDomainVendors(): void {
   vercel = null;

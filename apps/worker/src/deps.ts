@@ -23,7 +23,7 @@ import {
   type AgencyClientBillingNoticeProps, type AgencyWelcomeProps, type BillingNoticeProps, type ClientBillingNoticeProps, createEmailTransportFromEnv, type OnboardingTipProps,
   type PlatformOpsAlertProps, type PlatformSignupNoticeProps, renderEmail, resolveBranding,
 } from '@cs/email';
-import { createDomainProbe, type DomainNotice, domainNoticeRecipients, domainVendorsFor, type PostmarkDomains, type VercelDomains, type LeadEmailDeps, listMonthlyRivalClients, normalizeAdminEmails, platformOperatorEmails, type PlatformCostLowPayload, type PlatformCostSnapshotDeps, type PlatformSpendAlertPayload, type SpendGuardDeps, unsubscribeToken } from '@cs/tools';
+import { createDomainProbe, type DomainNotice, fakeDomainProbe, domainNoticeRecipients, domainVendorsFor, type PostmarkDomains, type VercelDomains, type LeadEmailDeps, listMonthlyRivalClients, normalizeAdminEmails, platformOperatorEmails, type PlatformCostLowPayload, type PlatformCostSnapshotDeps, type PlatformSpendAlertPayload, type SpendGuardDeps, unsubscribeToken } from '@cs/tools';
 import { createStoreFromEnv, type ObjectStore } from '@cs/storage';
 import { eq, inArray, sql } from 'drizzle-orm';
 import { lookup, resolveTxt } from 'node:dns/promises';
@@ -225,9 +225,12 @@ export interface WorkerDeps {
    * 13a1 Task 11 (P11, N6): Vercel/Postmark domain wrappers over the shared vendor limiter (`vercel`/`postmark` keys); fakes on
    * DEMO/TEST databases; `DOMAINS_FAKE_VENDORS` ignored (`allowFakeFlag: false`). Null = that vendor is not configured.
    */
-  domainVendors(envName: EnvName): { vercel: VercelDomains | null; postmark: PostmarkDomains | null };
-  /** 13a1 P13: SSRF-guarded `GET https://<hostname>/health` (2xx = certificate issued and the host routes to us). */
-  domainProbe(hostname: string): Promise<boolean>;
+  domainVendors(envName: EnvName): { vercel: VercelDomains | null; postmark: PostmarkDomains | null; fake: boolean };
+  /**
+   * 13a1 P13: SSRF-guarded `GET https://<hostname>/health` (2xx = certificate issued and the host routes to us). While
+   * `domainVendors(envName)` are fakes (DEMO/TEST), `fakeDomainProbe` instead: no DNS/HTTPS, true unless the name contains `fail`.
+   */
+  domainProbe(hostname: string, envName: EnvName): Promise<boolean>;
   /** DNS TXT lookup (DMARC check of a verified sending domain). */
   resolveTxt(name: string): Promise<string[][]>;
   /** 13a1 P10: `agency_domain_notice` (platform-branded, platform sender) to the agency's active agency-admin contacts; best effort, never throws. */
@@ -372,6 +375,8 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv, opts: { aiGuard?: boole
   let domainVendors: ReturnType<WorkerDeps['domainVendors']> | null = null;
   // P13 / F21: the custom hostname is user-supplied, so the probe goes through the SSRF guard (system DNS lookup).
   const domainProbe = createDomainProbe();
+  const getDomainVendors = (envName: EnvName) =>
+    (domainVendors ??= domainVendorsFor(env, envName, { allowFakeFlag: false, fetch: { vercel: vendors.limitedFetch('vercel'), postmark: vendors.limitedFetch('postmark') } }));
   let emailTransport: ReturnType<typeof createEmailTransportFromEnv> | null = null;
   const getEmailTransport = () => (emailTransport ??= createEmailTransportFromEnv(env, createLedgerSink(getDb())));
   let senders: Parameters<typeof dispatchDue>[0]['senders'] | null = null;
@@ -819,8 +824,8 @@ export function createWorkerDeps(env: NodeJS.ProcessEnv, opts: { aiGuard?: boole
         await getEmailTransport().send({ from: platformSender({ platformFrom: from }), to, replyTo: null, subject: r.subject, html: r.html, text: r.text, tag: 'agency_client_billing_notice', metadata: {} }, { agencyId, clientId: null });
       },
     }),
-    domainVendors: (envName) => (domainVendors ??= domainVendorsFor(env, envName, { allowFakeFlag: false, fetch: { vercel: vendors.limitedFetch('vercel'), postmark: vendors.limitedFetch('postmark') } })),
-    domainProbe: (hostname) => domainProbe(hostname),
+    domainVendors: (envName) => getDomainVendors(envName),
+    domainProbe: (hostname, envName) => (getDomainVendors(envName).fake ? fakeDomainProbe(hostname) : domainProbe(hostname)),
     resolveTxt: (name) => resolveTxt(name),
     domainEmail: async (n) => {
       try {
