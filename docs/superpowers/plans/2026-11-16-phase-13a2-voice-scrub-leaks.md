@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: superpowers:subagent-driven-development. Steps use checkbox (`- [ ]`) syntax.
 
-**Supersedes** Part 2 (Tasks 15–23) of `docs/superpowers/plans/2026-10-17-phase-13a-white-label.md`. Its binding interfaces stand unless this plan changes them. **Lean plan format** (root `CLAUDE.md` § Process): interfaces are binding; full code only in the **Appendices** (migration, the banned-term matcher, the voice prompt block, the neutral icon) and the **Proposed copy** appendix.
+**Status:** owner-approved 2026-11-16 (with V11 = 404). **Supersedes** Part 2 (Tasks 15–23) of `docs/superpowers/plans/2026-10-17-phase-13a-white-label.md`. Its binding interfaces stand unless this plan changes them. **Lean plan format** (root `CLAUDE.md` § Process): interfaces are binding; full code only in the **Appendices** (migration, the banned-term matcher, the voice prompt block, the neutral icon) and the **Proposed copy** appendix.
 
 **Goal:** An agency's own voice (tone + preferred/banned words) shapes every model-written client text, a banned word that survives one retry waits for an account manager, and no client-facing surface (pages, icons, headers, redirects, emails, PDFs, MCP, Stripe) names Rival Monday — pinned by unit and E2E leak checks.
 
@@ -45,7 +45,7 @@
 - **V8 Flag lifetime:** set or cleared at every brief commit / alert write; approval does not clear it; the UI shows it while the row is `ready` / `pending_review`.
 - **V9 Term rules:** a term both preferred (`say`) and banned, or listed twice (case-insensitive), is refused.
 - **V10 Samples host slug:** `agency_host_slug_for('Samples', id)` → `samples` (or `samples-2`…), at insert and for the existing row in 0114.
-- **V11 Staff bounce exception:** on an agency host, `/agency*` and `/platform*` 307 to `APP_URL` for anyone (13a1). The crawl asserts that hop's target is the platform origin + same path and exempts only that `Location` from the regex.
+- **V11 `/agency*` on an agency host (owner, 2026-11-16):** 404 unless the request carries a session on this host whose viewer has an agency-staff membership for this host's agency; that viewer still gets the 13a1 307 to `APP_URL` + same path. No session, client roles, guests → 404 (`notFound()`, never a redirect naming the platform origin). `/platform*` on an agency host → 404 for everyone. The crawl therefore has **no** exempt `Location`: any redirect to the platform origin from an agency host fails.
 
 ## File structure
 New: core `src/voice.ts`, `src/white-label.ts`; engine `src/voice/{load,block,preview}.ts`; tools isolation entry only; web `src/components/runbook/{voice-section,voice-fields}.tsx`, `src/components/highlight-terms.tsx`, `src/server/voice-preview.ts`, `public/neutral-icon.svg`, `public/brand/rm-mark.svg` (moved), `public/favicon.ico` (moved), `e2e/white-label.spec.ts`, `e2e/agency-routes.ts`; email `src/leak.test.ts`; mcp `src/leak.test.ts`; ask `src/leak.test.ts`; migration 0114. Plus `docs/work/phase-13a2.md`.
@@ -241,7 +241,8 @@ export function brandLeaks(text: string): string[]; // checks PLATFORM_BRAND_RE,
 - `agencyByHostname`: a label in `RESERVED_HOST_SLUGS` returns null **before** any query; fix the l.73 comment.
 - Host cache: LRU (a hit moves the key to the end; eviction drops the least recently used); `MAX_ENTRIES` unchanged.
 - Consent `page.test` split into one `describe` per state (signed out, signed in, no membership, multi-membership).
-**Tests (TDD):** env `unparsable APP_URL → one problem`; db `reserved label → null with no query`; `hostname removed by A then live for B resolves to B`; hosts `LRU keeps a hot key past MAX_ENTRIES inserts`; `routeForHost(null, '/health') → next`; tools `hasSignInRightIn: revoked invitation → false; accepted invitation without membership → false; expired → false`; E2E (`@hosts`) `platform guest cookie is refused at /agency on an agency host`.
+- V11: change the 13a1 agency-host rule for `/agency*` / `/platform*` so only a staff viewer of this agency (session on this host) is bounced to `APP_URL`; everyone else gets 404. Keep it within the 8-stage budget (reuse the host viewer lookup; no extra query for no-session requests).
+**Tests (TDD):** env `unparsable APP_URL → one problem`; db `reserved label → null with no query`; `hostname removed by A then live for B resolves to B`; hosts `LRU keeps a hot key past MAX_ENTRIES inserts`; `routeForHost(null, '/health') → next`; tools `hasSignInRightIn: revoked invitation → false; accepted invitation without membership → false; expired → false`; E2E (`@hosts`) `platform guest cookie is refused at /agency on an agency host`; `client session at /agency on an agency host → 404, no Location`; `no session at /platform on an agency host → 404`; unit `staff viewer of this agency at /agency → 307 APP_URL/agency`.
 **Done when:** `pnpm --filter @cs/web exec vitest run env hosts consent`, `pnpm --filter @cs/db exec vitest run hosts`, `pnpm --filter @cs/tools exec vitest run invitations` green; `pnpm typecheck`.
 
 ### Task 13: E2E — leak crawl, MCP host, voice, flags
@@ -255,7 +256,7 @@ export const AGENCY_HOST_ROUTES: Record<string, RouteClass>;   // explicit table
 ```
 **Behaviour:**
 - Seed: for `asker@e2e.test`'s first Ask client add a sent brief, a delivered alert, a trend report; write `whiteLabel: { clientId, params }` (briefId, alertId, reportId, competitorId, evidenceId, threadId, kb id, E2E Agency's intake slug) into `HOSTS_FIXTURE_FILE` (`HostsFixture` gains the field); one flagged `ready` brief (`banned_term`, terms `["cheap"]`) on a client no approvals/workflow assertion counts.
-- Crawl (as asker on E2E Agency's host via `hostRequest` + session cookie; `public` signed out): `client` → 200; `client_404`/`deny` → 404; `bounce` → 307 to `PLATFORM_ORIGIN` + same path (V11); `error` (`/e2e-throw`) → 500. Every response and every same-host redirect hop: `brandLeaks(html + status line + all headers)` empty; `<title>` has no brand; HTML has no `rel="icon"` other than `/neutral-icon.svg`. Unknown params fail (no silent skip).
+- Crawl (as asker on E2E Agency's host via `hostRequest` + session cookie; `public` signed out): `client` → 200; `client_404`/`deny` → 404; `bounce` (`/agency*`, `/platform*`) → 404 for the client session and signed out (V11; no redirect to the platform origin); `error` (`/e2e-throw`) → 500. Every response and every same-host redirect hop: `brandLeaks(html + status line + all headers)` empty; `<title>` has no brand; HTML has no `rel="icon"` other than `/neutral-icon.svg`. Unknown params fail (no silent skip).
 - MCP host: `/sign-in`, `/oauth/consent` (signed out), `/.well-known/oauth-protected-resource`, `/neutral-icon.svg` 200; `/favicon.ico`, `/brand/rm-mark.svg` 404; no leaks.
 - One browser visit of `/c/<id>` on the agency host: `document.title` and `link[rel~=icon]` hrefs.
 **Tests:** unit `every app route is classified` (appRoutes ⊆ table keys and back); E2E `@whitelabel`: `no page names the platform on the agency host`, `MCP host pages are neutral`; `@runbook`: `agency admin saves a voice and previews it`, `client override saves and returns to the agency voice`; `@whitelabel @briefs`: `a flagged brief shows the chip and highlights the word`.
