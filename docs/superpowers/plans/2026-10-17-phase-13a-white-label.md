@@ -10,7 +10,7 @@ Steps use checkbox (`- [ ]`) syntax for tracking. **Lean plan format** (root `CL
 
 **Tech stack:** TypeScript, Next.js 16 App Router (`proxy.ts`, Node runtime), Better Auth 1.7.7 + `@better-auth/oauth-provider`, Drizzle + Postgres RLS, pg-boss, `@cs/tools`, react-email, Vitest, Playwright.
 
-**Spec:** `docs/superpowers/specs/2026-10-17-phase-13a-white-label-design.md` (binding). Brief: `docs/work/phase-13.md`.
+**Spec:** `docs/superpowers/specs/2026-10-17-phase-13a-white-label-design.md` (binding). Brief: archived (git history, folded 2026-11-16).
 
 **Structure:** **Part 1 = 13a1** (Tasks 0–14: hosts, custom domains, MCP host, sending domains) ends mergeable and **merges on its own via `/rm-merge` (owner go-ahead) before Part 2 starts**. **Part 2 = 13a2** (Tasks 15–23: voice, scrubbing, leak check) has its own pre-flight and merge.
 
@@ -465,7 +465,7 @@ export type DomainNotice = { agencyId: string; kind: 'domain_live' | 'domain_fai
 **Done when:** `pnpm --filter @cs/web exec vitest run --config scripts/vitest.scripts.config.ts` green; `pnpm --filter @cs/web e2e:affected`.
 
 ### Task 14: Part 1 docs + merge gate
-**Files:** `docs/work/phase-13.md`.
+**Files:** none (work file folded at merge).
 **Behaviour:** Status/Next overwritten; "Interfaces" lists migrations `<A>`/`<A+1>`, `HostEnv`/`clientOriginFor`/`senderFor`, tools, jobs, routes, env; set `MCP_HOST_CUTOVER` = planned deploy date and `MCP_MOVED_UNTIL` = +90 days; owner verification: env on Vercel web + worker; `<slug>.<NEUTRAL_DOMAIN>` as a client; a real custom subdomain goes live; a sending domain verifies and a brief arrives From it; Claude reconnects to the mcp host, old URL shows the moved message. Backlog closures at merge: custom/sending domains (4b, 5a), connector name (6a part), `fromEmail` drop (5a T18 part), sign-in host branding (phase-11).
 - [ ] **Final review (Part 1, most capable model):** `pnpm test:affected --base main`, `pnpm --filter @cs/web e2e:affected --base main`; check Review focus 1–5 against their pinned tests; one fix wave. Then `/rm-merge` **only with the owner's go-ahead**; Part 2 starts after Part 1 is on `main`.
 **Done when:** work file ≤ 8 KB; `git ls-files --eol | grep crlf` prints nothing.
@@ -564,7 +564,7 @@ export function findBannedTerms(text: string, terms: readonly string[]): string[
 **Done when:** e2e rules test green; `pnpm --filter @cs/web e2e:affected`.
 
 ### Task 23: Part 2 docs + demo coverage
-**Files:** `docs/work/phase-13.md`; `packages/demo/src/coverage.ts` + README (`coverage:readme`) for the Domains and Client customisation screens (seed a fallback-only domain state and one client override in demo).
+**Files:** `packages/demo/src/coverage.ts` + README (`coverage:readme`) for the Domains and Client customisation screens (seed a fallback-only domain state and one client override in demo).
 **Behaviour:** Status/Next; interfaces (migrations, voice tools, columns, `PLATFORM_BRAND_RE`); owner verification: banned term + `brief-once` on `cs_dev` → flagged brief; voice preview; agency-host titles/favicon; Checkout shows the agency name. Closures at merge: agency voice (4a), Connect product (9b M9), tab titles (9b R18).
 - [ ] **Final review (Part 2, most capable model):** `pnpm test:affected --base main`, `pnpm --filter @cs/web e2e:affected --base main`; Review focus re-checked (focus 5 via Task 21); one fix wave; `/rm-merge` only with the owner's go-ahead.
 **Done when:** `pnpm --filter @cs/demo exec vitest run coverage` green; work file ≤ 8 KB; `git ls-files --eol | grep crlf` prints nothing.

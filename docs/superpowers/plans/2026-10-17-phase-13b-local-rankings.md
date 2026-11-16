@@ -12,7 +12,7 @@ Steps use checkbox (`- [ ]`) syntax for tracking. **Lean plan format** (root `CL
 
 **Tech stack:** TypeScript, Drizzle + Postgres (RLS), pg-boss, `@cs/tools`, Next.js App Router, Tailwind/shadcn, hand-written inline SVG, Vitest, Playwright.
 
-**Spec:** `docs/superpowers/specs/2026-10-17-phase-13b-local-rankings-design.md` (binding). Brief: `docs/work/phase-13.md`.
+**Spec:** `docs/superpowers/specs/2026-10-17-phase-13b-local-rankings-design.md` (binding). Brief: archived (git history, folded 2026-11-16).
 
 ## Global constraints
 - Read `docs/gotchas-cross-cutting.md` and the `CLAUDE.md` of every package touched (db, collectors, engine, tools, core, verticals, email, worker, web, demo) before coding.
@@ -58,7 +58,7 @@ Steps use checkbox (`- [ ]`) syntax for tracking. **Lean plan format** (root `CL
 - `apps/worker/src/{deps.ts, main.ts}`, `jobs/vendor.ts`, `jobs/rivals.ts` (unchanged API), new `jobs/rank-map.ts`.
 - `apps/web/src/app/files/rank-map/[clientId]/route.ts` (new), `src/server/files.ts`, `src/server/inbox.ts`; `src/components/charts/{geo-grid.tsx, line-chart.tsx, change-grid.tsx (new), rank-trend.tsx (new)}`; `src/app/(app)/c/[clientId]/rankings/{page.tsx, tabs.tsx, scan-slider.tsx, rank-settings-sheet.tsx, scan-now-button.tsx, actions.ts}` (new files except `page.tsx`); `e2e/rankings.spec.ts` (new), `e2e/seed.ts`, `scripts/e2e-affected-rules.ts`.
 - `packages/demo/src/{rankings.ts, changes.ts, coverage.ts}` + tests.
-- `turbo.json` (`STADIA_API_KEY`), `docs/work/phase-13.md`.
+- `turbo.json` (`STADIA_API_KEY`).
 
 ## Dependencies on in-flight work
 - **phase-10:** merged into `main` (migrations 0065–0066). Re-check nothing else of it is pending: `git branch -a` shows no `phase-10`.
@@ -470,7 +470,7 @@ output { scans: { scanId; finishedAt; settingsKey; settingsChanged: boolean; sel
 
 ### Task 16: Docs + backlog closure
 **Goal:** branch work file only (shared docs change at merge).
-**Files:** `docs/work/phase-13.md`.
+**Files:** none (work file folded at merge).
 **Behaviour:** Status/Next overwritten; "Interfaces this branch adds" lists migrations, tools, job, route, env; "New backlog" lists deferrals found during build; "Owner verification steps": set `STADIA_API_KEY`, run the worker, save rank settings on the `cs_dev` client → map image appears; Scan now on a client near its cap → cap copy; `signals-weekly` once → a tier change event. Mark for closure at merge: BACKLOG lines for GeoGrid defs/hatch/ragged rows, `get_geogrid` selected scan, `tier_change`, `rank_scan.status` CHECK (that part only), map tiles under the geo-grid (that part only), Legend pinned "You" (that part only).
 **Done when:** work file ≤ 8 KB; `git ls-files --eol | grep crlf` prints nothing.
 

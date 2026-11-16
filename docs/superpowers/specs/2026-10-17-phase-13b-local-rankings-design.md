@@ -1,6 +1,6 @@
 # Phase 13b — Local rankings upgrade (design)
 
-**Date:** 2026-10-17 · **Status:** owner-approved design, spec awaiting review · **Brief:** `docs/work/phase-13.md`
+**Date:** 2026-10-17 · **Status:** owner-approved design, spec awaiting review · **Brief:** archived (git history)
 **Builds on:** core spec §4.2 (rank scans), §5.2 item 7 (Local rankings), §6.1/§6.3 (rank delta, tenant-private), §6.4 (moves), §11 (caps); Phase 12 tiers (12a D2, D9). This spec records **new decisions and interfaces only**.
 
 ## Goal

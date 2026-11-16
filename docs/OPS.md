@@ -282,6 +282,16 @@ Facebook and Instagram accounts of tracked rivals (and the client) feed post cad
 - **Reading results:** `/platform/costs` AI decisions card shows per task Samples, Agreement, Jev unsure and LLM cost for the window, and the last window's dates. Spend per task: `SELECT task, count(*), sum(cost_usd) FROM llm_call WHERE task LIKE '%:reeval' AND created_at > now() - interval '7 days' GROUP BY task;`.
 - **One-off CLIs** (`brief-once`, `engine-once`, `collect-once`, evals) are built without the mode source and always run in cascade mode, so cassettes and recordings are unchanged.
 
+## Hosts, domains and sending (13a1)
+
+- **Same value on web and worker:** `NEUTRAL_DOMAIN` must be identical on the Vercel web project and the Railway worker (staging: `staging.rivalmonday.app`, via `pnpm staging:railway-vars`; it must equal the `APP_URL` host). Set it before `DEPLOY_ENABLED` on prod. Also needed on web: `VERCEL_API_TOKEN`, `VERCEL_PROJECT_ID`, `VERCEL_TEAM_ID`, `POSTMARK_ACCOUNT_TOKEN`; add `*.<neutral>` and `mcp.<neutral>` to the web project.
+- **Boot rules:** preview and production refuse to boot unless `NEUTRAL_DOMAIN` is set or `APP_URL` is a non-root host such as staging. Off production `hostEnvFor` retries with the `APP_URL` host, but `parseHostEnv` refuses `rivalmonday.app` (an RM root), so a preview with `APP_URL=https://rivalmonday.app` refuses too. Set `NEUTRAL_DOMAIN` on the Vercel Preview environment or keep previews off.
+- **Preview hosts:** Vercel branch-alias preview hosts must be listed in `extraPlatformHosts` (only `VERCEL_URL`/`VERCEL_BRANCH_URL` are added automatically).
+- **Pool lead mail** is skipped without `NEUTRAL_DOMAIN`.
+- **Removed sending domain:** if its Postmark domain stays verified, re-adding is blocked until it is cleaned up in Postmark.
+- **Redirects:** cross-host redirects from the proxy are no-store; Next `redirect()` bounces cannot set no-store (RSC responses are already no-store).
+- **Old MCP URL:** platform `/mcp` returns 404 (no moved notice by decision); connect at `https://mcp.<neutral>/mcp`.
+
 ## Gold labels and decision labelling
 
 CLI: `pnpm --filter @cs/worker decisions <report|export|import|reviews|resolve>`.

@@ -1,6 +1,6 @@
 # Phase 13a — White-label parity (design)
 
-**Date:** 2026-10-17 · **Status:** owner-approved design, spec awaiting review · **Brief:** `docs/work/phase-13.md`
+**Date:** 2026-10-17 · **Status:** owner-approved design, spec awaiting review · **Brief:** archived (git history)
 **Builds on:** core spec §2.2 (white-label), §5.1 (branding, voice), §8.3–8.4 (MCP, OAuth), §9.2/§9.4 (delivery, email); feasibility §6.2 B5–B9, B11. Root `CLAUDE.md`: *nothing client-facing names Rival Monday*. This spec records **new decisions and interfaces only**.
 
 ## Goal

@@ -10,7 +10,7 @@
 
 **Tech stack:** TypeScript, Next.js 16 App Router (`proxy.ts`), Drizzle + Postgres, pg-boss, `@cs/tools` registry, `@cs/ai` (OpenRouter), react-email, Vitest, Playwright.
 
-**Spec:** `docs/superpowers/specs/2026-10-17-phase-13a-white-label-design.md` (§ Decisions D6–D7, § Interfaces → Voice, § Scrubbing (13a2), § Testing), amended by owner decisions R1–R13 and **Q1–Q9 (2026-11-16)** in `docs/work/phase-13a.md`. Refresh brief: `docs/work/phase-13a2-refresh.md`.
+**Spec:** `docs/superpowers/specs/2026-10-17-phase-13a-white-label-design.md` (§ Decisions D6–D7, § Interfaces → Voice, § Scrubbing (13a2), § Testing), amended by owner decisions R1–R13 and **Q1–Q9 (2026-11-16)** in `docs/work/phase-13a2.md` (R1–R13 binding ones are in CLAUDE.md; the rest in git history of the folded 13a work file).
 
 ## Global constraints
 - Own worktree `../CompetitorSpy-wt/phase-13a2`, branch `phase-13a2`, cut from `main` **after 13a1 merges** (Q7). Never stage `.env`, `.claude/`, `App/`, `.superpowers/`, `apps/web/next-env.d.ts`. LF only. Commits end with the Co-Authored-By line from root `CLAUDE.md` (subagents: their own model).
@@ -64,7 +64,7 @@ New: core `src/voice.ts`, `src/white-label.ts`; engine `src/voice/{load,block,pr
 ---
 
 ### Task 0: Pre-flight
-- [ ] 13a1 merged to `main`. Create the worktree per CLAUDE.md Process: `git worktree add ../CompetitorSpy-wt/phase-13a2 -b phase-13a2 main`; `pnpm install`; new test DB (`bash scripts/local-test-db.sh setup`, then `env`); `docs/work/phase-13a2.md` from the refresh brief (≤ 8 KB). If `main` moves during the phase, `git rebase main`.
+- [ ] 13a1 merged to `main`. Create the worktree per CLAUDE.md Process: `git worktree add ../CompetitorSpy-wt/phase-13a2 -b phase-13a2 main`; `pnpm install`; new test DB (`bash scripts/local-test-db.sh setup`, then `env`); `docs/work/phase-13a2.md` already exists on `main` (≤ 8 KB). If `main` moves during the phase, `git rebase main`.
 - [ ] Claim the migration number (next free after `main`'s latest; expected **0114**) and write it into Task 2.
 - [ ] Re-verify every assumption (Grep, record drift in the work file): `knobContentSchemas`/`effectiveFrom`/`loadClientRunbook`/`copyItems` (engine `runbook/`); `update_runbook_item`, `remove_runbook_item`, `get_runbook` (`tools/runbooks.ts`); `writeBrief`, `buildWriterPrompt`, `verifyDraft`, `generateBrief` commit; `writeWhy` (`starting-point.ts`); `recommendForMoves`; `writeAlertText`, `processAlert`, `notifyAm`; `deliverDueBriefs`, `isUntouched`, `notifyOverdue`, `notifyBriefOutcome`; `applyTailoring`, `tailorClientRunbook`, `proposeTailoring`; `productNameFor`; Ask `brandingFor`; `support.ts:133`, `supportSessionStartedSubject`; `app/icon.svg`, `app/favicon.ico`, root `layout.tsx` metadata, proxy `matcher`/`PUBLIC`, `MCP_ALLOWED`, `AGENCY_HOST_DENY`; `ensureConnectedProduct` (`client-billing.ts`); `ensureSampleAgency`; leak regexes (`grep -rln "rival.\{0,6\}monday" --include=*.test.*`); `e2e/seed.ts` (E2E Agency has no `displayName`; Ask clients of `asker@e2e.test`); `profile-args.ts` `routeOfPageDir`.
 - [ ] Confirm already done (no task): `(app)` title template `{page} · {displayName}`, neutral `not-found`/`error`/`global-error`, `poweredByHeader: false`, PDF creator = agency, no `resource_name`, `/start` per R6, profile help line ("Lets us benchmark…"), `kbNamesFor` client-facing neutral.

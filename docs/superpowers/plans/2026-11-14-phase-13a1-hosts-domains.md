@@ -12,7 +12,7 @@
 
 **Tech stack:** TypeScript, Next.js 16 App Router (`proxy.ts`), Better Auth 1.7.7 + `@better-auth/oauth-provider`, Drizzle + Postgres RLS, pg-boss 10, `@cs/tools` registry, react-email, Vitest, Playwright.
 
-**Spec:** `docs/superpowers/specs/2026-10-17-phase-13a-white-label-design.md` (binding, D1–D7) **plus** Decisions R1–R11 in `docs/work/phase-13a.md` (owner-approved 2026-11-14; they override P-decisions and the spec where they conflict).
+**Spec:** `docs/superpowers/specs/2026-10-17-phase-13a-white-label-design.md` (binding, D1–D7) **plus** Decisions R1–R11 (work file folded 2026-11-16; binding ones in CLAUDE.md, rest in git history of `docs/work/phase-13a.md`) (owner-approved 2026-11-14; they override P-decisions and the spec where they conflict).
 
 ## Global constraints
 - Worktree `../CompetitorSpy-wt/phase-13a`, branch `phase-13a` (not `main`). Never stage `.env`, `.claude/`, `App/`, `.superpowers/`, `apps/web/next-env.d.ts`. LF only. Commits end with the Co-Authored-By line from root `CLAUDE.md` (subagents: their own model).
@@ -293,7 +293,7 @@ export async function verifySendingDomain(d: { service: Db; postmark: PostmarkDo
 **Done when:** `pnpm --filter @cs/web exec vitest run mcp-cutover mcp hosts ai-connections` green; `pnpm typecheck`.
 
 ### Task 15: Docs, launch gate, final review, merge gate
-**Files:** `apps/web/scripts/profile-args.ts`, `profile-args.test.ts`, `profile-pages.ts`; `docs/work/phase-13a.md`; `docs/help/pages/*` via `kb:seed`; `docs/copy/signoff.json` (owner signs).
+**Files:** `apps/web/scripts/profile-args.ts`, `profile-args.test.ts`, `profile-pages.ts`; `docs/help/pages/*` via `kb:seed`; `docs/copy/signoff.json` (owner signs).
 **Behaviour:**
 - Work file: Status/Next overwritten; Interfaces lists 0111/0112, `HostEnv`/`parseHostEnv`/`clientOriginFor`/`senderFor`, tools, jobs, routes, env; Owner verification steps: env on Vercel web (prod + staging) and Railway worker; `<slug>.<NEUTRAL_DOMAIN>` (and `<slug>.staging.rivalmonday.app`) as a client; a real custom subdomain goes live; a sending domain verifies and a brief arrives From it; Claude connects on `mcp.<neutral>`; old URL behaviour per the R9 decision. Merge notes: R2 cache recorded under Launch gate; BACKLOG closures — custom/sending domains (4b, 5a), connector name (6a part), `fromEmail` drop (5a T18), sign-in host branding (phase-11), l.162 From (N1). R9: decide keep/drop Task 14; if kept set `MCP_HOST_CUTOVER`.
 - Launch gate: `bash apps/web/scripts/profile-gate.sh --seed` (platform host); then the agency-host client pass: `bash apps/web/scripts/profile-gate.sh --skip-build -- --base http://e2e-agency.localhost:3100 --cookie <client-cookie> --filter /c/ --params-from-seed --strict-routes --assert-db-stages 8` (record the command in the work file). New `--filter <prefix>` flag (profile only routes starting with it, so agency/platform routes don't redirect under a client cookie) in `apps/web/scripts/profile-args.ts` (+`profile-args.test.ts`) and `profile-pages.ts`. Not alongside an E2E run.
