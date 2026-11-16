@@ -25,7 +25,7 @@ afterAll(async () => {
 
 const registry = createToolRegistry(
   // 13a1: `hostEnv` for the Domains page (`get_agency_domains` refuses without it), as the local web server builds it.
-  { app: dbs.app, service: dbs.service, hostEnv: parseHostEnv({ APP_URL: 'http://localhost:3000' }).hostEnv, platformAdmins: [DEMO_OPERATOR_EMAIL], jobStatus: async () => null, queueStats: async () => ({ queues: [], lastHeartbeatAt: null }) },
+  { app: dbs.app, service: dbs.service, hostEnv: parseHostEnv({ APP_URL: 'http://localhost:3000' }).hostEnv ?? undefined, platformAdmins: [DEMO_OPERATOR_EMAIL], jobStatus: async () => null, queueStats: async () => ({ queues: [], lastHeartbeatAt: null }) },
   { audit: { record: async () => {} } },
 );
 let ids: DemoIds;
