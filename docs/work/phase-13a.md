@@ -7,7 +7,7 @@
 13a1 complete: Tasks 0–13 and 15 reviewed (Task 14 skipped, R13). test:affected green after test-only fixes; e2e:affected 164 passed; launch gate green on both hosts. Final review (opus) fix wave done and re-reviewed: I1 web delivery uses the web's resolved host env (staging no longer drops client mail), I2 purge skips agencies still holding domains, M1 refusal names `NEUTRAL_DOMAIN`.
 
 ## Next (overwrite)
-Owner: `pnpm copy:review` in this worktree (~86 new strings + 3 re-signs for the M1 refusal text), the R9 confirmation, then `/rm-merge` on the owner's go-ahead. 13a2/13a3 plans come later (13a3 may start in its own worktree at any time).
+Owner: `pnpm copy:review` in this worktree (~86 new strings + 3 re-signs for the M1 refusal text), the R9 confirmation, then `/rm-merge` on the owner's go-ahead. After merge: 13a2 ([plan 11-16](../superpowers/plans/2026-11-16-phase-13a2-voice-scrub-leaks.md), owner-approved, V11 = 404) runs SDD from Task 0 in its own worktree `phase-13a2` from `main`. 13a2/13a3 plans come later (13a3 may start in its own worktree at any time).
 
 ## Interfaces this branch adds or changes
 - **Migrations:** `0111_hosts` (`agency.host_slug` unique, `agency_domain`, `agency_sending_domain`), `0112_hosts_rls` (service-role writes), `0113_sending_domain_unique` (partial unique `agency_sending_domain(domain) WHERE status <> 'removed'`).
