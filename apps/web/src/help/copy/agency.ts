@@ -461,6 +461,12 @@ export const AGENCY_COPY = {
         body: "Clients whose business type has no built-in plays use this runbook directly. HVAC and dental clients keep the built-in plays until they get a runbook of their own. A client runbook is a copy of this one, with the plays tailored to the client. Changing this runbook does not rewrite a client's copy: the client shows Update available and chooses.",
         guideAnchor: 'common-questions',
       },
+      // source: apps/web/src/components/runbook/voice-section.tsx (Voice); packages/core/src/voice.ts
+      voice: {
+        title: 'Voice',
+        body: 'Sets the tone and the words briefs, alerts and recommendations use. Facts and numbers never change. A brief or alert that still uses a banned word waits for your review.',
+        guideAnchor: 'how-to-use-it',
+      },
     },
   },
   'agency.settings.slack-teams': {

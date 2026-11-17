@@ -48,6 +48,7 @@ export default async function ClientRunbookPage({ params }: { params: Promise<{ 
           { label: 'Badges', tip: 'client.settings.runbook.badges' },
           { label: 'Updates', tip: 'client.settings.runbook.updates' },
           { label: 'Own runbook', tip: 'client.settings.runbook.ownRunbook' },
+          { label: 'Voice', tip: 'client.settings.runbook.voice' },
         ]}
       />
       <RunbookEditor
@@ -55,6 +56,7 @@ export default async function ClientRunbookPage({ params }: { params: Promise<{ 
         canEdit={ctx.role === 'agency_admin' || ctx.role === 'account_manager'}
         action={clientRunbookAction.bind(null, clientId)}
         statusAction={clientRunbookStatusAction.bind(null, clientId)}
+        clientName={profile.name}
         verticalName={verticals.find((v) => v.id === profile.verticalId)?.name}
       />
     </>

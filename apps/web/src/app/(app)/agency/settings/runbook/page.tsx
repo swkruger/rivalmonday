@@ -38,6 +38,7 @@ export default async function AgencyRunbookPage() {
           { label: 'Updates', tip: 'agency.settings.runbook.updates' },
           { label: 'Editing', tip: 'agency.settings.runbook.edit' },
           { label: 'Clients', tip: 'agency.settings.runbook.clients' },
+          { label: 'Voice', tip: 'agency.settings.runbook.voice' },
         ]}
       />
       <RunbookEditor data={data} canEdit={ctx.role === 'agency_admin'} action={agencyRunbookAction} />

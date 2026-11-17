@@ -785,6 +785,13 @@ export const CLIENT_COPY = {
         audience: 'agency',
         guideAnchor: 'common-questions',
       },
+      // source: apps/web/src/components/runbook/voice-section.tsx (Voice); packages/core/src/voice.ts
+      voice: {
+        title: 'Voice',
+        body: 'Sets the tone and the words briefs, alerts and recommendations use. Facts and numbers never change. A brief or alert that still uses a banned word waits for your review.',
+        audience: 'agency',
+        guideAnchor: 'how-to-use-it',
+      },
     },
   },
 } as const satisfies Record<`client.${string}`, PageCopy>;

@@ -20,6 +20,11 @@ export async function applyRunbookOp(ctx: AccessContext, owner: RunbookOwner, op
       const t = await call('retailor_runbook_item', { key: op.key });
       return t.ok ? { ok: true, proposed: (t.data as { proposed: Tailoring | null }).proposed } : t;
     }
+    case 'preview': {
+      // The preview is the agency's own sample (no owner): the cap is per agency.
+      const p = await runTool<{ text: string; bannedTerms: string[] }>(ctx, 'preview_voice', { voice: op.voice });
+      return p.ok ? { ok: true, preview: p.data } : p;
+    }
     default: return { ok: false, error: 'Not found' };
   }
   return r.ok ? { ok: true } : r;

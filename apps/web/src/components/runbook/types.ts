@@ -1,3 +1,5 @@
+import type { VoiceSettings } from '@cs/core';
+
 /** Client-safe shapes shared by the runbook editor, its three pages and their server actions (mirrors the `get_runbook` output). */
 export type RunbookLevel = 'platform' | 'agency' | 'client';
 export type ItemState = 'in_sync' | 'update_available' | 'new_upstream' | 'removed_upstream';
@@ -18,6 +20,13 @@ export interface RunbookItemData {
   upstreamSnapshot?: { content: unknown } | null;
 }
 
+/** 13a2 V1: the voice a runbook resolves to (null at the platform level). */
+export interface RunbookVoiceData {
+  agency: VoiceSettings | null;
+  own: VoiceSettings | null;
+  effective: VoiceSettings;
+}
+
 export interface RunbookData {
   level: RunbookLevel;
   source?: 'client' | 'agency' | 'legacy';
@@ -25,6 +34,7 @@ export interface RunbookData {
   items: RunbookItemData[];
   vars: string[];
   businessAreas: { id: string; name: string }[];
+  voice?: RunbookVoiceData | null;
 }
 
 export interface Tailoring {
@@ -42,7 +52,13 @@ export type RunbookOp =
   | { op: 'add'; key: string }
   | { op: 'remove'; key: string }
   | { op: 'retailor'; key: string }
-  | { op: 'create' };
+  | { op: 'create' }
+  | { op: 'preview'; voice: VoiceSettings };
 
-export type RunbookActionResult = { ok: true; proposed?: Tailoring | null } | { ok: false; error: string };
+export interface VoicePreview {
+  text: string;
+  bannedTerms: string[];
+}
+
+export type RunbookActionResult = { ok: true; proposed?: Tailoring | null; preview?: VoicePreview } | { ok: false; error: string };
 export type RunbookAction = (op: RunbookOp) => Promise<RunbookActionResult>;

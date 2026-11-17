@@ -22,6 +22,15 @@ Each item carries a badge that says where it stands against the agency runbook: 
 
 Only admins and account managers can edit, and not in a read-only support session.
 
+## Give a client its own voice
+
+The **Voice** section shows the agency voice until you set one for this client. Facts and numbers never change.
+
+1. **Create a runbook for this client** first; until then the section is view-only.
+2. Choose **Set a voice for this client**. The fields start from the agency voice, so change only what differs.
+3. **Save voice** keeps it; the client then shows an **Own voice** chip. **Preview** writes a sample alert without saving (10 a day for the agency).
+4. **Use the agency voice** drops the client's own voice and goes back to the agency's.
+
 ## Common questions
 
 ### What do briefs use if the client has no runbook of its own?

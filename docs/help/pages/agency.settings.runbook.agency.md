@@ -22,6 +22,15 @@ Each item has a badge that compares it with the standard runbook that came with 
 3. **Handle updates from the standard runbook.** *Review update* shows what changed, and your own version if you customised it. *Use the update* takes the new text; *Keep mine* leaves yours. A *New* item offers **Add** or **Not now**. One that is *Removed upstream* offers **Keep** or **Remove**.
 4. **Open a client's Runbook tab** (Client settings) to give that client its own copy. A client runbook is a copy of this one, with the plays tailored to the client's business.
 
+## Set the voice
+
+The **Voice** section sets how briefs, alerts and recommendations are worded for every client. Facts and numbers never change.
+
+1. **Choose a tone:** Friendly (warm and plain), Formal (courteous and businesslike) or Direct (short sentences, the point first).
+2. **Add preferred words** with **Add a pair**: the word to say and the word it replaces.
+3. **Add banned words** with **Add**. A brief or alert that still uses one waits for your review. Whole words only: banning “cheap” doesn’t catch “cheaper”.
+4. **Preview** writes a sample alert in the voice you have typed, without saving it. You can preview 10 times a day. **Save voice** makes it the voice for new briefs and alerts.
+
 ## Common questions
 
 ### Which clients use this runbook?

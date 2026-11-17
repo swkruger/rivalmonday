@@ -7,6 +7,7 @@ import { useReadOnly } from '@/components/read-only';
 import { ItemCard, type RunFn } from './item-card';
 import { KnobCard, type KnobName } from './knob-card';
 import type { RunbookAction, RunbookData } from './types';
+import { VoiceSection } from './voice-section';
 
 const POLL_MS = 5_000;
 const GIVE_UP_MS = 5 * 60_000;
@@ -51,7 +52,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 }
 
 /** One editor for the platform, agency and client runbooks (the level comes from `data`). Writes go through `action`, one server action per page. */
-export function RunbookEditor({ data, canEdit: canEditProp, action, statusAction, verticalName }: {
+export function RunbookEditor({ data, canEdit: canEditProp, action, statusAction, verticalName, clientName }: {
   data: RunbookData;
   /** The viewer's role may edit at this level (the tools enforce it again). */
   canEdit: boolean;
@@ -59,6 +60,8 @@ export function RunbookEditor({ data, canEdit: canEditProp, action, statusAction
   /** Client level: the current `tailorStatus`, for polling while tailoring runs. */
   statusAction?: () => Promise<string | null>;
   verticalName?: string;
+  /** Client level: named in the Voice description. */
+  clientName?: string;
 }) {
   const readOnlySession = useReadOnly();
   const [notice, setNotice] = useState<string | null>(null);
@@ -115,6 +118,13 @@ export function RunbookEditor({ data, canEdit: canEditProp, action, statusAction
           })}
         </Frame>
       </Section>
+      {level !== 'platform' && data.voice && (
+        <Section title="Voice">
+          <Frame flush>
+            <VoiceSection voice={data.voice} level={level} canEdit={canEdit} action={action} clientName={clientName} />
+          </Frame>
+        </Section>
+      )}
     </div>
   );
 }
