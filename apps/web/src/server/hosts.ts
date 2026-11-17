@@ -24,10 +24,15 @@ export async function resolveHost(host: string | null, d: { env: HostEnv; envNam
   const key = `${d.envName}|${hostname}`;
   const now = (d.now ?? Date.now)();
   const hit = cache.get(key);
-  if (hit && now - hit.at < TTL_MS) return hit.v;
+  if (hit && now - hit.at < TTL_MS) {
+    cache.delete(key); // LRU: a hit moves the key to the end of the Map's insertion order
+    cache.set(key, hit);
+    return hit.v;
+  }
   const a = await d.lookup(hostname);
   const v: HostInfo | null = a ? { kind: 'agency', ...a } : null;
-  if (cache.size >= MAX_ENTRIES) cache.delete(cache.keys().next().value!);
+  cache.delete(key); // an expired entry is replaced, not duplicated (and moves to the end)
+  if (cache.size >= MAX_ENTRIES) cache.delete(cache.keys().next().value!); // the least recently used
   cache.set(key, { v, at: now }); // negative results too: random Host headers can't hammer the DB
   return v;
 }
@@ -42,13 +47,20 @@ export const HOST_REDIRECT_HEADER = 'x-rm-redirect-to';
 export const INTERNAL_PATH = /^\/rm-internal(?:\/|$)/;
 const ANY_HOST = /^\/health$/;
 const MCP_ALLOWED = [/^\/mcp$/, /^\/oauth\//, /^\/\.well-known\/oauth-(?:authorization-server|protected-resource)(?:\/|$)/, /^\/api\/auth\//, /^\/sign-in(?:\/|$)/, /^\/_next\//, /^\/link-expired$/, /^\/neutral-icon\.svg$/];
-/** Staff-only paths: agency hosts 307 them to the platform; the platform never bounces them to an agency host (host-viewer). Tested against the pathname. */
-export const STAFF_ONLY = /^\/(?:agency|platform)(?:\/|$)|^\/onboarding(?:$|\/(?![\w-]+\.webp$))/;
+/**
+ * Staff-only paths, tested against the pathname. V11 (13a2): on an agency host `/platform*` is 404 for everyone, and the
+ * agency-staff zone (`/agency*`, `/onboarding*`) is 404 unless the request carries a session whose viewer is staff of this
+ * host's agency (`decideHost`); that viewer is bounced to the platform. The proxy never redirects to the platform origin
+ * itself (it cannot verify the viewer). The platform never bounces these paths to an agency host (host-viewer).
+ */
+export const PLATFORM_ZONE = /^\/platform(?:\/|$)/;
+export const AGENCY_STAFF_ZONE = /^\/agency(?:\/|$)|^\/onboarding(?:$|\/(?![\w-]+\.webp$))/;
+export const STAFF_ONLY = new RegExp(`${PLATFORM_ZONE.source}|${AGENCY_STAFF_ZONE.source}`);
 /** Q4: the RM mark, favicon and `/brand/*` exist on the platform host only; non-platform hosts serve `/neutral-icon.svg`. */
 const AGENCY_HOST_DENY = /^\/(?:mcp|\.well-known|oauth|sign-up|join|support|u|bot|favicon\.ico|brand|waitlist|sample|api\/(?:stripe|postmark|waitlist|site-status))(?:\/|$)|^\/start\/?$/;
 /** Task 8 (P16): MCP, its OAuth consent page and the OAuth metadata live only on the mcp host; the platform serves none of them. */
 const PLATFORM_HOST_DENY = /^\/(?:mcp|oauth|\.well-known)(?:\/|$)/;
-export function routeForHost(host: HostInfo | null, req: { pathname: string; search: string; method: string }, platform: string): HostRoute {
+export function routeForHost(host: HostInfo | null, req: { pathname: string; search: string; method: string }): HostRoute {
   const { pathname, search, method } = req;
   if (ANY_HOST.test(pathname)) return { kind: 'next' };
   if (!host) return { kind: 'not_found' };
@@ -58,7 +70,7 @@ export function routeForHost(host: HostInfo | null, req: { pathname: string; sea
   if (pathname.startsWith('/dev-panel/') && !pathname.startsWith('/dev-panel/sign-in/')) return { kind: 'not_found' };
   const logo = /^\/files\/logo\/(?!clients\/)([^/]+)\//.exec(pathname); // client logos: checked by their route (N3)
   if (logo && logo[1] !== host.agencyId) return { kind: 'not_found' };
-  if (STAFF_ONLY.test(pathname)) return { kind: 'redirect', to: `${platform}${pathname}${search}` };
+  if (PLATFORM_ZONE.test(pathname)) return { kind: 'not_found' }; // V11: nobody reaches the platform area through an agency host
   if (!host.canonical && (method === 'GET' || method === 'HEAD')) return { kind: 'redirect', to: `${host.canonicalOrigin}${pathname}${search}` };
   return { kind: 'next' };
 }

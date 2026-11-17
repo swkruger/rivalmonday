@@ -111,15 +111,62 @@ test('unknown host → 404', { tag: ['@hosts'] }, async () => {
   expect((await hostRequest('no-such-agency.localhost', '/health')).status).toBe(200);
 });
 
-test('agency host /agency → platform', { tag: ['@hosts'] }, async ({ page }) => {
+/**
+ * V11 (13a2): `/agency*` and `/platform*` on an agency host are 404 for everyone but a verified staff viewer of that agency, who
+ * is bounced (307) to the platform; no one else is ever redirected to the platform origin.
+ */
+test('agency host /agency → platform only for staff of that agency', { tag: ['@hosts', '@auth'] }, async ({ browser }, testInfo: TestInfo) => {
+  await ensureAdminState(browser, testInfo);
+  const origin = agencyOriginOf();
+  const context = await contextOnHost(browser, ADMIN_STATE, origin);
+  try {
+    const page = await context.newPage();
+    const res = await page.goto(`${origin}/agency/settings?x=1`);
+    const first = res?.request().redirectedFrom();
+    expect(first?.url()).toBe(`${origin}/agency/settings?x=1`);
+    const hop = await first?.response();
+    expect(hop?.status()).toBe(307);
+    expect(hop?.headers().location).toBe(`${PLATFORM_ORIGIN}/agency/settings?x=1`);
+  } finally {
+    await context.close();
+  }
+});
+
+test('platform guest cookie is refused at /agency on an agency host', { tag: ['@hosts', '@guest'] }, async () => {
   const { slug } = hostsFixture();
-  const res = await hostRequest(`${slug}.localhost`, '/agency/settings?x=1');
-  expect(res.status).toBe(307);
-  expect(res.headers.location).toBe(`${PLATFORM_ORIGIN}/agency/settings?x=1`);
-  expect(res.headers['cache-control']).toContain('no-store');
-  // A browser follows it to the platform (no redirect loop), where a signed-out visitor is asked to sign in.
-  await page.goto(`${agencyOriginOf()}/agency`);
-  await expect(page).toHaveURL((u) => u.origin === PLATFORM_ORIGIN && u.pathname === '/sign-in');
+  for (const path of ['/agency', '/agency/settings?x=1']) {
+    const res = await hostRequest(`${slug}.localhost`, path, { headers: { cookie: 'rm_guest=forged.value' } });
+    expect(res.status, path).toBe(404);
+    expect(res.headers.location, path).toBeUndefined();
+  }
+});
+
+test('client session at /agency on an agency host → 404, no Location', { tag: ['@hosts', '@auth'] }, async ({ browser }) => {
+  await ensureAgencyClientState(browser);
+  const origin = agencyOriginOf();
+  const context = await browser.newContext({ baseURL: origin, storageState: AGENCY_CLIENT_STATE });
+  try {
+    for (const path of ['/agency', '/agency/settings?x=1']) {
+      const res = await context.request.get(`${origin}${path}`, { maxRedirects: 0 });
+      expect(res.status(), path).toBe(404);
+      expect(res.headers().location, path).toBeUndefined();
+    }
+  } finally {
+    await context.close();
+  }
+});
+
+test('no session at /platform on an agency host → 404', { tag: ['@hosts'] }, async () => {
+  const { slug } = hostsFixture();
+  for (const path of ['/platform', '/platform/agencies', '/agency']) {
+    const res = await hostRequest(`${slug}.localhost`, path);
+    expect(res.status, path).toBe(404);
+    expect(res.headers.location, path).toBeUndefined();
+  }
+});
+
+test('agency host: internal routes and platform-only paths are not served', { tag: ['@hosts'] }, async () => {
+  const { slug } = hostsFixture();
   // The internal redirect route is not reachable directly, on any host.
   for (const host of [`${slug}.localhost`, 'localhost', 'mcp.localhost']) {
     expect((await hostRequest(host, '/rm-internal/host-redirect', { headers: { 'x-rm-redirect-to': 'https://evil.example/' } })).status, host).toBe(404);

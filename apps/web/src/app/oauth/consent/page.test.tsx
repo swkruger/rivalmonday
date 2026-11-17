@@ -36,23 +36,40 @@ beforeEach(async () => {
 });
 afterEach(cleanup);
 
-describe('consent page on the mcp host (13a1 Task 8)', () => {
-  it('consent page is neutral before sign-in and agency-branded for one agency', async () => {
-    // Signed out: no card at all — straight to the mcp host's sign-in (neutral there, Task 5), with an unbranded title.
+describe('consent page on the mcp host: signed out', () => {
+  it('redirects straight to the mcp host sign-in (no card) with an unbranded title', async () => {
     m.viewer = null;
     await expect(ConsentPage({ searchParams: Promise.resolve(SP) })).rejects.toThrow(/^NEXT_REDIRECT:\/sign-in\?next=%2Foauth%2Fconsent%3F/);
     expect(await generateMetadata({ searchParams: Promise.resolve(SP) })).toEqual({ title: 'Connect an app' });
+  });
+});
 
-    // Signed in, every option in agency A → agency A's card (not the DEFAULT_AGENCY_ID agency B).
+describe('consent page on the mcp host: signed in, one agency', () => {
+  it('is agency-branded for that agency, not the DEFAULT_AGENCY_ID agency', async () => {
     m.viewer = { kind: 'user', userId: 'u1' };
     m.options = [opt('m1', IDS.agencyA), opt('m2', IDS.agencyA)];
     await open();
     expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Connect Claude Code to Cool Comfort');
     expect(screen.getByTestId('product').textContent).toBe('Cool Comfort');
     expect(await generateMetadata({ searchParams: Promise.resolve(SP) })).toEqual({ title: 'Connect an app · Cool Comfort' });
-    cleanup();
+  });
+});
 
-    // Options in two agencies → neutral: no agency, no product name, no default agency.
+describe('consent page on the mcp host: signed in, no membership', () => {
+  it('is neutral: no agency, no product name, no default agency', async () => {
+    m.viewer = { kind: 'user', userId: 'u1' };
+    m.options = [];
+    const { container } = await open();
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe(`Connect Claude Code to ${NEUTRAL_PRODUCT_NAME}`);
+    expect(screen.getByTestId('product').textContent).toBe('none');
+    expect(container.textContent).not.toMatch(/Cool Comfort|Agency B|Rival Monday/);
+    expect(await generateMetadata({ searchParams: Promise.resolve(SP) })).toEqual({ title: 'Connect an app' });
+  });
+});
+
+describe('consent page on the mcp host: signed in, memberships in several agencies', () => {
+  it('is neutral: no agency, no product name, no default agency', async () => {
+    m.viewer = { kind: 'user', userId: 'u1' };
     m.options = [opt('m1', IDS.agencyA), opt('m3', IDS.agencyB)];
     const { container } = await open();
     expect(screen.getByRole('heading', { level: 1 }).textContent).toBe(`Connect Claude Code to ${NEUTRAL_PRODUCT_NAME}`);

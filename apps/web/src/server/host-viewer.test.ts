@@ -28,6 +28,23 @@ describe('decideHost (13a1 P7, Appendix E)', () => {
     expect(decide(agencyA, [mem(B, 'account_manager')], '/c/x')).toEqual({ kind: 'redirect', to: `${PLATFORM}/c/x` });
   });
 
+  it('V11: staff viewer of this agency at /agency → 307 APP_URL/agency; anyone else is not_found', () => {
+    expect(decide(agencyA, [mem(A, 'agency_admin')], '/agency')).toEqual({ kind: 'redirect', to: `${PLATFORM}/agency` });
+    expect(decide(agencyA, [mem(A, 'account_manager')], '/agency/x?y=1#z')).toEqual({ kind: 'redirect', to: `${PLATFORM}/agency/x?y=1#z` });
+    expect(decide(agencyA, [mem(A, 'agency_admin')], '/onboarding/steps')).toEqual({ kind: 'redirect', to: `${PLATFORM}/onboarding/steps` });
+    const notFound = { kind: 'not_found' };
+    for (const path of ['/agency', '/agency/clients?x=1', '/onboarding']) {
+      expect(decide(agencyA, [mem(A, 'client_owner')], path), `client ${path}`).toEqual(notFound);
+      expect(decide(agencyA, [mem(B, 'agency_admin')], path), `staff of another agency ${path}`).toEqual(notFound);
+      expect(decide(agencyA, [mem(B, 'agency_admin'), mem(A, 'client_viewer')], path), `mixed ${path}`).toEqual(notFound);
+      expect(decide(agencyA, [], path), `member-less ${path}`).toEqual(notFound);
+    }
+    // /platform* is 404 for everyone on an agency host, staff of this agency included.
+    for (const ms of [[mem(A, 'agency_admin')], [mem(A, 'client_owner')], []]) expect(decide(agencyA, ms, '/platform/agencies')).toEqual(notFound);
+    // Other paths keep the 13a1 behaviour.
+    expect(decide(agencyA, [mem(B, 'agency_admin')], '/inbox')).toEqual({ kind: 'redirect', to: `${PLATFORM}/inbox` });
+  });
+
   it('client of host agency → only that membership', () => {
     const own = mem(A, 'client_owner');
     const other = mem(B, 'client_viewer');
@@ -123,7 +140,7 @@ describe('platformBounceTarget (N5)', () => {
       if (d.kind !== 'redirect') continue;
       redirects++;
       const to = new URL(d.to);
-      const back = routeForHost(infoOf(to.origin), { pathname: to.pathname, search: to.search, method: 'GET' }, PLATFORM);
+      const back = routeForHost(infoOf(to.origin), { pathname: to.pathname, search: to.search, method: 'GET' });
       if (back.kind === 'redirect') expect(new URL(back.to).origin, `${host.origin}${path}`).not.toBe(host.origin);
     }
     expect(redirects).toBeGreaterThan(0);

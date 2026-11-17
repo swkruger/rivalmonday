@@ -1,6 +1,6 @@
 import type { HostEnv } from '@cs/db';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { clearHostCache, type HostInfo, hostnameOf, requestOriginFor, resolveHost, routeForHost } from './hosts';
+import { AGENCY_STAFF_ZONE, clearHostCache, type HostInfo, hostnameOf, requestOriginFor, resolveHost, routeForHost } from './hosts';
 
 const env: HostEnv = { appUrl: 'https://app.example', neutralDomain: 'neutral.example', extraPlatformHosts: ['web-abc.vercel.app'] };
 const A = '11111111-1111-4111-8111-111111111111';
@@ -16,7 +16,7 @@ function resolver(map: Record<string, typeof agencyHit | null> = {}, e: HostEnv 
   const run = (host: string | null) => resolveHost(host, { env: e, envName: 'dev', lookup, now: () => t });
   return { lookup, clock, run };
 }
-const route = (host: HostInfo | null, pathname: string, method = 'GET', search = '') => routeForHost(host, { pathname, search, method }, PLATFORM);
+const route = (host: HostInfo | null, pathname: string, method = 'GET', search = '') => routeForHost(host, { pathname, search, method });
 
 beforeEach(() => clearHostCache());
 
@@ -73,6 +73,19 @@ describe('resolveHost', () => {
     await expect(run('acme.neutral.example')).rejects.toThrow('db down');
     expect(await run('acme.neutral.example')).toEqual({ kind: 'agency', ...agencyHit });
     expect(lookup).toHaveBeenCalledTimes(2);
+  });
+
+  it('LRU keeps a hot key past MAX_ENTRIES inserts', async () => {
+    const { run, lookup } = resolver();
+    await run('hot.example');
+    for (let i = 0; i < 2500; i++) {
+      await run(`h${i}.example`);
+      await run('hot.example'); // a hit moves it to the end, so eviction (oldest first) never reaches it
+    }
+    expect(lookup.mock.calls.filter(([h]) => h === 'hot.example')).toHaveLength(1);
+    expect(lookup).toHaveBeenCalledTimes(2501);
+    await run('h0.example'); // plain least recently used entries were dropped
+    expect(lookup).toHaveBeenCalledTimes(2502);
   });
 
   it('cache never exceeds 2000 entries', async () => {
@@ -155,13 +168,13 @@ describe('routeForHost', () => {
     expect(route(agency, '/api/ask/turn', 'POST')).toEqual({ kind: 'next' });
   });
 
-  it('agency host redirects /agency/x?y and /onboarding/steps to the platform, but not /onboarding/client-done.webp', () => {
-    expect(route(agency, '/agency/x', 'GET', '?y')).toEqual({ kind: 'redirect', to: 'https://app.example/agency/x?y' });
-    expect(route(agency, '/onboarding/steps')).toEqual({ kind: 'redirect', to: 'https://app.example/onboarding/steps' });
-    expect(route(agency, '/onboarding')).toEqual({ kind: 'redirect', to: 'https://app.example/onboarding' });
-    expect(route(agency, '/platform/agencies')).toEqual({ kind: 'redirect', to: 'https://app.example/platform/agencies' });
-    expect(route(agency, '/onboarding/client-done.webp')).toEqual({ kind: 'next' });
-    expect(route(agency, '/agencyx')).toEqual({ kind: 'next' });
+  it('V11: an agency host never redirects to the platform from routeForHost: /platform* is 404, /agency* and /onboarding* go on to the viewer check', () => {
+    for (const p of ['/platform', '/platform/', '/platform/agencies']) expect(route(agency, p, 'POST'), p).toEqual({ kind: 'not_found' });
+    for (const [p, m] of [['/agency/x', 'GET'], ['/agency', 'POST'], ['/onboarding/steps', 'GET'], ['/onboarding', 'GET'], ['/onboarding/client-done.webp', 'GET'], ['/agencyx', 'GET']] as const) {
+      expect(route(agency, p, m, '?y'), p).toEqual({ kind: 'next' });
+    }
+    expect(AGENCY_STAFF_ZONE.test('/agency/x') && AGENCY_STAFF_ZONE.test('/onboarding/steps')).toBe(true);
+    expect(AGENCY_STAFF_ZONE.test('/onboarding/client-done.webp') || AGENCY_STAFF_ZONE.test('/agencyx')).toBe(false);
   });
 
   it("another agency's logo → not_found, own logo → next, /files/logo/clients/x/y → next", () => {
@@ -175,8 +188,9 @@ describe('routeForHost', () => {
     expect(route(fallback, '/c/x', 'GET', '?a=1')).toEqual({ kind: 'redirect', to: 'https://reports.acme.com/c/x?a=1' });
     expect(route(fallback, '/c/x', 'HEAD')).toEqual({ kind: 'redirect', to: 'https://reports.acme.com/c/x' });
     expect(route(fallback, '/c/x', 'POST')).toEqual({ kind: 'next' });
-    // Staff paths go to the platform, never to the custom host.
-    expect(route(fallback, '/agency', 'GET')).toEqual({ kind: 'redirect', to: 'https://app.example/agency' });
+    // V11: staff paths stay on the agency's own hosts (canonical origin), never the platform; /platform* is 404 even here.
+    expect(route(fallback, '/agency', 'GET')).toEqual({ kind: 'redirect', to: 'https://reports.acme.com/agency' });
+    expect(route(fallback, '/platform', 'GET')).toEqual({ kind: 'not_found' });
   });
 });
 

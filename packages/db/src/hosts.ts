@@ -59,6 +59,7 @@ export async function agencyByHostname(db: Db, hostname: string, h: HostEnv): Pr
   const host = hostname.toLowerCase();
   const suffix = `.${h.neutralDomain}`;
   const label = host.endsWith(suffix) ? host.slice(0, -suffix.length) : null;
+  if (label !== null && RESERVED_HOST_SLUGS.includes(label)) return null; // reserved labels (www, mcp, …) are never an agency host: no query
   if (label !== null && HOST_SLUG_RE.test(label)) {
     const rows = (await db.execute(sql`
       SELECT a.id, d.hostname FROM agency a
@@ -70,7 +71,7 @@ export async function agencyByHostname(db: Db, hostname: string, h: HostEnv): Pr
       ? { agencyId: r.id, canonical: false, canonicalOrigin: originOf(h, r.hostname) }
       : { agencyId: r.id, canonical: true, canonicalOrigin: originOf(h, host) };
   }
-  if (label !== null) return null; // a.b.<neutral> or a reserved/invalid label: never an agency
+  if (label !== null) return null; // a.b.<neutral> or an invalid label (reserved ones returned above): never an agency
   const rows = (await db.execute(sql`
     SELECT a.id FROM agency_domain d JOIN agency a ON a.id = d.agency_id
     WHERE d.hostname = ${host} AND d.status = 'live' AND a.archived_at IS NULL LIMIT 1`)) as unknown as { id: string }[];

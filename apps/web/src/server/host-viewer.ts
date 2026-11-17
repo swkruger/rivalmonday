@@ -1,6 +1,6 @@
 import { isAgencyRole, isClientRole } from '@cs/core';
 import type { MembershipSummary } from '@cs/tools';
-import { STAFF_ONLY } from './hosts';
+import { AGENCY_STAFF_ZONE, PLATFORM_ZONE, STAFF_ONLY } from './hosts';
 import type { RequestHost } from './request-host';
 import { safeNext } from './safe-next';
 
@@ -9,7 +9,7 @@ import { safeNext } from './safe-next';
  * user belongs instead. Agency host: only that agency's client memberships; staff with none go to the platform (N4).
  * Platform host: a client-only user (not an operator) goes to the picked membership's client origin. MCP host: all.
  */
-export type HostDecision = { kind: 'allow'; memberships: MembershipSummary[] } | { kind: 'redirect'; to: string };
+export type HostDecision = { kind: 'allow'; memberships: MembershipSummary[] } | { kind: 'redirect'; to: string } | { kind: 'not_found' };
 
 /** Matched against the path *with* its query (x-rm-path), so `?`/`#` end a segment too (Appendix E had `(?:\/|$)`, which let `/sign-in?next=…` bounce). */
 export const NO_PLATFORM_BOUNCE = /^\/(?:sign-in|no-access|link-expired|link-other-account|api|support|dev-panel|start|waitlist|sample|join|u|sign-up|onboarding|bot)(?:[/?#]|$)/;
@@ -32,6 +32,12 @@ export function decideHost(i: { host: RequestHost; memberships: MembershipSummar
   if (i.host.info.kind === 'mcp') return all;
   if (i.host.info.kind === 'agency') {
     const agencyId = i.host.info.agencyId;
+    // V11 (fail closed): the platform and agency-staff areas exist on an agency host only for staff of THIS agency (bounced to the platform); everyone else, any role or session, gets 404.
+    const pathname = path.split(/[?#]/)[0]!;
+    if (PLATFORM_ZONE.test(pathname)) return { kind: 'not_found' };
+    if (AGENCY_STAFF_ZONE.test(pathname)) {
+      return i.memberships.some((m) => m.agencyId === agencyId && isAgencyRole(m.role)) ? { kind: 'redirect', to: `${i.platformOrigin}${path}` } : { kind: 'not_found' };
+    }
     const own = i.memberships.filter((m) => m.agencyId === agencyId && isClientRole(m.role));
     if (own.length > 0) return { kind: 'allow', memberships: own };
     if (i.memberships.some((m) => isAgencyRole(m.role))) return { kind: 'redirect', to: `${i.platformOrigin}${path}` };

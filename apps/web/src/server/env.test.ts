@@ -150,4 +150,8 @@ describe('hostEnv (13a1 P2, N2)', () => {
   it('a missing APP_URL reports only APP_URL', () => {
     expect(() => parseWebEnv({ ...ok, APP_URL: undefined } as unknown as NodeJS.ProcessEnv)).toThrow(/^Web app configuration problems:\n- APP_URL is required$/);
   });
+
+  it('unparsable APP_URL → one problem', () => {
+    expect(() => parseWebEnv({ ...ok, APP_URL: 'http://bad host' } as unknown as NodeJS.ProcessEnv)).toThrow(/^Web app configuration problems:\n- APP_URL is not a valid URL$/);
+  });
 });

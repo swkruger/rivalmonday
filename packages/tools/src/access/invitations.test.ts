@@ -60,6 +60,22 @@ describe('hasSignInRight', () => {
     expect(await hasSignInRight(dbs.service, 'p@e.co', new Date('2026-11-01T00:00:00Z'))).toBe(false);
   });
 
+  it('hasSignInRight: revoked invitation → false; accepted invitation without membership → false; expired → false', async () => {
+    const make = (email: string) => createInvitation(dbs.service, { agencyId: IDS.agencyA, email, role: 'agency_admin', invitedBy: 'x' }, NOW);
+    const later = new Date(NOW.getTime() + 15 * 24 * 3_600_000); // past the 14-day expiry
+    const revoked = await make('rev@e.co');
+    await dbs.service.update(invitation).set({ revokedAt: NOW }).where(eq(invitation.id, revoked.id));
+    expect(await hasSignInRight(dbs.service, 'rev@e.co', NOW)).toBe(false);
+    const accepted = await make('acc@e.co');
+    await dbs.service.update(invitation).set({ acceptedAt: NOW }).where(eq(invitation.id, accepted.id));
+    expect(await hasSignInRight(dbs.service, 'acc@e.co', NOW)).toBe(false); // accepted, but no user or membership exists
+    await make('exp@e.co');
+    expect(await hasSignInRight(dbs.service, 'exp@e.co', later)).toBe(false);
+    // The agency-host variant refuses the same three.
+    for (const email of ['rev@e.co', 'acc@e.co']) expect(await hasSignInRightIn(dbs.service, email, IDS.agencyA, NOW), email).toBe(false);
+    expect(await hasSignInRightIn(dbs.service, 'exp@e.co', IDS.agencyA, later)).toBe(false);
+  });
+
   it('is true for an existing user with a membership, false for one without', async () => {
     await seedUser(dbs.owner, 'u1', 'member@e.co');
     expect(await hasSignInRight(dbs.service, 'member@e.co', NOW)).toBe(false);

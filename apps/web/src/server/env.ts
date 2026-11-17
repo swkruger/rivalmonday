@@ -64,6 +64,7 @@ export function parseWebEnv(env: NodeJS.ProcessEnv): WebEnv {
   const authSecret = secret('BETTER_AUTH_SECRET');
   const appUrl = need('APP_URL').replace(/\/+$/, '');
   if (appUrl && !/^https?:\/\//.test(appUrl)) problems.push('APP_URL must be an http(s) URL');
+  else if (appUrl && !URL.canParse(appUrl)) problems.push('APP_URL is not a valid URL'); // hostEnv stays null; `problems` throws below
   const link = secret('LINK_SIGNING_SECRET');
   const previous = env.LINK_SIGNING_SECRET_PREVIOUS?.trim();
   const defaultAgencyId = env.DEFAULT_AGENCY_ID?.trim() || null;

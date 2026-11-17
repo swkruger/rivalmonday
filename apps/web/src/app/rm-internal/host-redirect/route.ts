@@ -25,7 +25,7 @@ async function servedOrigin(target: URL): Promise<boolean> {
 }
 
 /**
- * 13a1 P5: the proxy's cross-host redirects (agency host → platform for staff-only paths, fallback host → live custom domain).
+ * 13a1 P5: the proxy's cross-host redirects (fallback host → live custom domain; V11: an agency host never redirects to the platform from the proxy, `decideHost` does that for verified staff).
  * Only the proxy reaches this route (it rewrites here, sets the target header after dropping any client copy, and 404s direct
  * requests under `/rm-internal`). A route handler's absolute `Location` is kept as is by self-hosted Next, unlike a middleware one.
  */

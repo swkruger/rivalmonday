@@ -251,9 +251,9 @@ test('a client owner of one client gets no switcher and no Platform', { tag: ['@
     const links = await menuLinks(page);
     expect(links).not.toContain('Agencies');
     expect(links).not.toContain('Portfolio');
-    // /platform on the agency host goes to the platform, where this host-only session does not reach.
-    await page.goto('/platform');
-    await expect(page).toHaveURL((u) => u.origin === PLATFORM_ORIGIN && u.pathname === '/sign-in');
+    // V11: /platform on the agency host is a 404 (never a redirect to the platform origin).
+    expect((await page.goto('/platform'))?.status()).toBe(404);
+    expect(new URL(page.url()).origin).toBe(agencyOriginOf(CB_AGENCY));
   } finally {
     await context.close();
   }

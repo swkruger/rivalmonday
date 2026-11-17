@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '../test/helpers';
-import { agencyByHostname, clientOriginFor, type HostEnv, originOf, parseHostEnv, rehostLogoUrl } from './hosts';
+import { agencyByHostname, clientOriginFor, type HostEnv, originOf, parseHostEnv, RESERVED_HOST_SLUGS, rehostLogoUrl } from './hosts';
 import { agency, agencyDomain } from './schema';
 import { withTenant } from './tenant';
 
@@ -139,5 +139,24 @@ describe('host lookups (db)', () => {
     await dbs.service.update(agency).set({ archivedAt: new Date() }).where(eq(agency.id, IDS.agencyA));
     expect(await agencyByHostname(dbs.service, 'agency-a.localhost', h)).toBeNull();
     expect(await agencyByHostname(dbs.service, 'intel.a.test', h)).toBeNull();
+  });
+
+  it('hostname removed by A then live for B resolves to B', async () => {
+    await domain(IDS.agencyA, 'intel.shared.test', 'live');
+    expect((await agencyByHostname(dbs.service, 'intel.shared.test', h))?.agencyId).toBe(IDS.agencyA);
+    await dbs.service.update(agencyDomain).set({ status: 'removed' }).where(eq(agencyDomain.agencyId, IDS.agencyA));
+    expect(await agencyByHostname(dbs.service, 'intel.shared.test', h)).toBeNull();
+    await domain(IDS.agencyB, 'intel.shared.test', 'live');
+    expect((await agencyByHostname(dbs.service, 'intel.shared.test', h))?.agencyId).toBe(IDS.agencyB);
+  });
+});
+
+describe('agencyByHostname reserved labels', () => {
+  it('reserved label → null with no query', async () => {
+    const queries: unknown[] = [];
+    const db = { execute: async (q: unknown) => { queries.push(q); return []; } } as unknown as Parameters<typeof agencyByHostname>[0];
+    const h2: HostEnv = { appUrl: 'https://app.example.com', neutralDomain: 'neutral.example', extraPlatformHosts: [] };
+    for (const label of RESERVED_HOST_SLUGS) expect(await agencyByHostname(db, `${label}.neutral.example`, h2), label).toBeNull();
+    expect(queries).toHaveLength(0);
   });
 });

@@ -1,10 +1,10 @@
 import { createLogger } from '@cs/core/server';
-import { agencyByHostname, platformOrigin } from '@cs/db';
+import { agencyByHostname } from '@cs/db';
 import { type NextRequest, NextResponse } from 'next/server';
 import { dbs } from './server/db';
 import { activeEnvName } from './server/dev-guard';
 import { webEnv } from './server/env';
-import { HOST_REDIRECT_HEADER, HOST_REDIRECT_PATH, type HostInfo, hostnameOf, INTERNAL_PATH, requestOriginFor, resolveHost, routeForHost } from './server/hosts';
+import { AGENCY_STAFF_ZONE, HOST_REDIRECT_HEADER, HOST_REDIRECT_PATH, type HostInfo, hostnameOf, INTERNAL_PATH, requestOriginFor, resolveHost, routeForHost } from './server/hosts';
 import { safeNext } from './server/safe-next';
 
 /** `/mcp` and `/.well-known/*` are served on the mcp host only (`routeForHost` 404s them on the platform and agency hosts); `/mcp`, `/.well-known/*`, `/api/ask/*` and `/api/stripe/webhook` and `/api/stripe/connect-webhook` (Stripe signature) authenticate themselves (Bearer token / public metadata / `getViewer`, no session → 404); `/oauth/consent` stays behind the session check. `/start/**` is the public client intake (Phase 11c; Turnstile, rate limits and tokens guard it). `/onboarding/*.webp` are the static O14 images: the `next/image` optimizer fetches them without cookies. `/favicon.ico`, `/brand/*` and `/neutral-icon.svg` are the tab icons (Q4): the proxy sees them so non-platform hosts can 404 the RM ones. */
@@ -46,7 +46,7 @@ export async function proxy(req: NextRequest) {
     log.error({ err: e instanceof Error ? { name: e.name, message: e.message } : { name: 'Error', message: String(e) } }, 'proxy host lookup failed');
     return notFound();
   }
-  const route = routeForHost(host, { pathname, search, method: req.method }, platformOrigin(env));
+  const route = routeForHost(host, { pathname, search, method: req.method });
   if (route.kind === 'not_found') return notFound();
   if (route.kind === 'redirect') {
     // Issued by the internal route (307 + no-store): a proxy redirect to the platform origin would be relativised by self-hosted Next.
@@ -67,6 +67,8 @@ export async function proxy(req: NextRequest) {
     return res;
   }
   const hasSession = req.cookies.getAll().some((c) => c.name.endsWith('session_token'));
+  // V11: the agency-staff zone on an agency host exists only for a session (no sign-in redirect, no guest, no hint it exists); `decideHost` then checks the viewer.
+  if (!hasSession && host?.kind === 'agency' && AGENCY_STAFF_ZONE.test(pathname)) return notFound();
   if (!hasSession && !req.cookies.has('rm_guest')) {
     const url = req.nextUrl.clone();
     url.pathname = '/sign-in';

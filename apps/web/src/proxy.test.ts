@@ -138,14 +138,7 @@ describe('proxy', () => {
     }
   });
 
-  it('cross-host redirects are rewritten to the internal redirect route with the target in a proxy-set header (self-hosted Next relativises a middleware Location)', async () => {
-    const staff = await onHost('acme.neutral.example', '/agency/clients?x=1', { headers: { cookie: 'better-auth.session_token=t' } });
-    expect(staff.headers.get('location')).toBeNull();
-    expect(new URL(staff.headers.get('x-middleware-rewrite')!).pathname).toBe(HOST_REDIRECT_PATH);
-    expect(staff.headers.get(`x-middleware-request-${HOST_REDIRECT_HEADER}`)).toBe('https://app.example/agency/clients?x=1');
-    // POST too (a 307 keeps the method), with no session cookie at all.
-    const post = await onHost('acme.neutral.example', '/agency/x', { method: 'POST' });
-    expect(post.headers.get(`x-middleware-request-${HOST_REDIRECT_HEADER}`)).toBe('https://app.example/agency/x');
+  it('canonical-host redirects are rewritten to the internal redirect route with the target in a proxy-set header (self-hosted Next relativises a middleware Location)', async () => {
     const canon = await onHost('old.neutral.example', '/c/x?tab=1');
     expect(new URL(canon.headers.get('x-middleware-rewrite')!).pathname).toBe(HOST_REDIRECT_PATH);
     expect(canon.headers.get(`x-middleware-request-${HOST_REDIRECT_HEADER}`)).toBe('https://reports.acme.com/c/x?tab=1');
@@ -159,8 +152,44 @@ describe('proxy', () => {
       expect(res.headers.get(`x-middleware-request-${HOST_REDIRECT_HEADER}`), `${host}${p}`).toBeNull();
     }
     // On a redirecting path the proxy's own target wins.
-    const staff = await onHost('acme.neutral.example', '/agency', { headers: forged });
-    expect(staff.headers.get(`x-middleware-request-${HOST_REDIRECT_HEADER}`)).toBe('https://app.example/agency');
+    const canon = await onHost('old.neutral.example', '/c/x', { headers: forged });
+    expect(canon.headers.get(`x-middleware-request-${HOST_REDIRECT_HEADER}`)).toBe('https://reports.acme.com/c/x');
+  });
+
+  describe('V11: staff areas on an agency host', () => {
+    const session = { cookie: 'better-auth.session_token=t' };
+    const toPlatform = (res: Response) => `${res.headers.get('location') ?? ''}${res.headers.get(`x-middleware-request-${HOST_REDIRECT_HEADER}`) ?? ''}${res.headers.get('x-middleware-rewrite') ?? ''}`.includes('app.example');
+
+    it('no session, or only a guest cookie, at /agency, /onboarding or /platform → 404 with no Location', async () => {
+      for (const p of ['/agency', '/agency/clients?x=1', '/onboarding', '/platform', '/platform/agencies']) {
+        for (const init of [undefined, { headers: { cookie: 'rm_guest=g' } }, { method: 'POST' }]) {
+          const res = await onHost('acme.neutral.example', p, init);
+          expect(res.status, p).toBe(404);
+          expect(res.headers.get('location'), p).toBeNull();
+        }
+      }
+    });
+
+    it('/platform* is 404 even with a session cookie, and never redirects to the platform origin', async () => {
+      for (const p of ['/platform', '/platform/agencies/x']) {
+        const res = await onHost('acme.neutral.example', p, { headers: session });
+        expect(res.status, p).toBe(404);
+        expect(toPlatform(res), p).toBe(false);
+      }
+    });
+
+    it('/agency* with a session cookie passes through to the viewer check (host headers set, no redirect)', async () => {
+      for (const p of ['/agency', '/agency/clients?x=1', '/onboarding/steps']) {
+        const res = await onHost('acme.neutral.example', p, { headers: session });
+        expect(res.status, p).toBe(200);
+        expect(toPlatform(res), p).toBe(false);
+        expect(res.headers.get('x-middleware-request-x-rm-host-agency'), p).toBe(AGENCY);
+      }
+    });
+
+    it('the platform host is unchanged: /agency without a cookie goes to sign-in', async () => {
+      expect((await run('/agency')).headers.get('location')).toContain('/sign-in');
+    });
   });
 
   it('a direct request to the internal redirect path is 404 on every host', async () => {

@@ -21,6 +21,8 @@ export type Viewer =
 export type SupportViewer = { kind: 'support'; userId: string; email: string; name: string; avatarUrl: string | null; ctx: AccessContext; session: OpenSupportSession };
 /** 13a1 P7: the signed-in user belongs on another host (internal; `viewerWith` turns it into `redirect()` or null). */
 export type HostRedirect = { kind: 'redirect'; to: string };
+/** 13a2 V11: this viewer has no business on this path of this host (staff area on an agency host); page mode turns it into `notFound()`. */
+export type HostNotFound = { kind: 'not_found' };
 /** An unusable `rm_support` cookie: `sessionId` is the verified id that failed, or null when the MAC didn't verify. */
 export type SupportEnd = { kind: 'end'; sessionId: string | null };
 
@@ -50,7 +52,7 @@ export async function resolveViewer(input: {
    * pages add no DB stage. Returns the target's client origin and whether the user is a platform operator (operators stay).
    */
   bounce?: (target: MembershipSummary) => Promise<{ origin: string; isOperator: boolean }>;
-}): Promise<Viewer | HostRedirect | null> {
+}): Promise<Viewer | HostRedirect | HostNotFound | null> {
   const { service, session, host } = input;
   if (session) {
     // Launch gate (13a1 Task 15): the Decision 16 hint lookup starts beside `listMemberships` (it needs only the hint), so it
@@ -64,7 +66,7 @@ export async function resolveViewer(input: {
     const target = platformBounceTarget({ host, memberships: all, path: input.path, pickedAgencyId: pickMembership(all, input.membershipCookie)?.agencyId ?? null });
     const bounce = target && input.bounce ? await input.bounce(target) : null;
     const decision = decideHost({ host, memberships: all, path: input.path, platformOrigin: input.platformOrigin, bounce });
-    if (decision.kind === 'redirect') return decision;
+    if (decision.kind !== 'allow') return decision;
     // Only the memberships that count on this host reach the pick and the client hint (another agency's never do).
     const memberships = decision.memberships;
     let m = pickMembership(memberships, input.membershipCookie);

@@ -3,7 +3,7 @@ import type { AccessContext } from '@cs/core';
 import { clientOriginFor, platformOrigin } from '@cs/db';
 import { platformRoleForUser } from '@cs/tools';
 import { cookies, headers } from 'next/headers';
-import { redirect } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import { cache } from 'react';
 import { clientIdFromPath } from '@/components/shell/nav-items';
 import { requestAuth } from './auth';
@@ -88,8 +88,9 @@ async function viewerWith(clientHint: string | null, mode: Mode): Promise<Viewer
       }
       : undefined,
   });
-  if (r?.kind !== 'redirect') return r;
+  if (r?.kind !== 'redirect' && r?.kind !== 'not_found') return r;
   if (mode !== 'page') return null; // api: never bounce a POST; operator: unreachable on the platform (no bounce), null elsewhere
+  if (r.kind === 'not_found') notFound(); // V11: staff area on an agency host, viewer is not staff of that agency
   redirect(r.to);
 }
 
