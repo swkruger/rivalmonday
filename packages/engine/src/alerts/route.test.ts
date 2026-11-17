@@ -1,5 +1,5 @@
 import { createAccessContext } from '@cs/core';
-import { alert, changeEvent, client, feedback, notification } from '@cs/db';
+import { alert, changeEvent, client, feedback, notification, runbook, runbookItem } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { and, eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
@@ -103,6 +103,43 @@ describe('processAlert', () => {
     await dbs.owner.update(changeEvent).set({ retractedAt: NOW }).where(eq(changeEvent.id, eventId));
     expect(await approveAlert({ service: dbs.service, app: dbs.app, delivery }, am, alertId, NOW)).toBe('withdrawn');
     expect(await kinds('alert')).toEqual([]);
+  });
+});
+
+describe('processAlert banned terms', () => {
+  async function banPrice() {
+    const [rb] = await dbs.owner.insert(runbook).values({ level: 'agency', agencyId: IDS.agencyA }).returning({ id: runbook.id });
+    await dbs.owner.insert(runbookItem).values({ runbookId: rb!.id, itemKey: 'knob:voice', kind: 'knob', content: { tone: 'friendly', preferredTerms: [], bannedTerms: ['tune-up'] }, enabled: true, updatedBy: 'test' });
+  }
+
+  it('direct mode + persistent term → pending_review with flags, no client notification', async () => {
+    await banPrice();
+    const { alertId } = await newAlert('direct');
+    expect(await processAlert(deps, alertId, NOW)).toEqual({ status: 'pending_review' });
+    expect(await status(alertId)).toMatchObject({ status: 'pending_review', reviewReason: 'banned_term', reviewTerms: ['tune-up'] });
+    expect(await kinds('alert')).toEqual([]);
+  });
+
+  it('digest_only + term → pending_review', async () => {
+    await banPrice();
+    const { alertId } = await newAlert('digest_only');
+    expect((await processAlert(deps, alertId, NOW)).status).toBe('pending_review');
+    expect(await status(alertId)).toMatchObject({ status: 'pending_review', reviewReason: 'banned_term' });
+  });
+
+  it('AM note names the terms', async () => {
+    await banPrice();
+    const { alertId } = await newAlert('after_am_check');
+    await processAlert(deps, alertId, NOW);
+    const [n] = await kinds('am_alert');
+    expect(n!.title).toMatch(/^Review alert: /);
+    expect(n!.body).toContain('It uses a banned word (tune-up), so it waits for your review.');
+  });
+
+  it('no term → flags cleared', async () => {
+    const { alertId } = await newAlert('direct');
+    await processAlert(deps, alertId, NOW);
+    expect(await status(alertId)).toMatchObject({ status: 'delivered', reviewReason: null, reviewTerms: null });
   });
 });
 

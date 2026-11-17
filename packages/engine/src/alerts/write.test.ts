@@ -1,4 +1,4 @@
-import { changeEvent } from '@cs/db';
+import { changeEvent, competitor, runbook, runbookItem } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
@@ -80,5 +80,74 @@ describe('writeAlertText', () => {
 
   it('builds the template from the change label and the event summary', () => {
     expect(templateAlert({ competitorName: 'Bright Smiles', changeType: 'ad_started', summary: '3 new Meta ads: "Free whitening"' })).toEqual({ headline: 'Bright Smiles: new ads', body: 'What we saw: 3 new Meta ads: "Free whitening"' });
+  });
+});
+
+/** 13a2 Task 6: the agency voice reaches the alert writer; a banned word gets one retry, then a review flag. */
+describe('writeAlertText voice and banned terms', () => {
+  const cheap = draft('Smith HVAC cut its cheap AC tune-up price to $69.');
+  async function setVoice(bannedTerms: string[]) {
+    const [rb] = await dbs.owner.insert(runbook).values({ level: 'agency', agencyId: IDS.agencyA }).returning({ id: runbook.id });
+    await dbs.owner.insert(runbookItem).values({ runbookId: rb!.id, itemKey: 'knob:voice', kind: 'knob', content: { tone: 'formal', preferredTerms: [], bannedTerms }, enabled: true, updatedBy: 'test' });
+  }
+  /** Fake AI whose writer answers `drafts` in order (the last repeats) and records each writer system prompt. */
+  function seq(drafts: string[], decide = support()) {
+    const fake = createFakeAi({ chat: () => 'unused', decide });
+    const systems: string[] = [];
+    let n = 0;
+    fake.chat = async (task, input, scope) => {
+      systems.push(String(input.messages[0]!.content));
+      const next = drafts[Math.min(n++, drafts.length - 1)]!;
+      return createFakeAi({ chat: () => next }).chat(task, input, scope);
+    };
+    return { fake, systems };
+  }
+
+  it('default voice: prompt unchanged', async () => {
+    const a = seq([draft()]);
+    await run(a.fake);
+    expect(a.systems).toHaveLength(1);
+    expect(a.systems[0]).not.toContain('<voice>');
+    expect(a.systems[0]).not.toContain('Your last draft used');
+  });
+
+  it('term then clean retry → model text, unflagged', async () => {
+    await setVoice(['cheap']);
+    const a = seq([cheap, draft()]);
+    const { text } = await run(a.fake);
+    expect(a.systems).toHaveLength(2);
+    expect(a.systems[0]).toContain('<voice>');
+    expect(a.systems[1]).toContain('Your last draft used: "cheap"');
+    expect(text).toMatchObject({ written: 'model', headline: 'Smith HVAC cut its AC tune-up price to $69.', bannedTerms: [] });
+  });
+
+  it('persistent term → model text kept and flagged after one retry', async () => {
+    await setVoice(['cheap']);
+    const a = seq([cheap]);
+    const { text } = await run(a.fake);
+    expect(a.systems).toHaveLength(2);
+    expect(text).toMatchObject({ written: 'model', bannedTerms: ['cheap'] });
+  });
+
+  it('a retry that fails verification → template', async () => {
+    await setVoice(['cheap']);
+    const a = seq([cheap, draft('Smith HVAC cut its AC tune-up price to $49.')]);
+    const { text } = await run(a.fake);
+    expect(text).toMatchObject({ written: 'template', bannedTerms: [] });
+  });
+
+  it('template fallback containing a term is flagged', async () => {
+    await setVoice(['price']);
+    const { text } = await run(createFakeAi({ chat: () => 'not json', decide: support() }));
+    expect(text).toMatchObject({ written: 'template', bannedTerms: ['price'] });
+  });
+
+  it('term inside the competitor name is not enforced', async () => {
+    await setVoice(['smith']);
+    await dbs.owner.update(competitor).set({ name: 'Smith HVAC' }).where(eq(competitor.id, IDS.competitorX));
+    const a = seq([draft()]);
+    const { text } = await run(a.fake);
+    expect(a.systems).toHaveLength(1);
+    expect(text).toMatchObject({ written: 'model', bannedTerms: [] });
   });
 });

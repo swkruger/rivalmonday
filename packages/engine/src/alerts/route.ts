@@ -63,14 +63,16 @@ const NOTE: Record<string, string> = {
   immediate: 'It was sent to the client.',
   digest: "The client already had today's maximum of immediate alerts, so it goes in this evening's digest.",
   digest_only: "It goes in the client's evening digest (digest-only mode).",
+  banned_term: 'It uses a banned word ({terms}), so it waits for your review.',
 };
 
 async function notifyAm(tx: Tx, cfg: DeliveryConfig, a: AlertRow, note: keyof typeof NOTE, now: Date) {
   const c = await clientOf(tx, a.clientId);
   const branding = await loadBranding(tx, a.agencyId);
-  const review = note === 'pending_review';
+  const review = note === 'pending_review' || note === 'banned_term';
   const title = `${review ? 'Review alert' : 'Alert'}: ${a.headline}`;
-  const lines = [a.body, `${c.name} · score ${Math.round(a.score)}${a.written === 'template' ? ' · evidence template (the writer could not verify its text)' : ''}`, NOTE[note]!];
+  const noteLine = NOTE[note]!.replace('{terms}', (a.reviewTerms ?? []).join(', '));
+  const lines = [a.body, `${c.name} · score ${Math.round(a.score)}${a.written === 'template' ? ' · evidence template (the writer could not verify its text)' : ''}`, noteLine];
   await notify(tx, cfg, {
     agencyId: a.agencyId, clientId: a.clientId, kind: 'am_alert', audience: 'agency', subjectType: 'alert', subjectId: a.id, dedupe: `am_alert:${a.id}`,
     link: { t: 'alert', id: a.id }, now,
@@ -91,7 +93,13 @@ export async function processAlert(deps: AlertDeps, alertId: string, now: Date):
       await withdrawAlerts(tx, [a.id], now);
       return { status: 'withdrawn' as const, release: 'withdrawn' as const };
     }
-    const [w] = await tx.update(alert).set({ headline: text.headline, body: text.body, written: text.written, evidenceIds: text.evidenceIds, updatedAt: now }).where(eq(alert.id, a.id)).returning();
+    const [w] = await tx.update(alert).set({ headline: text.headline, body: text.body, written: text.written, evidenceIds: text.evidenceIds, reviewReason: text.bannedTerms.length > 0 ? 'banned_term' : null, reviewTerms: text.bannedTerms.length > 0 ? text.bannedTerms : null, updatedAt: now }).where(eq(alert.id, a.id)).returning();
+    // Q3: a banned word holds the alert for review in every mode; nothing reaches the client until an AM approves.
+    if (text.bannedTerms.length > 0) {
+      await tx.update(alert).set({ status: 'pending_review', updatedAt: now }).where(eq(alert.id, a.id));
+      await notifyAm(tx, deps.delivery, w!, 'banned_term', now);
+      return { status: 'pending_review' as const };
+    }
     if (a.mode === 'direct') {
       const release = await releaseAlert(tx, deps.delivery, w!, now);
       if (release !== 'withdrawn') await notifyAm(tx, deps.delivery, w!, release, now);
