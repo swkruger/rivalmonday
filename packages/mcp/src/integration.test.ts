@@ -96,7 +96,9 @@ afterEach(async () => {
 describe('/mcp end to end with the SDK client', () => {
   it('initialize returns productName', async () => {
     const { token } = await mint('admin', 'read');
-    expect((await connect(token)).getServerVersion()).toMatchObject({ name: 'Rival Monday' });
+    const [a] = await dbs.owner.select({ name: agency.name }).from(agency).where(eq(agency.id, IDS.agencyA));
+    expect((await connect(token)).getServerVersion()).toMatchObject({ name: a!.name }); // Q9: no displayName -> the agency name, never Rival Monday
+    expect(a!.name).not.toContain('Rival Monday');
     await dbs.owner.update(agency).set({ branding: { displayName: 'Acme Intel' } }).where(eq(agency.id, IDS.agencyA));
     expect((await connect(token)).getServerVersion()).toMatchObject({ name: 'Acme Intel' });
   });

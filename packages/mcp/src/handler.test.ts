@@ -64,7 +64,8 @@ describe('handleMcpRequest', () => {
     expect(res.headers.get('content-type')).toContain('application/json');
     expect(res.headers.get('mcp-session-id')).toBeNull();
     const body = (await res.json()) as { result: { serverInfo: { name: string; version: string }; capabilities: Record<string, unknown> } };
-    expect(body.result.serverInfo).toEqual({ name: 'Rival Monday', version: '1.0.0' });
+    const [fixture] = await dbs.owner.select({ name: agency.name }).from(agency).where(eq(agency.id, IDS.agencyA));
+    expect(body.result.serverInfo).toEqual({ name: fixture!.name, version: '1.0.0' }); // Q9: no displayName -> the agency name
     expect(Object.keys(body.result.capabilities)).toEqual(expect.arrayContaining(['tools', 'resources', 'prompts']));
     const [row] = await dbs.service.select({ at: apiToken.lastUsedAt }).from(apiToken).where(eq(apiToken.id, id));
     expect(row!.at).not.toBeNull();
@@ -75,7 +76,7 @@ describe('handleMcpRequest', () => {
     expect(((await res2.json()) as { result: { serverInfo: { name: string } } }).result.serverInfo.name).toBe('Acme Intel');
     await dbs.owner.update(agency).set({ branding: { displayName: '   ' } }).where(eq(agency.id, IDS.agencyA));
     const res3 = await handleMcpRequest(initialize(token), d);
-    expect(((await res3.json()) as { result: { serverInfo: { name: string } } }).result.serverInfo.name).toBe('Rival Monday');
+    expect(((await res3.json()) as { result: { serverInfo: { name: string } } }).result.serverInfo.name).toBe(fixture!.name); // blank displayName -> the agency name, never Rival Monday
   });
 
   it('a refused resource read carries the exact message on the wire', async () => {
