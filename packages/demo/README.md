@@ -23,9 +23,11 @@ A later phase that adds a screen adds its seed data (a new `src/<area>.ts`, call
 | `/agency/approvals` | admin | `list_brief_queue`, `list_help_guides` | — |
 | `/agency/approvals/[briefId]` | admin | `get_brief_review`, `get_evidence_refs`, `list_help_guides` | — |
 | `/agency/approvals/[briefId] (quiet)` | admin | — | `get_brief_review`: Brazos’s brief is held as quiet |
+| `/agency/approvals/[briefId] (banned word)` | admin | `get_brief_review` | — |
 | `/agency/settings/branding` | admin | `get_agency_branding`, `list_help_guides` | — |
 | `/agency/settings/platform-access` | admin | `list_support_sessions`, `list_help_guides` | — |
 | `/agency/settings/runbook` | admin | `get_runbook`, `list_help_guides` | — |
+| `/agency/settings/runbook (voice)` | admin | `get_runbook` | — |
 | `/c/[clientId]/setup` | admin | `get_client_setup`, `get_client_profile`, `get_client_details`, `get_connect_status`, `list_client_billing_status`, `list_help_guides` | — |
 | `/c/[clientId]/setup/competitors (client owner)` | ownerSetup | `get_client_setup`, `get_client_profile` | — |
 | `/c/[clientId]/setup/competitors (not asked, client owner)` | ownerLoneStar | `get_client_profile` | `get_client_setup`: a client owner gets a 404 unless the agency asked them to pick |
@@ -70,6 +72,7 @@ A later phase that adds a screen adds its seed data (a new `src/<area>.ts`, call
 | `/c/[clientId]/settings/usage` | admin | `get_client_profile`, `get_my_usage`, `list_help_guides` | — |
 | `/c/[clientId]/settings/alerts` | admin | `get_client_profile`, `get_alert_rules`, `list_help_guides` | — |
 | `/c/[clientId]/settings/runbook` | admin | `get_client_profile`, `get_runbook`, `list_help_guides` | — |
+| `/c/[clientId]/settings/runbook (voice)` | admin | `get_client_profile`, `get_runbook` | — |
 | `/c/[clientId]/settings/delivery` | admin | `get_client_profile`, `list_client_recipients`, `list_help_guides` | — |
 | `/c/[clientId]/settings/profile` | admin | `get_client_profile`, `get_ask_starters`, `list_client_billing_status`, `get_client_details`, `list_help_guides` | — |
 | `/c/[clientId]/settings/billing (client owner)` | ownerLoneStar | `get_my_billing`, `get_client_profile`, `list_help_guides` | — |

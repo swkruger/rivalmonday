@@ -124,9 +124,11 @@ const SCREEN_ENTRIES: readonly ScreenCoverage[] = [
   { route: '/agency/approvals', as: 'admin', calls: [{ tool: 'list_brief_queue', input: none, path: 'items' }] },
   { route: '/agency/approvals/[briefId]', as: 'admin', calls: [{ tool: 'get_brief_review', input: (ids) => ({ briefId: ids.briefs.readyLoneStar }), path: 'items' }, lsRefs] },
   { route: '/agency/approvals/[briefId] (quiet)', as: 'admin', calls: [{ tool: 'get_brief_review', input: (ids) => ({ briefId: ids.briefs.quietBrazos }), path: 'items', expect: 'empty', why: 'Brazos’s brief is held as quiet' }] },
+  { route: '/agency/approvals/[briefId] (banned word)', as: 'admin', calls: [{ tool: 'get_brief_review', input: (ids) => ({ briefId: ids.briefs.flaggedBrazos }), path: 'reviewTerms' }] },
   { route: '/agency/settings/branding', as: 'admin', calls: [{ tool: 'get_agency_branding', input: none, path: 'stored' }] },
   { route: '/agency/settings/platform-access', as: 'admin', calls: [{ tool: 'list_support_sessions', input: none, path: 'rows' }] },
   { route: '/agency/settings/runbook', as: 'admin', calls: [{ tool: 'get_runbook', input: () => ({ owner: { level: 'agency' } }), path: 'items' }] },
+  { route: '/agency/settings/runbook (voice)', as: 'admin', calls: [{ tool: 'get_runbook', input: () => ({ owner: { level: 'agency' } }), path: 'voice.effective.bannedTerms' }] },
   // Phase 11a: Cedar Creek Plumbing is mid-setup (suggestions ready, search done); `/agency/clients/new` (steps 1-2 of the client flow) reads only the guide list; the lookup runs on user action.
   { route: '/c/[clientId]/setup', as: 'admin', calls: setupStaffCalls(setupPending) },
   // 16 P8/§7: owners never open `/setup` (they are sent to their Overview); their competitor pick is a screen of its own. Cedar Creek's owner was asked to pick (seedSetup); a closed client's owner gets a 404.
@@ -337,6 +339,7 @@ const SCREEN_ENTRIES: readonly ScreenCoverage[] = [
   { route: '/c/[clientId]/settings/usage', as: 'admin', calls: [lsProfile, { tool: 'get_my_usage', input: (ids) => ({ clientId: ls(ids) }), path: 'credits.limit' }] },
   { route: '/c/[clientId]/settings/alerts', as: 'admin', calls: [lsProfile, { tool: 'get_alert_rules', input: (ids) => ({ clientId: ls(ids) }), path: 'custom' }] },
   { route: '/c/[clientId]/settings/runbook', as: 'admin', calls: [lsProfile, { tool: 'get_runbook', input: (ids) => ({ owner: { level: 'client', clientId: ls(ids) } }), path: 'items' }] },
+  { route: '/c/[clientId]/settings/runbook (voice)', as: 'admin', calls: [lsProfile, { tool: 'get_runbook', input: (ids) => ({ owner: { level: 'client', clientId: ls(ids) } }), path: 'voice.own.tone' }] },
   { route: '/c/[clientId]/settings/delivery', as: 'admin', calls: [{ tool: 'get_client_profile', input: (ids) => ({ clientId: ls(ids) }), path: 'serviceArea' }, { tool: 'list_client_recipients', input: (ids) => ({ clientId: ls(ids) }), path: 'items' }] },
   { route: '/c/[clientId]/settings/profile', as: 'admin', calls: [{ tool: 'get_client_profile', input: (ids) => ({ clientId: ls(ids) }), path: 'keywords' }, lsStarters, { tool: 'list_client_billing_status', input: none, path: 'clients' }, { tool: 'get_client_details', input: (ids) => ({ clientId: ls(ids) }), path: 'name' }] },
   { route: '/c/[clientId]/settings/billing (client owner)', as: 'ownerLoneStar', calls: [{ tool: 'get_my_billing', input: (ids) => ({ clientId: ls(ids) }), path: 'agencyName' }, lsProfile] },

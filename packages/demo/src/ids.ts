@@ -54,7 +54,7 @@ export interface DemoIds {
   events: DemoEvent[];
   moves: DemoMove[];
   sampleReviewIds: string[];
-  briefs: { sentLoneStar: string[]; sentBrazos: string[]; readyLoneStar: string; quietBrazos: string; startingPointBrazos: string };
+  briefs: { sentLoneStar: string[]; sentBrazos: string[]; readyLoneStar: string; quietBrazos: string; startingPointBrazos: string; flaggedBrazos: string };
   /** Phase 12b: an active client with no data yet (its starting point is still being prepared). */
   startingPointFresh: string;
   alerts: { delivered: string; pending: string; dismissed: string };
@@ -77,7 +77,7 @@ export function emptyIds(): DemoIds {
     events: [],
     moves: [],
     sampleReviewIds: [],
-    briefs: { sentLoneStar: [], sentBrazos: [], readyLoneStar: '', quietBrazos: '', startingPointBrazos: '' },
+    briefs: { sentLoneStar: [], sentBrazos: [], readyLoneStar: '', quietBrazos: '', startingPointBrazos: '', flaggedBrazos: '' },
     startingPointFresh: '',
     alerts: { delivered: '', pending: '', dismissed: '' },
     reportId: '',

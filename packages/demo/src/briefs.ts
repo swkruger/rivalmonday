@@ -147,6 +147,22 @@ async function seedReadyBriefs(ctx: SeedContext): Promise<void> {
     dropped: { items: 2, sentences: 3 }, generatedAt: clock.daysAgo(0.25), createdAt: clock.daysAgo(0.25), updatedAt: clock.daysAgo(0.25),
   }).returning({ id: brief.id });
   ids.briefs.quietBrazos = quiet!.id;
+
+  // 13a2: Brazos's older Monday is still ready because it uses the agency's banned word ("cheap"): auto-send leaves it for the AM.
+  const flaggedDate = clock.pastMondays[2]!;
+  const flaggedEnd = atUtc(flaggedDate);
+  const flaggedStart = new Date(flaggedEnd.getTime() - 7 * DAY);
+  const source = ids.events.filter((e) => e.client === 'brazos' && e.route !== 'archive' && ageDays(ctx, e) > 7).sort((a, b) => b.score - a.score)[0];
+  if (!source) throw new Error('seedBriefs: Brazos needs one older brief/alert event for the flagged brief');
+  const [flagged] = await db.insert(brief).values({
+    agencyId: ids.agencyId, clientId: ids.clients.brazos, deliveryDate: flaggedDate, periodStart: flaggedStart, periodEnd: flaggedEnd, kind: 'standard', status: 'ready',
+    summary: '1 notable competitor move this week.', trend: { windowDays: 7, events: 1, businesses: await trendBusinesses(ctx, 'brazos') },
+    dropped: { items: 0, sentences: 0 }, reviewReason: 'banned_term', reviewTerms: ['cheap'],
+    generatedAt: new Date(flaggedStart.getTime() + 4 * DAY), createdAt: new Date(flaggedStart.getTime() + 4 * DAY), updatedAt: new Date(flaggedStart.getTime() + 4 * DAY),
+  }).returning({ id: brief.id });
+  ids.briefs.flaggedBrazos = flagged!.id;
+  const flaggedItem = itemValues(ctx, 'brazos', flagged!.id, source, 1, 'active');
+  await db.insert(briefItem).values({ ...flaggedItem, whatChanged: `${source.summary}, advertising a cheap rate.` });
 }
 
 async function seedMoveRecommendations(ctx: SeedContext): Promise<void> {

@@ -1,6 +1,6 @@
 import { ensureExemptPilot } from '@cs/billing';
 import { agency, catalogRows, client, clientCompetitor, competitor, competitorSource, membership, type ServiceArea, trackedPage } from '@cs/db';
-import { ensureAgencyRunbook } from '@cs/engine';
+import { copyItems, createClientRunbook, ensureAgencyRunbook, readRunbookItems, type RunbookItem, withColumnThresholds, writeItem } from '@cs/engine';
 import { createCatalog } from '@cs/verticals';
 import { acceptInvitations, createInvitation } from '@cs/tools';
 import { eq, sql } from 'drizzle-orm';
@@ -90,7 +90,7 @@ export async function seedTenancy(ctx: SeedContext): Promise<void> {
   }).returning({ id: agency.id });
   ids.agencyId = a!.id;
   await ensureExemptPilot(db, ids.agencyId);
-  await ensureAgencyRunbook(db, ids.agencyId, await createCatalog(() => catalogRows(db), { ttlMs: 60_000 }).generic());
+  const agencyRunbookId = await ensureAgencyRunbook(db, ids.agencyId, await createCatalog(() => catalogRows(db), { ttlMs: 60_000 }).generic());
 
   for (const key of ['loneStar', 'brazos', 'lakeside', 'setupPending'] as const) {
     const s = CLIENT_SPECS[key];
@@ -112,6 +112,7 @@ export async function seedTenancy(ctx: SeedContext): Promise<void> {
   const bz = ids.competitors.brazos;
   ids.noData = { pricing: ls[5]!.id, ads: ls[4]!.id, reviews: bz[3]!.id, rankings: ls[3]!.id };
 
+  await seedVoice(ctx, agencyRunbookId);
   await seedUsers(ctx);
 }
 
@@ -149,4 +150,20 @@ async function seedUsers(ctx: SeedContext): Promise<void> {
     if (!m?.contactId) throw new Error(`demo user ${u.key} has no contact after accepting its invitation`);
     ids.users[u.key] = { userId, contactId: m.contactId, email: u.email };
   }
+}
+
+/** 13a2: the agency voice (formal, one preferred pair, banned "cheap") and Lone Star's own direct voice (whole-object override, Q2). */
+async function seedVoice(ctx: SeedContext, agencyRunbookId: string): Promise<void> {
+  const { db, ids } = ctx;
+  const by = DEMO_COLLECTOR;
+  const agencyVoice = { tone: 'formal', preferredTerms: [{ say: 'customers', insteadOf: 'clients' }], bannedTerms: ['cheap'] };
+  const voice = (content: unknown): RunbookItem => ({ key: 'knob:voice', kind: 'knob', content, enabled: true, businessAreaIds: null, version: 1, upstreamVersion: null, upstreamSnapshot: null, dismissedUpstreamVersion: null, customised: false, removedUpstream: false });
+  await writeItem(db, agencyRunbookId, voice(agencyVoice), by);
+  const agencyItems = await readRunbookItems(db, agencyRunbookId);
+  const up = agencyItems.find((i) => i.key === 'knob:voice')!;
+  const own = { tone: 'direct', preferredTerms: [], bannedTerms: [] };
+  const items = withColumnThresholds(copyItems(agencyItems), CLIENT_THRESHOLDS.loneStar, agencyItems).map((i) => (i.key === 'knob:voice'
+    ? { ...i, content: own, customised: true, upstreamVersion: up.version, upstreamSnapshot: { content: up.content, enabled: up.enabled, businessAreaIds: up.businessAreaIds } }
+    : i));
+  await createClientRunbook(db, ids.clients.loneStar, items, by);
 }
