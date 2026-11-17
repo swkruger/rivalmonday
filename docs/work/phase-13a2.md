@@ -1,10 +1,10 @@
 # phase-13a2 — White-label voice, scrub, leak check
 
-**Kind:** implementation   **Worktree:** ../CompetitorSpy-wt/phase-13a2   **Base:** main after 13a1 merge
+**Kind:** implementation   **Worktree:** ../CompetitorSpy-wt/phase-13a2   **Base:** main @ 37a4c27c
 **Plan/spec:** [13a2 plan 11-16](../superpowers/plans/2026-11-16-phase-13a2-voice-scrub-leaks.md) · [spec + addendum](../superpowers/specs/2026-10-17-phase-13a-white-label-design.md) (D6–D7, Voice, Scrubbing, Testing)
 
 ## Status (overwrite)
-Planned; plan owner-approved 2026-11-16; execution not started.
+Execution started 2026-11-17 (plan owner-approved 2026-11-16).
 
 ## Next (overwrite)
 Agent: create the worktree `phase-13a2` from `main`, then run SDD from Task 0 of the plan (pre-flight: re-check migration 0114 is free).
