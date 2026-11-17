@@ -18,5 +18,7 @@ describe('agency host route table', () => {
     for (const route of appRoutes(APP)) expect(fillRoute(route, params), route).not.toMatch(/[[\]]/);
     expect(fillRoute('/c/[clientId]/ask/[threadId]', params)).toBe('/c/c1/ask/t');
     expect(() => fillRoute('/x/[nope]', params)).toThrow(/no value for \[nope\]/);
+    expect(() => fillRoute('/x/[client_id]/[id2]', params)).toThrow(/no value for \[client_id\]/);
+    expect(() => fillRoute('/x/[id2]', params)).toThrow(/no value for \[id2\]/);
   });
 });

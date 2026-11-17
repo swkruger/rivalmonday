@@ -2,7 +2,7 @@ import { brief, briefItem, catalogRows, client, clientCompetitor, createDb } fro
 import { generateBrief } from '@cs/engine';
 import { createCatalog } from '@cs/verticals';
 import { type Browser, expect, test } from '@playwright/test';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { createFakeAi, noul } from '../../../packages/engine/test/fake-ai';
 import { day, seedScoredEvent } from '../../../packages/engine/test/seed';
 import { ADMIN_STATE, ensureAdminState } from './admin-session';
@@ -147,6 +147,17 @@ test.describe.serial('voice', () => {
   test.use({ storageState: ADMIN_STATE });
   test.beforeAll(async ({ browser }, testInfo) => {
     await ensureAdminState(browser, testInfo);
+  });
+
+  // Leave no voice behind for later specs that generate briefs or alerts: drop the agency's `knob:voice` item (back to the default).
+  test.afterAll(async () => {
+    const { db, close } = createDb(process.env.TEST_DATABASE_URL!);
+    try {
+      const [{ id: agencyId }] = (await db.select({ id: client.agencyId }).from(client).where(eq(client.name, RB_CLIENT))) as [{ id: string }];
+      await db.execute(sql`delete from runbook_item where item_key = 'knob:voice' and runbook_id in (select id from runbook where agency_id = ${agencyId} and client_id is null)`);
+    } finally {
+      await close();
+    }
   });
 
   const voice = (page: import('@playwright/test').Page) => page.locator('[data-item="knob:voice"]');

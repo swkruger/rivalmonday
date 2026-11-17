@@ -1,7 +1,7 @@
 import { brandLeaks } from '@cs/core';
 import { expect, test, type TestInfo } from '@playwright/test';
 import { ADMIN_STATE, ensureAdminState } from './admin-session';
-import { AGENCY_HOST_ROUTES, fillRoute, routeParams } from './agency-routes';
+import { AGENCY_HOST_ROUTES, FINAL_PATH, fillRoute, routeParams } from './agency-routes';
 import { agencyOriginOf, cookieHeader, ensureClientHostState, hostRequest, hostsFixture, type HostResponse } from './helpers';
 import { ASK_USER_EMAIL, FLAGGED_BRIEF } from './seed';
 
@@ -71,9 +71,20 @@ test('no page names the platform on the agency host', { tag: ['@whitelabel', '@h
   const visit = async (route: string, path: string, as: 'client' | 'signed out', expected: number, withCookie?: string) => {
     const { hops, final } = await fetchChain(host, path, withCookie);
     crawled.push(`${as} ${route}`);
+    // A rejected session redirects to /sign-in or /no-access and answers 200 there: the page must answer at its own path (or the declared one).
+    if (expected === 200) {
+      const want = FINAL_PATH[route] ? fillRoute(FINAL_PATH[route]!, params) : path;
+      const at = hops[hops.length - 1]!.path;
+      const ok = want === '/c/*' ? /^\/c\/[0-9a-f-]{36}$/.test(at) : at === want;
+      if (!ok) problems.push(`${route} as ${as}: ended at ${at}, expected ${want} (via ${hops.map((h) => h.path).join(' → ')})`);
+    }
     if (final.status !== expected) problems.push(`${route} as ${as}: expected ${expected}, got ${final.status} (${path}${hops.length > 1 ? `, via ${hops.map((h) => h.path).join(' → ')}` : ''})`);
     for (const h of hops) problems.push(...problemsOf(`${route} as ${as} (${h.path} → ${h.res.status})`, h.res));
   };
+
+  // Sanity: the client's own Overview with the cookie answers where it was asked, no redirect.
+  const sanity = await fetchChain(host, `/c/${whiteLabel.clientId}`, cookie);
+  expect(sanity.hops.map((h) => h.path), 'the saved session must open the client Overview').toEqual([`/c/${whiteLabel.clientId}`]);
 
   for (const [route, kind] of Object.entries(AGENCY_HOST_ROUTES)) {
     const path = fillRoute(route, params);
@@ -135,7 +146,7 @@ test('a flagged brief shows the chip and highlights the word', { tag: ['@whitela
 
     await row.getByRole('link', { name: FLAGGED_BRIEF.clientName }).click();
     await expect(page.getByText(`This brief uses a banned word: ${FLAGGED_BRIEF.term}.`)).toBeVisible();
-    const marks = page.locator('mark');
+    const marks = page.getByRole('main').locator('mark');
     await expect(marks.first()).toHaveText(FLAGGED_BRIEF.term);
     // The summary and the item headline both use it.
     expect(await marks.count()).toBeGreaterThanOrEqual(2);

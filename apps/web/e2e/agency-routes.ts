@@ -139,6 +139,21 @@ export const AGENCY_HOST_ROUTES: Record<string, RouteClass> = {
   '/platform/waitlist': 'bounce',
 };
 
+/**
+ * Routes that legitimately redirect on the same host before answering 200: where the chain must end (a template, filled like the
+ * route). Every other `client` or `public` route must answer at its own path, so a rejected session (sign-in, no-access) cannot pass.
+ */
+export const FINAL_PATH: Record<string, string> = {
+  // `/c/*`: the Overview of whichever client the user opens by default (not necessarily the crawl's).
+  '/': '/c/*',
+  // Pages that show only in a state this session is not in (paused client, no membership): an active owner is sent to the Overview.
+  '/paused': '/c/*',
+  '/no-access': '/c/*',
+  '/settings/notifications': '/settings/profile',
+  '/c/[clientId]/settings': '/c/[clientId]/settings/profile',
+  '/c/[clientId]/setup': '/c/[clientId]',
+};
+
 /** The ids a dynamic segment takes. An unknown segment throws in `fillRoute`: a new param must be given a value, never skipped. */
 export function routeParams(clientId: string, p: WhiteLabelParams): Record<string, string> {
   return {
@@ -159,7 +174,7 @@ export function routeParams(clientId: string, p: WhiteLabelParams): Record<strin
 
 /** `/c/[clientId]/ask/[threadId]` → `/c/<id>/ask/<thread>`. */
 export function fillRoute(route: string, params: Record<string, string>): string {
-  return route.replace(/\[([A-Za-z]+)\]/g, (_m, name: string) => {
+  return route.replace(/\[([^\]]+)\]/g, (_m, name: string) => {
     const v = params[name];
     if (v === undefined) throw new Error(`route ${route}: no value for [${name}]`);
     return v;
