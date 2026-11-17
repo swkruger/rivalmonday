@@ -5,6 +5,7 @@ import {
 } from '@cs/tools';
 import { eq } from 'drizzle-orm';
 import { verifyGuest } from './guest';
+import { STAFF_ONLY } from './hosts';
 import { decideHost, platformBounceTarget } from './host-viewer';
 import type { RequestHost } from './request-host';
 import { verifySupportCookie } from './support-cookie';
@@ -80,6 +81,8 @@ export async function resolveViewer(input: {
     const { image, ...who } = session;
     return { kind: 'user', ...who, avatarUrl: avatarUrlOf(image ?? null), ctx: await accessContextFor(service, session.userId, m), membership: m, memberships };
   }
+  // V11: staff areas of an agency host exist only for a signed-in viewer; no session (forged/expired cookie, guest) is a 404, never a sign-in redirect.
+  if (host.info.kind === 'agency' && STAFF_ONLY.test(input.path.split(/[?#]/)[0]!)) return { kind: 'not_found' };
   // 13a1 P7: guest sessions live only on their own agency's host (never the platform or mcp host, never another agency's).
   if (input.guestCookie && host.info.kind === 'agency') {
     // Review Focus 3: re-verifies the cookie's signature/TTL, then re-checks the contact is active and the cookie

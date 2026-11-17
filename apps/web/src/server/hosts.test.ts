@@ -127,6 +127,14 @@ describe('routeForHost', () => {
     for (const p of ['/', '/agency', '/c/x', '/mcp/x', '/start/acme', '/.well-known/other', '/files/logo/x/y.png', '/sign-up']) expect(route(mcp, p), p).toEqual({ kind: 'not_found' });
   });
 
+  it('/onboarding/start (the sign-up callback) is 404 on an agency host, served on the platform', () => {
+    for (const p of ['/onboarding/start', '/onboarding/start/']) {
+      expect(route(agency, p), p).toEqual({ kind: 'not_found' });
+      expect(route({ kind: 'platform' }, p), p).toEqual({ kind: 'next' });
+    }
+    expect(route(agency, '/onboarding/steps')).toEqual({ kind: 'next' });
+  });
+
   it('/neutral-icon.svg allowed on mcp', () => {
     expect(route({ kind: 'mcp' }, '/neutral-icon.svg')).toEqual({ kind: 'next' });
   });

@@ -57,7 +57,7 @@ export const PLATFORM_ZONE = /^\/platform(?:\/|$)/;
 export const AGENCY_STAFF_ZONE = /^\/agency(?:\/|$)|^\/onboarding(?:$|\/(?![\w-]+\.webp$))/;
 export const STAFF_ONLY = new RegExp(`${PLATFORM_ZONE.source}|${AGENCY_STAFF_ZONE.source}`);
 /** Q4: the RM mark, favicon and `/brand/*` exist on the platform host only; non-platform hosts serve `/neutral-icon.svg`. */
-const AGENCY_HOST_DENY = /^\/(?:mcp|\.well-known|oauth|sign-up|join|support|u|bot|favicon\.ico|brand|waitlist|sample|api\/(?:stripe|postmark|waitlist|site-status))(?:\/|$)|^\/start\/?$/;
+const AGENCY_HOST_DENY = /^\/(?:mcp|\.well-known|oauth|sign-up|join|support|u|bot|favicon\.ico|brand|waitlist|sample|api\/(?:stripe|postmark|waitlist|site-status))(?:\/|$)|^\/start\/?$|^\/onboarding\/start\/?$/;
 /** Task 8 (P16): MCP, its OAuth consent page and the OAuth metadata live only on the mcp host; the platform serves none of them. */
 const PLATFORM_HOST_DENY = /^\/(?:mcp|oauth|\.well-known)(?:\/|$)/;
 export function routeForHost(host: HostInfo | null, req: { pathname: string; search: string; method: string }): HostRoute {

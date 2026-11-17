@@ -13,7 +13,7 @@ export const dynamic = 'force-dynamic';
  * user with no membership yet is not bounced to `/no-access`; it selects the right membership before `/onboarding`.
  */
 export async function GET() {
-  const { origin } = await requestHost(); // staff-only: the proxy sends agency hosts to the platform first
+  const { origin } = await requestHost(); // platform only: the proxy 404s /onboarding/start on agency hosts (sign-up is denied there too, V11)
   const at = (path: string) => new URL(path, origin);
   const session = await platformAuth().api.getSession({ headers: await headers() });
   if (!session) return NextResponse.redirect(at('/sign-in'));

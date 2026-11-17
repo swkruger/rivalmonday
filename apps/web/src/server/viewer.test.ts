@@ -117,6 +117,17 @@ describe('resolveViewer host rules (13a1 P7)', () => {
     expect(await resolve(A_HOST, { session: null, guestCookie: cookie })).toMatchObject({ kind: 'guest' });
   });
 
+  it('V11: no session, or only a (valid) guest cookie, in the staff zone of an agency host → not_found; guests still reach their own pages', async () => {
+    const cookie = await guestA();
+    for (const path of ['/agency', '/agency/clients?x=1', '/onboarding', '/onboarding/steps', '/platform']) {
+      expect(await resolve(A_HOST, { session: null, path }), path).toEqual({ kind: 'not_found' });
+      expect(await resolve(A_HOST, { session: null, guestCookie: cookie, path }), `guest ${path}`).toEqual({ kind: 'not_found' });
+    }
+    expect(await resolve(A_HOST, { session: null, guestCookie: cookie, path: '/c/x' })).toMatchObject({ kind: 'guest' });
+    expect(await resolve(A_HOST, { session: null, path: '/c/x' })).toBeNull(); // outside the zone: unchanged
+    expect(await resolve(PLATFORM_HOST, { session: null, path: '/agency' })).toBeNull(); // the platform keeps its sign-in redirect
+  });
+
   it('staff on an agency host → redirect to the platform, same path', async () => {
     await addMembership(IDS.agencyA, 'agency_admin');
     expect(await resolve(A_HOST, { path: '/agency?x=1' })).toEqual({ kind: 'redirect', to: `${PLATFORM}/agency?x=1` });

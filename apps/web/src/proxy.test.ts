@@ -158,7 +158,8 @@ describe('proxy', () => {
 
   describe('V11: staff areas on an agency host', () => {
     const session = { cookie: 'better-auth.session_token=t' };
-    const toPlatform = (res: Response) => `${res.headers.get('location') ?? ''}${res.headers.get(`x-middleware-request-${HOST_REDIRECT_HEADER}`) ?? ''}${res.headers.get('x-middleware-rewrite') ?? ''}`.includes('app.example');
+    // Any redirect at all (Location, or the rewrite to the internal redirect route with its target header) counts.
+    const toPlatform = (res: Response) => [res.headers.get('location'), res.headers.get(`x-middleware-request-${HOST_REDIRECT_HEADER}`), res.headers.get('x-middleware-rewrite')].some((v) => v !== null);
 
     it('no session, or only a guest cookie, at /agency, /onboarding or /platform → 404 with no Location', async () => {
       for (const p of ['/agency', '/agency/clients?x=1', '/onboarding', '/platform', '/platform/agencies']) {
