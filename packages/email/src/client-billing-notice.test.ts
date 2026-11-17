@@ -1,3 +1,4 @@
+import { PLATFORM_BRAND_RE } from '@cs/core';
 import { describe, expect, it } from 'vitest';
 import { resolveBranding } from './branding';
 import { renderEmail } from './render';
@@ -13,7 +14,7 @@ describe('client_billing_notice email', () => {
     expect(out.html).toContain('href="https://checkout.stripe.test/c/1"');
     expect(out.html).toContain('#112233');
     expect(out.html).toContain('alt="Acme Comfort"');
-    for (const s of [out.subject, out.html, out.text]) expect(s).not.toMatch(/rival\s*monday/i);
+    for (const s of [out.subject, out.html, out.text]) expect(s).not.toMatch(PLATFORM_BRAND_RE);
   });
 
   it('client-payment-needed: binding copy, no Rival Monday', async () => {
@@ -22,7 +23,7 @@ describe('client_billing_notice email', () => {
     expect(out.text).toContain("We couldn't process your latest payment. Please update your payment method to keep your reports running.");
     expect(out.text).toContain('Update payment');
     expect(out.html).toContain('Acme Agency');
-    for (const s of [out.subject, out.html, out.text]) expect(s).not.toMatch(/rival\s*monday/i);
+    for (const s of [out.subject, out.html, out.text]) expect(s).not.toMatch(PLATFORM_BRAND_RE);
   });
 });
 

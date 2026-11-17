@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { PLATFORM_BRAND_RE } from '@cs/core';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -27,7 +28,7 @@ describe('ConsentForm', () => {
   it('15a §2.10: no agency name to show (null) drops the name instead of saying Rival Monday', () => {
     const { container } = render(<ConsentForm appName="Claude" productName={null} oauthQuery="a=1" options={opts(agency)} />);
     expect(container.textContent).toContain('Claude wants to use your data. It will act as you');
-    expect(container.textContent).not.toMatch(/rival[\s-]*monday/i);
+    expect(container.textContent).not.toMatch(PLATFORM_BRAND_RE);
   });
 
   it('several workspaces use a select; access follows the chosen workspace', () => {

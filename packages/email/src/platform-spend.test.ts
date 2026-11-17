@@ -1,3 +1,4 @@
+import { PLATFORM_BRAND_RE } from '@cs/core';
 import { describe, expect, it } from 'vitest';
 import { resolveBranding } from './branding';
 import { renderEmail } from './render';
@@ -16,7 +17,7 @@ describe('client_spend_paused agency notice (C6/C2)', () => {
     // The Layout header carries the (platform-branded) agency email's brand name; the copy itself must stay clean.
     const body = out.text.split(/\r?\n/).find((l) => l.startsWith('AI work for'))!;
     for (const s of [out.subject, body]) {
-      expect(s).not.toMatch(/rival\s*monday/i);
+      expect(s).not.toMatch(PLATFORM_BRAND_RE);
       expect(s).not.toContain('$');
       expect(s).not.toMatch(/cost/i);
     }

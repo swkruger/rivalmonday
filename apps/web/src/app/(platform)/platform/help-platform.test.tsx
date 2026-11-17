@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { PLATFORM_BRAND_RE } from '@cs/core';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
@@ -494,7 +495,7 @@ describe('Costs', () => {
   it('the description carries the 06:00 UTC refresh and not the product name', async () => {
     await show('platform.costs');
     expect(document.body.textContent).toContain('06:00 UTC');
-    expect(document.body.textContent).not.toMatch(/rival\s*monday/i);
+    expect(document.body.textContent).not.toMatch(PLATFORM_BRAND_RE);
   });
 
   it('the status tip gives the six statuses and the 7 day default; the Low tip says owners are emailed once', async () => {

@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { PLATFORM_BRAND_RE } from '@cs/core';
 import type { ApiTokenView, OAuthGrantView } from '@cs/tools';
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -35,7 +36,7 @@ describe('ConnectorUrlCard', () => {
     expect(screen.getByText('https://app.example/mcp')).toBeTruthy();
     expect(screen.getByText(/Settings → Connectors → Add custom connector/)).toBeTruthy();
     expect(screen.getByText(/claude mcp add --transport http cool-comfort-marketing https:\/\/app\.example\/mcp --header "Authorization: Bearer YOUR_TOKEN"/)).toBeTruthy();
-    expect(container.textContent).not.toMatch(/rival[\s-]*monday/i);
+    expect(container.textContent).not.toMatch(PLATFORM_BRAND_RE);
     await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Copy' })));
     expect(writeText).toHaveBeenCalledWith('https://app.example/mcp');
   });

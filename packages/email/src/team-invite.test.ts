@@ -1,3 +1,4 @@
+import { PLATFORM_BRAND_RE } from '@cs/core';
 import { describe, expect, it } from 'vitest';
 import { resolveBranding } from './branding';
 import { renderEmail } from './render';
@@ -19,6 +20,6 @@ describe('team_invite email (15c-2a D7)', () => {
 
   it('team_invite email has no Rival Monday for a branded agency', async () => {
     const out = await renderEmail({ template: 'team_invite', props: { ...props, branding: resolveBranding('Acme Agency', { displayName: 'Cool Comfort' }), agencyName: 'Cool Comfort' } });
-    for (const s of [out.subject, out.html, out.text]) expect(s).not.toMatch(/rival[\s-]*monday/i);
+    for (const s of [out.subject, out.html, out.text]) expect(s).not.toMatch(PLATFORM_BRAND_RE);
   });
 });

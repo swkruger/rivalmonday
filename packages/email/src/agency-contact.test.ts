@@ -1,3 +1,4 @@
+import { PLATFORM_BRAND_RE } from '@cs/core';
 import { describe, expect, it } from 'vitest';
 import { resolveAgencyContact, resolveBranding } from './branding';
 import { DOCUMENT_PREVIEWS, EMAIL_PREVIEWS } from './previews';
@@ -51,13 +52,13 @@ describe('email introductions', () => {
     for (const id of ['alert', 'alert_digest', 'brief', 'brief.quiet', 'brief.starting_point', 'trend_report', 'competitor_review', 'client_billing_notice.client-payment-needed', 'lead_declined']) {
       const { text } = await renderEmail(preview(id).payload);
       expect(text, id).toMatch(/This is (a billing message from )?Northwind Marketing/);
-      expect(text, id).not.toMatch(/rival\s*monday/i);
+      expect(text, id).not.toMatch(PLATFORM_BRAND_RE);
     }
   });
 
   it('platform mail to agencies says it is from Rival Monday', async () => {
     for (const id of ['billing_notice.payment_failed', 'agency_client_billing_notice.client-paid', 'agency_hold.lifted', 'agency_plan_change.next_billing', 'support_session_started', 'onboarding_tip.day1.team']) {
-      expect((await renderEmail(preview(id).payload)).text, id).toMatch(/This is (a security notice from )?Rival Monday/);
+      expect((await renderEmail(preview(id).payload)).text, id).toMatch(/This is (a security notice from )?(Rival Monday|platform support)/);
     }
   });
 

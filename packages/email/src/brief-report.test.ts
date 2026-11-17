@@ -1,3 +1,4 @@
+import { PLATFORM_BRAND_RE } from '@cs/core';
 import type { BriefReport, ChangeLine, GradedChangesView, ReportTopic } from '@cs/core';
 import { describe, expect, it } from 'vitest';
 import { resolveBranding } from './branding';
@@ -62,7 +63,7 @@ describe('weekly report document', () => {
     expect(html).toContain('Weekly competitor report');
     expect(html).toContain('A1 HVAC');
     expect(html).toMatch(/Week of October 5, 2026/);
-    expect(html).not.toMatch(/rival\s*monday/i);
+    expect(html).not.toMatch(PLATFORM_BRAND_RE);
     expect(html).toContain('@page');
   });
 

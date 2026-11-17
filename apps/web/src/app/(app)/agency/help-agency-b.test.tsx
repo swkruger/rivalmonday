@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { createAccessContext } from '@cs/core';
+import { createAccessContext, PLATFORM_BRAND_RE } from '@cs/core';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { HelpProvider } from '@/components/help/help-provider';
@@ -207,7 +207,7 @@ describe('agency batch B: Platform access', () => {
     await show('agency.settings.platform-access');
     const s = open('What a support session is');
     for (const w of ['60 minutes', 'read-only', 'audit log']) expect(s, w).toContain(w);
-    expect(s).not.toMatch(/rival\s*monday/i);
+    expect(s).not.toMatch(PLATFORM_BRAND_RE);
     for (const t of ['Email alerts', 'End reasons']) expect(hasTip(t), t).toBe(true);
   });
 

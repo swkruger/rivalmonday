@@ -1,3 +1,4 @@
+import { PLATFORM_BRAND_RE } from '@cs/core';
 import { describe, expect, it } from 'vitest';
 import { DOCUMENT_PREVIEWS, EMAIL_PREVIEWS } from './previews';
 import { renderEmail } from './render';
@@ -56,7 +57,7 @@ describe('email previews', () => {
     expect(facing.length).toBeGreaterThan(10);
     for (const p of facing) {
       const out = await renderEmail(p.payload);
-      for (const s of [out.subject, out.html, out.text]) expect(s, p.id).not.toMatch(/rival[\s-]*monday/i);
+      for (const s of [out.subject, out.html, out.text]) expect(s, p.id).not.toMatch(PLATFORM_BRAND_RE);
     }
   });
 });

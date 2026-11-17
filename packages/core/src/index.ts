@@ -19,3 +19,4 @@ export * from './brief-report';
 export * from './charts';
 export * from './day-range';
 export * from './voice';
+export * from './white-label';

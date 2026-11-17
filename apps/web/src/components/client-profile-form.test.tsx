@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { PLATFORM_BRAND_RE } from '@cs/core';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -21,7 +22,7 @@ describe('ClientProfileForm', () => {
 
   it('15a §2.10: never names the product (the form is on the client-visible profile page)', () => {
     const { container } = render(<ClientProfileForm mode="create" action={vi.fn()} verticals={verticals} timezoneOptions={['America/Chicago']} />);
-    expect(container.textContent).not.toMatch(/rival[\s-]*monday/i);
+    expect(container.textContent).not.toMatch(PLATFORM_BRAND_RE);
     expect(container.textContent).toContain('Lets us benchmark the business’s own reviews against its competitors.');
   });
 

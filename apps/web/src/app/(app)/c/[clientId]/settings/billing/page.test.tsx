@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { PLATFORM_BRAND_RE } from '@cs/core';
 import { cleanup, render, screen } from '@testing-library/react';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { ReadOnlyProvider } from '@/components/read-only';
@@ -136,7 +137,7 @@ describe('client billing page (9b)', () => {
         unmount();
       }
     }
-    expect(out.join('\n')).not.toMatch(/rival\s*monday/i);
+    expect(out.join('\n')).not.toMatch(PLATFORM_BRAND_RE);
     expect(out.join('\n')).not.toMatch(/stripe/i);
   });
 });

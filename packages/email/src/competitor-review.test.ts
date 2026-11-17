@@ -1,3 +1,4 @@
+import { PLATFORM_BRAND_RE } from '@cs/core';
 import { describe, expect, it } from 'vitest';
 import { resolveBranding } from './branding';
 import { renderEmail } from './render';
@@ -20,7 +21,7 @@ describe('competitor_review email', () => {
 
   it('no template output contains "Rival Monday"', async () => {
     const out = await renderEmail({ template: 'competitor_review', props: { branding, businessName: 'Smith HVAC', competitorNames: ['Cool Air'], reviewUrl } });
-    for (const s of [out.subject, out.html, out.text]) expect(s).not.toMatch(/rival\s*monday/i);
+    for (const s of [out.subject, out.html, out.text]) expect(s).not.toMatch(PLATFORM_BRAND_RE);
   });
 
   it('competitor list is capped at 5 and escaped', async () => {

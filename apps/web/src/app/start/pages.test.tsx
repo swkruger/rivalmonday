@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { PLATFORM_BRAND_RE } from '@cs/core';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -115,7 +116,7 @@ describe('/start pages on an agency host (13a1 N3)', () => {
     r.unmount();
     r = render(await ExpiredPage({ searchParams: sp() }));
     expect(screen.queryByRole('link')).toBeNull();
-    expect(r.container.textContent).not.toMatch(/rival\s*monday/i);
+    expect(r.container.textContent).not.toMatch(PLATFORM_BRAND_RE);
     expect(r.container.querySelector('[data-part="rival"]')).toBeNull();
     r.unmount();
     onAgencyHost('A1');
@@ -145,11 +146,11 @@ describe('/start/verify (expired)', () => {
     r.unmount();
     r = render(await ExpiredPage({ searchParams: sp({ from: 'smith-co' }) }));
     expect(screen.getByRole('link', { name: 'Start again.' }).getAttribute('href')).toBe('/start/smith-co');
-    expect(r.container.textContent).not.toMatch(/rival\s*monday/i);
+    expect(r.container.textContent).not.toMatch(PLATFORM_BRAND_RE);
     r.unmount();
     r = render(await ExpiredPage({ searchParams: sp({ from: '-' }) }));
     expect(screen.queryByRole('link')).toBeNull();
-    expect(r.container.textContent).not.toMatch(/rival\s*monday/i);
+    expect(r.container.textContent).not.toMatch(PLATFORM_BRAND_RE);
     expect(r.container.querySelector('[data-part="rival"]')).toBeNull();
   });
 });
@@ -189,7 +190,7 @@ describe('/start/v/<leadId>', () => {
     expect(screen.getByText('Jones Dental has more reviews.')).toBeTruthy();
     expect(screen.getByRole('heading', { name: 'What happens next' })).toBeTruthy();
     expect(screen.getByText('Smith Marketing has your details and will be in touch about next steps.')).toBeTruthy();
-    expect(container.textContent).not.toMatch(/rival\s*monday/i);
+    expect(container.textContent).not.toMatch(PLATFORM_BRAND_RE);
     const meta = await previewMeta({ params: Promise.resolve({ leadId: LEAD }), searchParams: sp({ t: 'V-ready' }) });
     expect(meta).toMatchObject({ title: 'Your competitor snapshot · Smith Marketing', referrer: 'no-referrer', robots: { index: false, follow: false } });
   });

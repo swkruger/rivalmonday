@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
-import { brief, briefItem } from '@cs/db';
+import { brandLeaks } from '@cs/core';
+import { agency, brief, briefItem } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { createMemoryStore } from '@cs/storage';
 import { eq } from 'drizzle-orm';
@@ -80,6 +81,21 @@ describe('renderBriefPdf', () => {
     expect(html).not.toContain('Gone ad line');
     expect(html).not.toContain('Dropped one');
     expect(html).not.toMatch(/upsell|lsa|threshold|41\.5|rival\s*monday/i);
+  });
+
+  it('13a2 leak sweep: brief and report PDF meta and html name no platform for an unbranded agency', async () => {
+    await dbs.owner.update(agency).set({ branding: null }).where(eq(agency.id, IDS.agencyA));
+    const id = await seedBrief('sent');
+    const sweep = async () => {
+      const calls: { html: string; meta: Record<string, string> }[] = [];
+      await renderBriefPdf({ db: dbs.service, store: createMemoryStore(), pdf: async (html: string, meta: unknown) => (calls.push({ html, meta: meta as Record<string, string> }), new Uint8Array([1])) }, id);
+      expect(brandLeaks(JSON.stringify(calls[0]!.meta)), 'meta').toEqual([]);
+      expect(calls[0]!.meta.author).toBe('Agency A');
+      expect(brandLeaks(calls[0]!.html), 'html').toEqual([]);
+    };
+    await sweep(); // the weekly report
+    await dbs.owner.update(brief).set({ kind: 'starting_point' }).where(eq(brief.id, id));
+    await sweep(); // the starting point
   });
 
   it('a starting point keeps its old document and title', async () => {

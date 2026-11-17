@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { PLATFORM_BRAND_RE } from '@cs/core';
 import { renderEmail, resolveBranding } from '@cs/email';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { Metadata } from 'next';
@@ -13,7 +14,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const C = '00000000-0000-4000-8000-0000000000c1';
 const AG = '00000000-0000-4000-8000-0000000000a9';
 const WHITE_LABEL = resolveBranding('Acme Marketing LLC', { displayName: 'Cool Comfort', primary: '#7A3EE8' });
-const LEAK = /rival[\s-]*monday/i;
+const LEAK = PLATFORM_BRAND_RE;
 
 const m = vi.hoisted(() => ({ viewer: null as unknown, ctx: null as unknown, hints: [] as unknown[] }));
 let pathname = '/c/x';

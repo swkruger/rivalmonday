@@ -1,3 +1,4 @@
+import { PLATFORM_BRAND_RE } from '@cs/core';
 import { describe, expect, it } from 'vitest';
 import { resolveBranding, RIVAL_MONDAY_TOKENS } from './branding';
 import { renderEmail } from './render';
@@ -22,7 +23,7 @@ describe('renderEmail', () => {
     expect(r.html).toContain('href="https://app.example/l/tok"');
     expect(r.html).toContain('#112233');
     expect(r.text).toContain('The pricing page now shows $69, down from $89.');
-    expect(r.html).not.toMatch(/rival ?monday/i); // white-label
+    expect(r.html).not.toMatch(PLATFORM_BRAND_RE); // white-label
   });
 
   it('escapes scraped text instead of injecting markup', async () => {

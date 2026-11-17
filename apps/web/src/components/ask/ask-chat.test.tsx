@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { PLATFORM_BRAND_RE } from '@cs/core';
 import type { AskMessageView } from '@cs/tools';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -56,7 +57,7 @@ describe('AskChat', () => {
   it('15a §2.10 fix 1: no white-label name → "our support team" (platform staff review, 6b e5/e6), never a product name', () => {
     const { container } = render(<AskChat {...base} productName={null} reviewAllowed messages={[]} />);
     expect(screen.getByText('Conversations may be reviewed by our support team to improve answers.')).toBeTruthy();
-    expect(container.textContent).not.toMatch(/rival[\s-]*monday/i);
+    expect(container.textContent).not.toMatch(PLATFORM_BRAND_RE);
   });
 
   it('save button only with citations', () => {

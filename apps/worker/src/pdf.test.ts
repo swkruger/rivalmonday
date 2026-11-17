@@ -1,3 +1,4 @@
+import { brandLeaks } from '@cs/core';
 import { PDFDocument } from 'pdf-lib';
 import type { Browser } from 'playwright';
 import { chromium } from 'playwright';
@@ -20,6 +21,15 @@ describe('pdf', () => {
     expect(doc.getProducer()).toBe('Acme Marketing');
     const raw = Buffer.from(bytes).toString('latin1');
     expect(raw).not.toMatch(/HeadlessChrome|Chromium|Skia/);
+  }, 60_000);
+
+  it('13a2 leak sweep: the rendered PDF info dictionary (title, author, subject, creator, producer) never names the platform', async () => {
+    const bytes = await renderer('<html><body><h1>Weekly report</h1></body></html>', meta, { allowUrls: [] });
+    const doc = await PDFDocument.load(bytes, { updateMetadata: false });
+    const info = [doc.getTitle(), doc.getAuthor(), doc.getSubject(), doc.getCreator(), doc.getProducer(), doc.getKeywords()].filter(Boolean).join(' ');
+    expect(brandLeaks(info)).toEqual([]);
+    expect(brandLeaks(JSON.stringify(meta))).toEqual([]);
+    expect(doc.getCreator()).toBe(meta.author); // the creator is the agency, not the platform or the browser
   }, 60_000);
 
   it('cleans metadata of an existing PDF', async () => {

@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { PLATFORM_BRAND_RE } from '@cs/core';
 import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { ClientBillingBanner } from './client-billing-banner';
@@ -43,6 +44,6 @@ describe('ClientBillingBanner (9b spec § UI)', () => {
     const a = show('client_owner', true, false).container.textContent;
     cleanup();
     const b = show('client_owner', false, true).container.textContent;
-    expect(`${a} ${b}`).not.toMatch(/rival\s*monday/i);
+    expect(`${a} ${b}`).not.toMatch(PLATFORM_BRAND_RE);
   });
 });

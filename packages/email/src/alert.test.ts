@@ -1,3 +1,4 @@
+import { PLATFORM_BRAND_RE } from '@cs/core';
 import { describe, expect, it } from 'vitest';
 import { resolveBranding } from './branding';
 import { renderEmail } from './render';
@@ -14,7 +15,7 @@ describe('alert feedback line (7c2)', () => {
     expect(r.text).toContain('Something look off? Reply to this email or write to Sam at sam@acme.example.');
     expect(r.text).not.toContain('mailto:');
     expect(r.html).toContain(`href="mailto:sam@acme.example?subject=${encodeURIComponent('Feedback: Smith HVAC cut its AC tune-up to $69.')}"`);
-    expect(r.html).not.toMatch(/rival ?monday/i);
+    expect(r.html).not.toMatch(PLATFORM_BRAND_RE);
   });
 
   it('falls back to "your agency" and is hidden without a contact', async () => {

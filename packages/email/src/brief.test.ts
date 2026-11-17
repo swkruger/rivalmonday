@@ -1,3 +1,4 @@
+import { PLATFORM_BRAND_RE } from '@cs/core';
 import { describe, expect, it } from 'vitest';
 import { resolveBranding } from './branding';
 import { renderBriefDocument, renderTrendReportDocument } from './document';
@@ -92,7 +93,7 @@ describe('brief feedback line (7c2)', () => {
     expect(r.text).toContain('Something look off? Reply to this email or write to Sam at sam@acme.example.');
     expect(r.text).not.toContain('mailto:');
     expect(r.html).toContain(`href="mailto:sam@acme.example?subject=${encodeURIComponent('Feedback: Weekly competitor brief for A1 HVAC — 2026-10-05')}"`);
-    expect(r.html).not.toMatch(/rival ?monday/i);
+    expect(r.html).not.toMatch(PLATFORM_BRAND_RE);
   });
 
   it('falls back to "your agency"', async () => {

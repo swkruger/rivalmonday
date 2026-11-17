@@ -1,3 +1,4 @@
+import { PLATFORM_BRAND_RE } from '@cs/core';
 import { describe, expect, it } from 'vitest';
 import { resolveBranding } from './branding';
 import { renderEmail } from './render';
@@ -9,7 +10,7 @@ const ready: LeadPreview = {
   status: 'ready', self: { name: 'Smith Dental', rating: 4.5, votes: 40 }, nearby: [{ name: 'Bright Smiles', rating: 4.8, votes: 120, distanceKm: 1.2 }],
   facts: ['3 of 5 nearby dentists have more reviews than you.', 'Your closest competitor is Bright Smiles, 1.2 km away.'], summary: 'You trail on review volume.', category: 'Dentist', generatedAt: '2026-10-17T00:00:00Z',
 };
-const no = (s: string) => expect(s).not.toMatch(/rival\s*monday/i);
+const no = (s: string) => expect(s).not.toMatch(PLATFORM_BRAND_RE);
 
 describe('lead emails', () => {
   it('lead_verify: binding copy and button', async () => {
