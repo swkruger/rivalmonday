@@ -1,4 +1,4 @@
-import { CHANGE_TYPES, MOVE_TYPES, SELF_RULE_IDS } from '@cs/core';
+import { CHANGE_TYPES, MOVE_TYPES, SELF_RULE_IDS, VoiceSettingsSchema } from '@cs/core';
 import { discoverySchema, selfRuleSchema, type VerticalPack } from '@cs/verticals';
 import { z } from 'zod';
 import { PLAYBOOK_TEMPLATE_MAX, PLAYBOOK_TITLE_MAX, unknownPlaybookVars } from '../briefs/playbooks';
@@ -15,6 +15,7 @@ export const knobContentSchemas = {
   thresholds: z.strictObject({ alert: z.number().int().min(1).max(100), brief: z.number().int().min(0).max(99) }).refine((t) => t.brief < t.alert, 'brief must be below alert'),
   focus_areas: z.strictObject({ areaIds: z.array(z.string().max(40)).max(20) }),
   tier_limits: discoverySchema.shape.tiers,
+  voice: VoiceSettingsSchema,
 } as const;
 
 export type ItemKind = 'play' | 'self_rule' | 'knob';
