@@ -50,7 +50,7 @@ describe('sendSupportSessionStartedEmail', () => {
     await run(t);
     expect(t.sent.map((m) => m.to).sort()).toEqual(['ann@agency-a.test', 'ben@agency-a.test']);
     const m = t.sent[0]!;
-    expect(m.subject).toBe('Rival Monday support opened a read-only session');
+    expect(m.subject).toBe('Platform support opened a read-only session');
     expect(m.from).toBe('briefs@rivalmonday.test');
     expect(m.text).toContain("Pat Platform opened a read-only session on October 13, 2026. Reason: Checking the brief setup. They can't change anything. Questions? Reply to this email.");
     expect(m.text).toContain('Hi Ann,');

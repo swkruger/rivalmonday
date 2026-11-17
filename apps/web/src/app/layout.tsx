@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import localFont from 'next/font/local';
 import { getOperatorViewer, getViewer } from '@/server/current-viewer';
+import { requestHost } from '@/server/request-host';
 import { themeForViewer } from '@/server/theme';
 import './globals.css';
 
@@ -12,8 +13,16 @@ const inter = localFont({
   weight: '100 900',
 });
 
-/** 15a §2.7 / D12: no product name here — `(app)` names the viewer's agency, `(platform)` names the product. */
-export const metadata: Metadata = { title: { default: 'Dashboard', template: '%s' }, robots: { index: false, follow: false } };
+/**
+ * 15a §2.7 / D12: no product name here — `(app)` names the viewer's agency, `(platform)` names the product.
+ * Q4: the Rival Monday mark and `/favicon.ico` are the platform host's tab icon only; every other host shows the neutral icon.
+ * No `generator` meta (Next adds none unless set).
+ */
+export async function generateMetadata(): Promise<Metadata> {
+  const { info } = await requestHost();
+  const icons = info.kind === 'platform' ? { icon: [{ url: '/brand/rm-mark.svg', type: 'image/svg+xml' }, { url: '/favicon.ico', sizes: 'any' }] } : { icon: [{ url: '/neutral-icon.svg', type: 'image/svg+xml' }] };
+  return { title: { default: 'Dashboard', template: '%s' }, robots: { index: false, follow: false }, icons };
+}
 
 /**
  * Review Focus 5: `style` only ever carries the validated hex colours `themeVars` returns — never raw agency input.

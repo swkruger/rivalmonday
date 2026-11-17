@@ -130,7 +130,7 @@ export const listSupportSessions = defineTool({
 export const setSupportAccessNotify = defineTool({
   name: 'set_support_access_notify',
   access: 'write',
-  description: 'Agency admins: email the agency admins whenever Rival Monday support opens a read-only session.',
+  description: 'Agency admins: email the agency admins whenever platform support opens a read-only session.',
   input: z.object({ enabled: z.boolean() }),
   output: z.object({ enabled: z.boolean() }),
   permission: 'agency',

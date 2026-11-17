@@ -6,6 +6,7 @@ import { type AccessContext, canAccessClient, toolkit, ToolError, type ToolError
 import { type ClientBillingRow, type ClientBillingState, type Tx, agency, agencyBilling, agencyConnect, client, clientBilling, clientOriginFor } from '@cs/db';
 import { and, asc, eq, isNull, sql } from 'drizzle-orm';
 import { z } from 'zod';
+import { resolveBranding } from '@cs/email';
 import type { ToolDeps } from '../deps';
 import { completeIfDone } from '../setup/state';
 import { gatewayOf } from './billing';
@@ -197,8 +198,8 @@ const Defaults = z.object({
  */
 async function ensureConnectedProduct(deps: ToolDeps, agencyId: string, acct: string, productId: string | null): Promise<string> {
   if (productId) return productId;
-  const [a] = await deps.service.select({ name: agency.name }).from(agency).where(eq(agency.id, agencyId));
-  const created = (await gatewayOf(deps).createConnectedProduct({ stripeAccount: acct, name: `${a?.name ?? 'Agency'} competitor monitoring` })).id;
+  const [a] = await deps.service.select({ name: agency.name, branding: agency.branding }).from(agency).where(eq(agency.id, agencyId));
+  const created = (await gatewayOf(deps).createConnectedProduct({ stripeAccount: acct, name: `${resolveBranding(a?.name ?? 'Agency', a?.branding ?? null).displayName} competitor monitoring` })).id;
   const [won] = await deps.service.update(agencyConnect).set({ stripeProductId: created, updatedAt: new Date() })
     .where(and(eq(agencyConnect.agencyId, agencyId), isNull(agencyConnect.stripeProductId))).returning({ id: agencyConnect.stripeProductId });
   if (won) return created;

@@ -183,6 +183,12 @@ describe('set_support_access_notify', () => {
     expect(await flag()).toBe(false);
   });
 
+  it('support tool description says platform support', () => {
+    const d = registry.list(admin).find((t) => t.name === 'set_support_access_notify')!.description;
+    expect(d).toBe('Agency admins: email the agency admins whenever platform support opens a read-only session.');
+    expect(d).not.toContain('Rival Monday');
+  });
+
   it('refuses an account manager', async () => {
     await expect(registry.invoke(member, 'set_support_access_notify', { enabled: true })).rejects.toMatchObject({ code: 'permission_denied' });
     expect(await flag()).toBe(false);

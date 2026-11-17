@@ -108,10 +108,28 @@ describe('routeForHost', () => {
 
   it('mcp host allows only its paths', () => {
     const mcp: HostInfo = { kind: 'mcp' };
-    for (const p of ['/mcp', '/oauth/consent', '/.well-known/oauth-authorization-server', '/.well-known/oauth-protected-resource/mcp', '/api/auth/oauth2/token', '/sign-in', '/sign-in/check-email', '/_next/static/x.js', '/link-expired', '/favicon.ico', '/icon.svg', '/health']) {
+    for (const p of ['/mcp', '/oauth/consent', '/.well-known/oauth-authorization-server', '/.well-known/oauth-protected-resource/mcp', '/api/auth/oauth2/token', '/sign-in', '/sign-in/check-email', '/_next/static/x.js', '/link-expired', '/neutral-icon.svg', '/health']) {
       expect(route(mcp, p), p).toEqual({ kind: 'next' });
     }
     for (const p of ['/', '/agency', '/c/x', '/mcp/x', '/start/acme', '/.well-known/other', '/files/logo/x/y.png', '/sign-up']) expect(route(mcp, p), p).toEqual({ kind: 'not_found' });
+  });
+
+  it('/neutral-icon.svg allowed on mcp', () => {
+    expect(route({ kind: 'mcp' }, '/neutral-icon.svg')).toEqual({ kind: 'next' });
+  });
+
+  it('/brand/* is 404 off-platform', () => {
+    const agency: HostInfo = { kind: 'agency', agencyId: 'a', canonical: true, canonicalOrigin: 'https://a.neutral.example' };
+    for (const h of [agency, { kind: 'mcp' } as HostInfo]) for (const p of ['/brand/rm-mark.svg', '/brand/x']) expect(route(h, p), p).toEqual({ kind: 'not_found' });
+    expect(route({ kind: 'platform' }, '/brand/rm-mark.svg')).toEqual({ kind: 'next' });
+    expect(route(agency, '/neutral-icon.svg')).toEqual({ kind: 'next' });
+  });
+
+  it('/favicon.ico 404 on agency and mcp hosts, next on platform', () => {
+    const agency: HostInfo = { kind: 'agency', agencyId: 'a', canonical: true, canonicalOrigin: 'https://a.neutral.example' };
+    expect(route(agency, '/favicon.ico')).toEqual({ kind: 'not_found' });
+    expect(route({ kind: 'mcp' }, '/favicon.ico')).toEqual({ kind: 'not_found' });
+    expect(route({ kind: 'platform' }, '/favicon.ico')).toEqual({ kind: 'next' });
   });
 
   it('platform host passes everything else', () => {

@@ -4,14 +4,14 @@ import { Text } from '../rx';
 import { greeting, Layout } from '../layout';
 import type { SupportSessionStartedProps } from '../types';
 
-export const supportSessionStartedSubject = () => 'Rival Monday support opened a read-only session';
+export const supportSessionStartedSubject = () => 'Platform support opened a read-only session';
 
 /** Phase 8b spec § Email (copy is binding). Always Rival Monday branded: it is the platform, not the agency, writing. */
 export function SupportSessionStartedEmail(p: SupportSessionStartedProps) {
   return (
     <Layout branding={p.branding} title={supportSessionStartedSubject()} preview={supportSessionStartedSubject()} footer="Platform access notice">
       <Text>{greeting(p.recipientName)}</Text>
-      <Text>This is a security notice from Rival Monday: a member of our support team is looking at your account. You don't need to do anything.</Text>
+      <Text>This is a security notice from platform support: a member of our support team is looking at your account. You don't need to do anything.</Text>
       <Text>
         {p.platformAdminName} opened a read-only session on {p.date}. Reason: {p.reason}. They can't change anything. Questions? Reply to this email.
       </Text>

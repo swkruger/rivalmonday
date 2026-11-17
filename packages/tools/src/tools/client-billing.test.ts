@@ -1,6 +1,6 @@
 import { fakeGateway, type FakeGateway } from '@cs/billing';
 import { type AccessContext, createAccessContext } from '@cs/core';
-import { agencyBilling, agencyConnect, billingNotice, client, clientBilling, clientSetup, invitation, membership, plan, platformSetting } from '@cs/db';
+import { agency, agencyBilling, agencyConnect, billingNotice, client, clientBilling, clientSetup, invitation, membership, plan, platformSetting } from '@cs/db';
 import { IDS, openTestDbs, pauseAgency, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { eq, sql } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -183,6 +183,14 @@ describe('set_client_billing_defaults', () => {
     await dbs.owner.insert(agencyConnect).values({ agencyId: IDS.agencyA, status: 'disconnected' });
     expect((await fails(call(admin, 'set_client_billing_defaults', { priceCents: 9900 }))).message).toBe(CONNECT_FIRST_MESSAGE);
     expect(gw.calls).toEqual([]);
+  });
+
+  it('Connect product uses displayName', async () => {
+    await seedConnect();
+    await dbs.owner.update(agency).set({ name: 'Acme Marketing LLC', branding: { displayName: 'Cool Comfort' } }).where(eq(agency.id, IDS.agencyA));
+    await call(admin, 'set_client_billing_defaults', { priceCents: 9900 });
+    const row = (await connectRow())!;
+    expect(gw.connectedProducts.get(row.stripeProductId!)!.name).toBe('Cool Comfort competitor monitoring');
   });
 
   it('first call creates the product then the price on the connected account and stores ids and amounts', async () => {

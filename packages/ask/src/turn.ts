@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import type { Ai, ChatMessage, ChatTool, DecisionQuestion } from '@cs/ai';
 import { redactForModel } from '@cs/collectors';
-import { type AccessContext, type AiGuard, AiPausedError, type AuditSink, type CallScope, canAccessClient, countRows, scopeToClient, ToolError, type ToolRegistry } from '@cs/core';
+import { type AccessContext, type AiGuard, AiPausedError, type AuditSink, type CallScope, canAccessClient, countRows, NEUTRAL_AGENCY_NAME, scopeToClient, ToolError, type ToolRegistry } from '@cs/core';
 import { agency, askMessage, askThread, client, clientCompetitor, competitor, createAuditSink, type Db, withTenant } from '@cs/db';
 import { ASK_WRITE_TOOLS, fetchItem, type ToolDeps } from '@cs/tools';
 import { and, asc, eq, isNull } from 'drizzle-orm';
@@ -60,7 +60,6 @@ export type AskTrace = {
 };
 
 export const DEFAULT_ASSISTANT_NAME = 'Friday';
-export const DEFAULT_PRODUCT_NAME = 'Rival Monday';
 const HISTORY = 10;
 const EVIDENCE_TEXT_CHARS = 4000;
 const DEADLINE_MS = 90_000;
@@ -95,7 +94,7 @@ export const ASK_GUARD_QUESTIONS = {
 async function brandingFor(service: Db, agencyId: string): Promise<{ assistantName: string; productName: string }> {
   const [row] = await service.select({ name: agency.name, branding: agency.branding }).from(agency).where(eq(agency.id, agencyId));
   const pick = (v: unknown, d: string) => (typeof v === 'string' && v.trim() !== '' ? v.trim() : d);
-  return { assistantName: pick(row?.branding?.assistantName, DEFAULT_ASSISTANT_NAME), productName: pick(row?.branding?.displayName, pick(row?.name, DEFAULT_PRODUCT_NAME)) };
+  return { assistantName: pick(row?.branding?.assistantName, DEFAULT_ASSISTANT_NAME), productName: pick(row?.branding?.displayName, pick(row?.name, NEUTRAL_AGENCY_NAME)) };
 }
 
 /** Escapes anything that could open or close a `<data>` block inside tool output. */

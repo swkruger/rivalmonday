@@ -430,6 +430,14 @@ describe('runTurn', () => {
     expect(system).not.toContain('Rival Monday');
   });
 
+  it('fallback never "Rival Monday"', async () => {
+    await dbs.owner.update(agency).set({ name: '   ', branding: null }).where(eq(agency.id, IDS.agencyA));
+    const { ai } = await turn([{ kind: 'chat', reply: { text: 'Ok.' } }]);
+    const system = ai.calls.chat[0]!.messages[0]!.content;
+    expect(system).not.toContain('Rival Monday');
+    expect(system).toContain('the competitor-intelligence assistant in your agency.');
+  });
+
   it('guard error proceeds', async () => {
     const r1 = await turn([{ kind: 'guard', error: 'jev down' }, { kind: 'chat', reply: { text: 'Hello.' } }]);
     expect(r1.trace.guard).toBe('unsure');

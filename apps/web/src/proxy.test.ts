@@ -90,8 +90,8 @@ describe('proxy', () => {
   });
 
   it('lets the tab icon through without cookies, so signed-out pages show it too', async () => {
-    expect((await run('/icon.svg')).headers.get('location')).toBeNull();
-    for (const p of ['/icon.svg/x', '/icons.svg', '/icon']) expect((await run(p)).headers.get('location'), p).toContain('/sign-in');
+    for (const p of ['/favicon.ico', '/neutral-icon.svg', '/brand/rm-mark.svg']) expect((await run(p)).headers.get('location'), p).toBeNull();
+    for (const p of ['/icon.svg', '/icon.svg/x', '/icons.svg', '/icon', '/favicon', '/neutral-icon.svg/x']) expect((await run(p)).headers.get('location'), p).toContain('/sign-in');
   });
 
   it('client-sent x-rm-host-* are replaced', async () => {

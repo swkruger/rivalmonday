@@ -41,10 +41,11 @@ export const HOST_REDIRECT_PATH = '/rm-internal/host-redirect';
 export const HOST_REDIRECT_HEADER = 'x-rm-redirect-to';
 export const INTERNAL_PATH = /^\/rm-internal(?:\/|$)/;
 const ANY_HOST = /^\/health$/;
-const MCP_ALLOWED = [/^\/mcp$/, /^\/oauth\//, /^\/\.well-known\/oauth-(?:authorization-server|protected-resource)(?:\/|$)/, /^\/api\/auth\//, /^\/sign-in(?:\/|$)/, /^\/_next\//, /^\/link-expired$/, /^\/favicon/, /^\/icon\.svg$/];
+const MCP_ALLOWED = [/^\/mcp$/, /^\/oauth\//, /^\/\.well-known\/oauth-(?:authorization-server|protected-resource)(?:\/|$)/, /^\/api\/auth\//, /^\/sign-in(?:\/|$)/, /^\/_next\//, /^\/link-expired$/, /^\/neutral-icon\.svg$/];
 /** Staff-only paths: agency hosts 307 them to the platform; the platform never bounces them to an agency host (host-viewer). Tested against the pathname. */
 export const STAFF_ONLY = /^\/(?:agency|platform)(?:\/|$)|^\/onboarding(?:$|\/(?![\w-]+\.webp$))/;
-const AGENCY_HOST_DENY = /^\/(?:mcp|\.well-known|oauth|sign-up|join|support|u|bot|waitlist|sample|api\/(?:stripe|postmark|waitlist|site-status))(?:\/|$)|^\/start\/?$/;
+/** Q4: the RM mark, favicon and `/brand/*` exist on the platform host only; non-platform hosts serve `/neutral-icon.svg`. */
+const AGENCY_HOST_DENY = /^\/(?:mcp|\.well-known|oauth|sign-up|join|support|u|bot|favicon\.ico|brand|waitlist|sample|api\/(?:stripe|postmark|waitlist|site-status))(?:\/|$)|^\/start\/?$/;
 /** Task 8 (P16): MCP, its OAuth consent page and the OAuth metadata live only on the mcp host; the platform serves none of them. */
 const PLATFORM_HOST_DENY = /^\/(?:mcp|oauth|\.well-known)(?:\/|$)/;
 export function routeForHost(host: HostInfo | null, req: { pathname: string; search: string; method: string }, platform: string): HostRoute {

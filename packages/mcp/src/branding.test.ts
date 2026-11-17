@@ -3,7 +3,7 @@ import { IDS } from '@cs/db/test-helpers';
 import { dbs, resetWorkspace } from '@cs/tools/test-fixtures';
 import { eq } from 'drizzle-orm';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { DEFAULT_PRODUCT_NAME, displayNameFor, NEUTRAL_PRODUCT_NAME, productNameFor } from './branding';
+import { displayNameFor, NEUTRAL_PRODUCT_NAME, productNameFor } from './branding';
 
 const set = (values: { name?: string; branding?: Record<string, unknown> | null }) => dbs.service.update(agency).set(values).where(eq(agency.id, IDS.agencyA));
 
@@ -11,12 +11,18 @@ beforeEach(async () => {
   await resetWorkspace();
 });
 
-describe('productNameFor (agency-facing, unchanged)', () => {
-  it('is the trimmed branding displayName, else Rival Monday', async () => {
-    await set({ branding: { displayName: '  Cool Comfort  ' } });
+describe('productNameFor (Q9)', () => {
+  it('productNameFor: displayName, else agency name', async () => {
+    await set({ name: 'Acme Marketing', branding: { displayName: '  Cool Comfort  ' } });
     expect(await productNameFor(dbs.service, IDS.agencyA)).toBe('Cool Comfort');
     await set({ branding: null });
-    expect(await productNameFor(dbs.service, IDS.agencyA)).toBe(DEFAULT_PRODUCT_NAME);
+    expect(await productNameFor(dbs.service, IDS.agencyA)).toBe('Acme Marketing');
+    await set({ branding: { displayName: '  ' } });
+    expect(await productNameFor(dbs.service, IDS.agencyA)).toBe('Acme Marketing');
+  });
+
+  it('an unknown agency gets the neutral name, never Rival Monday', async () => {
+    expect(await productNameFor(dbs.service, '00000000-0000-4000-8000-00000000dead')).toBe(NEUTRAL_PRODUCT_NAME);
   });
 });
 

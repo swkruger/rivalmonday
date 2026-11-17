@@ -7,8 +7,8 @@ import { webEnv } from './server/env';
 import { HOST_REDIRECT_HEADER, HOST_REDIRECT_PATH, type HostInfo, hostnameOf, INTERNAL_PATH, requestOriginFor, resolveHost, routeForHost } from './server/hosts';
 import { safeNext } from './server/safe-next';
 
-/** `/mcp`, `/.well-known/*`, `/api/ask/*` and `/api/stripe/webhook` and `/api/stripe/connect-webhook` (Stripe signature) authenticate themselves (Bearer token / public metadata / `getViewer`, no session → 404); `/oauth/consent` stays behind the session check. `/start/**` is the public client intake (Phase 11c; Turnstile, rate limits and tokens guard it). `/onboarding/*.webp` are the static O14 images: the `next/image` optimizer fetches them without cookies. */
-const PUBLIC = [/^\/sign-in(\/|$)/, /^\/sign-up(\/|$)/, /^\/start(\/|$)/, /^\/join\//, /^\/u\//, /^\/files\/logo\//, /^\/api\/auth\//, /^\/l\//, /^\/health$/, /^\/bot$/, /^\/robots\.txt$/, /^\/api\/postmark\/webhook$/, /^\/link-expired$/, /^\/link-other-account$/, /^\/_next\//, /^\/favicon/, /^\/icon\.svg$/, /^\/dev-panel\//, /^\/mcp$/, /^\/\.well-known\//, /^\/api\/ask\//, /^\/api\/stripe\/webhook$/, /^\/api\/stripe\/connect-webhook$/, /^\/api\/waitlist$/, /^\/api\/site-status$/, /^\/waitlist\//, /^\/sample\//, /^\/onboarding\/[\w-]+\.webp$/];
+/** `/mcp` and `/.well-known/*` are served on the mcp host only (`routeForHost` 404s them on the platform and agency hosts); `/mcp`, `/.well-known/*`, `/api/ask/*` and `/api/stripe/webhook` and `/api/stripe/connect-webhook` (Stripe signature) authenticate themselves (Bearer token / public metadata / `getViewer`, no session → 404); `/oauth/consent` stays behind the session check. `/start/**` is the public client intake (Phase 11c; Turnstile, rate limits and tokens guard it). `/onboarding/*.webp` are the static O14 images: the `next/image` optimizer fetches them without cookies. `/favicon.ico`, `/brand/*` and `/neutral-icon.svg` are the tab icons (Q4): the proxy sees them so non-platform hosts can 404 the RM ones. */
+const PUBLIC = [/^\/sign-in(\/|$)/, /^\/sign-up(\/|$)/, /^\/start(\/|$)/, /^\/join\//, /^\/u\//, /^\/files\/logo\//, /^\/api\/auth\//, /^\/l\//, /^\/health$/, /^\/bot$/, /^\/robots\.txt$/, /^\/api\/postmark\/webhook$/, /^\/link-expired$/, /^\/link-other-account$/, /^\/_next\//, /^\/favicon\.ico$/, /^\/neutral-icon\.svg$/, /^\/brand\//, /^\/dev-panel\//, /^\/mcp$/, /^\/\.well-known\//, /^\/api\/ask\//, /^\/api\/stripe\/webhook$/, /^\/api\/stripe\/connect-webhook$/, /^\/api\/waitlist$/, /^\/api\/site-status$/, /^\/waitlist\//, /^\/sample\//, /^\/onboarding\/[\w-]+\.webp$/];
 
 /** 13a1 (P4, P9): headers only this proxy sets; any client-sent copy is dropped first. */
 const PROXY_HEADERS = ['x-rm-path', 'x-rm-host-kind', 'x-rm-host-agency', 'x-rm-origin', HOST_REDIRECT_HEADER];
@@ -76,4 +76,4 @@ export async function proxy(req: NextRequest) {
   return NextResponse.next({ request: { headers } });
 }
 
-export const config = { matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'] };
+export const config = { matcher: ['/((?!_next/static|_next/image).*)'] };
