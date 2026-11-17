@@ -4,56 +4,47 @@
 **Plan/spec:** [13a2 plan 11-16](../superpowers/plans/2026-11-16-phase-13a2-voice-scrub-leaks.md) · [spec + addendum](../superpowers/specs/2026-10-17-phase-13a-white-label-design.md) (D6–D7, Voice, Scrubbing, Testing)
 
 ## Status (overwrite)
-Started 2026-11-17 (plan approved 11-16).
+Tasks 0-14 built (2026-11-17). Launch gate green on both hosts. Left: final whole-branch review (`test:affected`, `e2e:affected`, `eval:replay`, Review focus 1-5, one fix wave), owner copy sign-off, then `/rm-merge` on the owner's go-ahead.
 
 ## Next (overwrite)
-Task 0 done; run SDD from Task 1.
+Controller: final review. Owner: `pnpm copy:review` (see below), then go-ahead to merge.
 
 ## Interfaces this branch adds or changes
-- **Migration 0114:** `brief` and `alert` get `review_reason text CHECK IN ('banned_term')` and `review_terms jsonb`.
-- **Voice:** runbook knob `knob:voice` (`knobContentSchemas`, `EffectiveRunbook.voice`); `VoiceSettings`, `DEFAULT_VOICE`, `VoiceTerm`, `effectiveVoice(agency, override)`; `findBannedTerms(text, terms)`, `voiceBlock(v)`, `loadVoice(db, clientId)` passed to `writeBrief`, `writeWhy`, recommendations, `writeAlertText`, `runbook_tailor`/`runbook_retailor`. Tool `preview_voice { clientId? } -> { text }`, `VOICE_PREVIEWS_PER_DAY = 10`, `ai.yaml` `voice_preview`, an `ISOLATION_FIXTURES` entry.
-- **Scrub:** `PLATFORM_BRAND_RE = /rival[\s-]*monday|rivalmonday/i` in `@cs/core`; root `generateMetadata` host-aware via `requestHost()` (icons per Q4); `productNameFor` fallback = `resolveBranding(agency.name, branding).displayName`; Stripe product `${displayName} competitor monitoring` (existing products not renamed).
+- **Migration 0114:** `brief`/`alert` get `review_reason text CHECK IN ('banned_term')` and `review_terms jsonb`; the samples agency host slug becomes `samples`.
+- **`@cs/core`:** `VoiceSettings`, `VoiceSettingsSchema`, `DEFAULT_VOICE`, `effectiveVoice`, `findBannedTerms`, `bannedTermRegex`, `enforcedTerms`; `PLATFORM_BRAND_RE`, `brandLeaks`.
+- **`@cs/engine`:** runbook knob `knob:voice`; `voiceOfItems`, `loadVoice(db, clientId)`, `voiceBlock`, `withVoice`, `writeVoicePreview`. Writers use it: brief (retry once, then `ready` + flag, no auto-send), alerts (`pending_review`), recommendations (skip), tailoring (rejects).
+- **Tool `preview_voice { clientId? } -> { text }`**, 10 per agency per UTC day, `ai.yaml` `voice_preview`, `ISOLATION_FIXTURES` entry. `get_runbook` returns `voice`; `get_brief_review`/alert queue return `reviewReason`/`reviewTerms`.
+- **Web:** Voice section on agency and client Runbook pages; review flags in approvals and alerts (`HighlightTerms`); neutral favicon (`public/neutral-icon.svg`) on every non-platform host; `productNameFor`, Ask, support email and Connect product names use the agency display name.
+- **V11 routes on agency hosts:** `/agency*`, `/onboarding*`, `/platform*` = 404, except a 307 for this agency's staff (`/platform*` is 404 for everyone); `/onboarding/start` = 404.
+- **E2E:** `e2e/white-label.spec.ts` crawl over `e2e/agency-routes.ts` (agency-host routes minus platform-only, plus MCP host pages).
+- **Demo:** agency voice (formal, "customers" for "clients", banned `cheap`), Lone Star own voice (direct), a flagged ready Brazos brief (`ids.briefs.flaggedBrazos`); coverage entries `(voice)` x2 and `/agency/approvals/[briefId] (banned word)`.
 
 ## Assumes from other branches
-13a1 on `main` (hosts, `clientOriginFor`, the hosts fixture at `seed.ts:266`). 13a3 may run in parallel (see Risks).
+13a1 on `main` (merged 2026-11-16). 13a3 edits Branding form/jsonb only; voice lives in the runbook, so no overlap.
 
 ## Decisions (owner-approved)
-- **13a2 refresh (2026-11-16):** Q1 voice = structured fields only (tone preset + preferred/banned terms; D6). Q2 voice = runbook knob `knob:voice` (agency default; whole-object client override). Q3 banned term = retry once, then AM review (brief stays `ready`, no auto-send; alert `pending_review`); tailored plays keep the base. Q4 neutral favicon on every non-platform host (CLAUDE.md "never white-label" -> platform host only, at merge). Q5 leak E2E = every agency-host route from `app/**/page.tsx` minus platform-only, plus MCP sign-in/consent, headers, redirects, icon markup. Q6 Ask voice -> backlog. Q7 build from `main` after 13a1. Q8 site claim after 13a1 is live on prod. Q9 `productNameFor` + `support.ts` use the agency display name / "platform support"; agency-facing KB keeps Rival Monday. Samples agency host slug -> `samples`.
-- **V11:** `/agency*` and `/platform*` on an agency host = 404, except for a staff viewer of that agency, who is bounced.
+- **13a2 refresh (2026-11-16):** Q1 voice = structured fields (tone + preferred/banned terms). Q2 `knob:voice`, agency default, whole-object client override. Q3 banned term = retry once, then AM review; tailored plays keep the base. Q4 neutral favicon on every non-platform host. Q5 leak E2E over every agency-host route. Q6 Ask voice -> backlog. Q7 build from `main` after 13a1. Q8 site claim after 13a1 is live. Q9 `productNameFor`/`support.ts` use the agency name / "platform support"; agency-facing KB keeps Rival Monday. Samples slug `samples`.
+- **V11:** staff-only zones on agency hosts 404 for everyone else.
+- **Controller rulings:** `/platform*` is 404 for everyone on agency hosts. `/onboarding*` is in the staff zone. On `AiPausedError` the brief writer fails the attempt and the alert writer falls back to the template (unchanged). Staff of another agency outside the zones keep the 13a1 307.
 
-## Leak findings to cover (from the refresh)
-- The radar mark and favicon are images, so the regex cannot catch them: the crawl also asserts no `data-part="monday"`/RadarMark SVG and no RM icon `link`. Favicon today = `app/icon.svg` + `favicon.ico` (RM mark) on agency and MCP hosts; root metadata is static.
-- `productNameFor` fallback `'Rival Monday'` (`mcp/branding.ts:19`) feeds MCP `serverInfo`/descriptions; also `kbNamesFor` (`kb/names.ts:24`), `support.ts:133` description, the `support-session-started` subject, profile help line (`client-profile-form.tsx:135`).
-- Stripe product uses `agency.name` (`client-billing.ts:200`). Leak tests exist with separate regexes; missing: shared `PLATFORM_BRAND_RE`, a sweep over every `CLIENT_KINDS` template, MCP client-role outputs without a display name, Ask templates.
-- Samples agency (`'Rival Monday Samples'`, `waitlist/sample.ts:20`) gets a neutral slug or is excluded. `E2E Agency` has no `displayName` (worst case for the crawl). Allowed as is: agency-audience Rival Monday text, the Friday mascot.
-- Site white-label FAQ (`pricing-page.ts:114`, `home.ts:302`, `partners.ts:64`, compare `cap-whiteLabel`, ledger rows): only after 13a1 is live on prod (Q8).
-- Closures at merge: BACKLOG `13a: client-visible "Rival Monday" fallbacks`, the site white-label FAQ line, the `kbNamesFor` part, 4a voice, 9b M9. Also take the 13a2 hosts and MCP/auth items from BACKLOG § Phase 13a follow-ups.
-
-## Risks
-- Legacy-runbook clients: `effectiveRunbook` falls back to `legacy` (no knobs); `loadVoice` must read the agency runbook directly. Confirm `AiPausedError` covers agency-only scopes for `preview_voice`.
-- 13a3 edits the same Branding form/jsonb (`branding-form.tsx`, `settings.ts`, `AgencyBranding`); voice in the runbook avoids conflicts.
-- Retry doubles writer cost on a banned term; a flagged brief blocks auto-send. Matcher misses inflections: say so in the UI hint.
-- Crawl runtime/flakiness; alert/brief ids for `--strict-routes` unseeded.
-
-## Later sub-phases (note)
-- **13a3** (own worktree): spec addendum 2026-11-05 (header colour, dark logo, tokens, chart check).
+## Test and gate results (Task 14)
+- `@cs/demo` coverage/tenancy/briefs/seed green; `pnpm --filter @cs/demo typecheck` green.
+- Launch gate platform host (`profile-gate.sh --seed`): 74 of 74 routes, max 6 DB stages.
+- Agency host (`e2e-agency.localhost:3100`, asker client cookie, `--filter /c/ --strict-routes`): 30 of 30 routes, max 8 (`/c/[clientId]/briefs/[briefId]`, at the limit).
+- `pnpm copy:status`: 90 unsigned in app-client, 14 app-agency, 30 app-platform, 76 app-shared, 37 help, 5 guides, 2 glossary, 42 labels, 5 emails, 1 site, 65 mcp-tools (unsigned counts include strings from earlier phases).
 
 ## New backlog (target -> item)
-- Ask/Friday voice (`ask_assistant`, `ask_starters`): touches the guard and eval cassettes (Q6) -> Unscheduled.
+- Ask/Friday voice (`ask_assistant`, `ask_starters`): guard and eval cassettes (Q6) -> Unscheduled.
+- Site white-label claim (FAQ lines, ledger) once 13a1 is live on prod (Q8) -> Soon.
 
 ## Owner verification steps
-At wrap-up.
+1. `pnpm copy:review`: sign the Appendix E strings, plus the Task 9 extras: the approvals `items` tip sentence and 3 FAQ entries in the agency approvals/alerts guides. The Task 8 tips anchor to `how-to-use-it`.
+2. On `cs_dev`: set a banned word in Settings > Runbook > Voice, run `brief-once`; the brief stays `ready` with the banned-word band and auto-send skips it.
+3. Preview a voice (Preview button); the 11th preview of the day is refused.
+4. Open an agency host: the tab icon is the neutral grey tile, not the radar. Open a client Checkout: it shows the agency name.
+5. `pnpm demo:reset`, then check Brazos approvals shows the flagged brief and Lone Star shows "Own voice".
 
-## Pre-flight drift (2026-11-17)
-- **Migration 0114 confirmed free** (latest `packages/db/migrations/0113_sending_domain_unique.sql`); test DB `cs_phase_13a2_test` ready; `pnpm typecheck` green (19/19).
-- **Task 14:** demo agencies are seeded in `packages/demo/src/tenancy.ts:86` (Brazos Digital, has `displayName`) and `billing.ts:27`, not `agency.ts` (`agency.ts` has `seedAgency`, no agency insert).
-- **RunbookItem** is in `packages/engine/src/runbook/items.ts:21`, not `@cs/core`. `knobContentSchemas` = `items.ts:14` (keys `thresholds`, `focus_areas`, `tier_limits`; `knob:voice` not yet present); `effectiveFrom` `state.ts:78`; `copyItems` `state.ts:31`; `loadClientRunbook` `store.ts` (used `gather.ts:44`, `citation-recommendation.ts:36`).
-- **`support.ts:133`** is `packages/tools/src/tools/support.ts:133` (description). Subject: `packages/email/src/templates/support-session-started.tsx:7`.
-- `tools/runbooks.ts`: `get_runbook:183`, `update_runbook_item:232`, `remove_runbook_item:374`.
-- Signatures (all as plan expects; `file:line`): `writeBrief(ai,scope,c,candidates,playbooks,period)` `briefs/writer.ts:143`; `buildWriterPrompt` `writer.ts:112`; `verifyDraft(ai,scope,c,candidates,draft,opts)` `verify.ts:69`; `generateBrief(deps,clientId,opts)` `generate.ts:87`, commit `:147`; `writeWhy(ai,scope,c,findings,names)` `starting-point.ts:99` (call `:291`); `recommendForMoves` `recommendations.ts:57`; `writeAlertText(deps,a,now)` `alerts/write.ts:43` (chat `:71`); `processAlert` `alerts/route.ts:82`; `notifyAm(tx,cfg,a,note,now)` `route.ts:68`; `deliverDueBriefs` `deliver.ts:134`, `isUntouched` `:120`, `notifyOverdue` `:165`; `notifyBriefOutcome` `briefs/notify.ts:14`; `applyTailoring` `runbook/tailor.ts:54`, `tailorClientRunbook` `:133`, `proposeTailoring` `:201` (retailor call `:216`).
-- `productNameFor(service, agencyId)` `packages/mcp/src/branding.ts:18`; fallback `DEFAULT_PRODUCT_NAME` `branding.ts:4`. Ask `brandingFor` `packages/ask/src/turn.ts:95` already falls back displayName -> `agency.name` -> default. `kbNamesFor` `packages/tools/src/kb/names.ts` (client-facing neutral already).
-- Web: `app/icon.svg` + `app/favicon.ico` exist; `public/` has no `brand/` or `neutral-icon.svg`. Root `layout.tsx:16` static `metadata`. `proxy.ts:11` `PUBLIC` (has `/favicon`, `/icon.svg`), matcher `:79`. `hosts.ts:44` `MCP_ALLOWED`, `:47` `AGENCY_HOST_DENY` (denies `/sign-up|join|support|u|bot|waitlist|sample|start`, not `/agency`/`/platform`; V11 is new).
-- `ensureConnectedProduct` `client-billing.ts:198` (name `${a?.name ?? 'Agency'} competitor monitoring` `:201`; select only `agency.name`, needs `branding`). `ensureSampleAgency` `waitlist/sample.ts:28`; name const `:20`.
-- `e2e/seed.ts`: E2E Agency `:22` (branding `{primary}` only), hosts fixture `:266`, `ASK_USER_EMAIL` `:479`. `routeOfPageDir` `apps/web/scripts/profile-args.ts:141`.
-- Leak regexes: ~20 `*.test.*` files (site, web help/consent, `c/[clientId]/settings/billing/brand-leak.test.tsx`).
-- Already done, confirmed: `(app)` title template, neutral `not-found`/`error`/`global-error`, `poweredByHeader:false`, no `resource_name`, profile help line, `kbNamesFor` neutral. PDF creator = agency: not found by grep (check in Task 13).
+## Merge notes
+- Root `CLAUDE.md`: favicon line "never white-label" becomes "platform host only" (Q4).
+- BACKLOG closures: l.427 agency voice (4a); l.112 Connect product (9b M9); l.115 tab titles (9b R18, done in 15a); l.166 (fallbacks + support copy; agency-facing KB stays per Q9); the 13a2-tagged items in Phase 13a follow-ups (hosts, MCP/auth); the `kbNamesFor` part; the l.150 launch-gate strict-routes seed item.
+- `pnpm kb:seed` after merge on each environment (new help pages). It reads `SERVICE_DATABASE_URL`; point it at the test DB explicitly in a worktree.
