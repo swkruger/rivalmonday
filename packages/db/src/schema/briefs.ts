@@ -1,5 +1,6 @@
 import { sql } from 'drizzle-orm';
 import { check, date, doublePrecision, foreignKey, index, integer, jsonb, pgTable, primaryKey, text, timestamp, unique, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
+import type { ReviewReason } from './delivery';
 import { move } from './engine';
 import { agency, client, competitor } from './tenancy';
 
@@ -71,6 +72,9 @@ export const brief = pgTable(
     approvedBy: text('approved_by'),
     sentAt: ts('sent_at'),
     pdfKey: text('pdf_key'),
+    /** Phase 13a2 (P19): set when a banned word survived the rewrite; staff review it before it goes out. */
+    reviewReason: text('review_reason').$type<ReviewReason | null>(),
+    reviewTerms: jsonb('review_terms').$type<string[] | null>(),
     createdAt: ts('created_at').notNull().defaultNow(),
     updatedAt: ts('updated_at').notNull().defaultNow(),
   },
@@ -79,6 +83,7 @@ export const brief = pgTable(
     index('brief_agency_status_idx').on(t.agencyId, t.status),
     clientFk(t),
     check('brief_status_check', sql`status IN ('generating', 'failed', 'ready', 'approved', 'sent')`),
+    check('brief_review_reason_check', sql`review_reason IN ('banned_term')`),
     check('brief_kind_check', sql`kind IN ('standard', 'quiet', 'starting_point')`),
     uniqueIndex('brief_one_starting_point').on(t.clientId).where(sql`kind = 'starting_point'`),
   ],

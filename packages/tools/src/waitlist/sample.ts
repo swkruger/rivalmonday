@@ -18,6 +18,8 @@ import { SAMPLE_AGENCY_KEY, sampleAgencyId } from './settings';
  * approval. It is an exempt pilot with no onboarding row, never emails a client and stays out of the spike guard.
  */
 export const SAMPLE_AGENCY_NAME = 'Rival Monday Samples';
+/** The sample agency's host label source (V10): its host slug never carries the product name. */
+export const SAMPLE_HOST_NAME = 'Samples';
 export const SAMPLE_NO_CONTACTS = 'Sample businesses have no owner or recipients. Skip this step.';
 
 /**
@@ -41,7 +43,9 @@ export async function ensureSampleAgency(tx: Tx, deps: ToolDeps, actorId: string
     if (!won) throw new ToolError('internal', 'The sample agency setting is unreadable');
     return won;
   }
-  await tx.insert(agency).values({ id, name: SAMPLE_AGENCY_NAME, branding: null });
+  // Same lock as the agency_host_slug_fill trigger, so a concurrent sign-up cannot take the slug between pick and insert.
+  await tx.execute(sql`select pg_advisory_xact_lock(hashtext('agency_host_slug'))`);
+  await tx.insert(agency).values({ id, name: SAMPLE_AGENCY_NAME, branding: null, hostSlug: sql`agency_host_slug_for(${SAMPLE_HOST_NAME}, ${id}::uuid)` });
   // Same as a sign-up (completePendingSignups), minus the profile, onboarding row and trial: a platform-owned pilot.
   await ensureAgencyRunbook(tx, id, await catalogOf(deps).generic());
   await ensureExemptPilot(tx, id);

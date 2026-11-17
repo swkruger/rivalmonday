@@ -41,6 +41,12 @@ describe('sample space', () => {
     expect(row!.branding).toBeNull();
   });
 
+  it('ensureSampleAgency gives host_slug samples', async () => {
+    const id = await ensure();
+    const [row] = await dbs.service.select({ hostSlug: agency.hostSlug, name: agency.name }).from(agency).where(eq(agency.id, id));
+    expect(row).toEqual({ hostSlug: 'samples', name: SAMPLE_AGENCY_NAME });
+  });
+
   it('membership created once for the operator with an agency contact', async () => {
     const id = await ensure();
     for (let i = 0; i < 2; i++) await dbs.service.transaction((tx) => ensureOperatorMembership(tx, id, 'op'));

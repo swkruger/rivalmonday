@@ -25,6 +25,8 @@ export type TrendReportStatus = (typeof TREND_REPORT_STATUSES)[number];
 export type NotificationStatus = 'pending' | 'sending' | 'sent' | 'failed' | 'skipped';
 export type AlertMode = 'direct' | 'after_am_check' | 'digest_only';
 export type AlertDelivery = 'immediate' | 'digest';
+/** Phase 13a2 (P19): why an AI-written text was flagged for staff review (a banned word survived the rewrite). */
+export type ReviewReason = 'banned_term';
 
 /** Local quiet window, 'HH:MM' 24-hour; may wrap midnight (21:00 → 07:00). */
 export interface QuietHours {
@@ -192,6 +194,8 @@ export const alert = pgTable(
     deliveredAt: ts('delivered_at'),
     /** Client-local date of delivery: the throttle counts immediate deliveries per local day. */
     deliveredLocalDate: date('delivered_local_date', { mode: 'string' }),
+    reviewReason: text('review_reason').$type<ReviewReason | null>(),
+    reviewTerms: jsonb('review_terms').$type<string[] | null>(),
     createdAt: ts('created_at').notNull().defaultNow(),
     updatedAt: ts('updated_at').notNull().defaultNow(),
   },
@@ -203,6 +207,7 @@ export const alert = pgTable(
     check('alert_mode_check', sql`mode IN ('direct', 'after_am_check', 'digest_only')`),
     check('alert_delivery_check', sql`delivery IS NULL OR delivery IN ('immediate', 'digest')`),
     check('alert_written_check', sql`written IS NULL OR written IN ('model', 'template')`),
+    check('alert_review_reason_check', sql`review_reason IN ('banned_term')`),
   ],
 );
 
