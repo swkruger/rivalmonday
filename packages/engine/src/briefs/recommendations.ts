@@ -1,5 +1,5 @@
 import type { Ai } from '@cs/ai';
-import { type AccessContext, AiPausedError, canAccessClient, hasPermission, ToolError } from '@cs/core';
+import { type AccessContext, AiPausedError, canAccessClient, enforcedTerms, findBannedTerms, hasPermission, ToolError } from '@cs/core';
 import {
   type briefItem, changeEvent, client, competitor, type Db, eventScore, feedback, move, moveEvent, recommendation,
   type RecommendationStatus, withTenant,
@@ -12,6 +12,8 @@ import { escapeEvidence, loadEventEvidence } from './evidence';
 import { type EventCandidate, loadBriefClient, MOVE_EVIDENCE_EVENTS, type MoveCandidate } from './gather';
 import { type Playbook, playbookFor, playbookVars, renderPlaybook } from './playbooks';
 import { loadClientRunbook } from '../runbook/store';
+import { withVoice } from '../voice/block';
+import { loadVoice } from '../voice/load';
 import { localParts, safeTimezone } from './schedule';
 import { verifyText } from './verify';
 import { candidateContextText, periodLine, UPSELL_TAGS } from './writer';
@@ -60,6 +62,7 @@ export async function recommendForMoves(deps: { db: Db; ai: Ai; packs: PackLoade
   const year = localParts(now, safeTimezone(tz?.timezone)).year;
   const out = { created: 0, skipped: 0, failed: 0 };
   const c = await loadBriefClient(deps, clientId);
+  const voice = await loadVoice(deps.db, clientId);
   const pack = await deps.packs(c.verticalId);
   const playbooks = (await loadClientRunbook(deps, clientId)).plays;
   const moves = await deps.db
@@ -113,25 +116,35 @@ export async function recommendForMoves(deps: { db: Db; ai: Ai; packs: PackLoade
       // a move candidate never claims they all fall inside it).
       const period = { start: m.firstDetectedAt, end: now };
       const user = `${escapeEvidence(`${head}\n${periodLine(period)}`)}\n<evidence>\n${candidateContextText(cand)}\n</evidence>`;
-      const res = await deps.ai.chat(PLAYBOOK_WRITER_TASK, { jsonSchema: recJson, messages: [{ role: 'system', content: SYSTEM }, { role: 'user', content: user }] }, scope);
-      const parsed = recSchema.safeParse(JSON.parse(res.text));
-      if (!parsed.success) throw new Error('invalid recommendation from playbook_writer');
-      const verified = await verifyText(deps.ai, scope, c, [cand], parsed.data.rationale, 'fact', { year, period });
-      if (!verified.kept) {
+      // The verifiers never see the voice; a banned word (Q3, V4) in the title or rationale gets one retry, then the move is skipped (V6).
+      const terms = enforcedTerms(voice.bannedTerms, [c.name, name]);
+      const attempt = async (avoid: readonly string[]) => {
+        const res = await deps.ai.chat(PLAYBOOK_WRITER_TASK, { jsonSchema: recJson, messages: [{ role: 'system', content: withVoice(SYSTEM, voice, avoid) }, { role: 'user', content: user }] }, scope);
+        const parsed = recSchema.safeParse(JSON.parse(res.text));
+        if (!parsed.success) throw new Error('invalid recommendation from playbook_writer');
+        const verified = await verifyText(deps.ai, scope, c, [cand], parsed.data.rationale, 'fact', { year, period });
+        if (!verified.kept) return null;
+        // The title is model-written too: deterministic rules only (it is advice); anything dropped → the playbook's own title.
+        const titleCheck = await verifyText(deps.ai, scope, c, [cand], parsed.data.title, null, { year, period });
+        const title = titleCheck.dropped === 0 && titleCheck.kept ? parsed.data.title : pb.title;
+        return { data: parsed.data, rationale: verified.kept, title, found: findBannedTerms(`${title}
+${verified.kept}`, terms) };
+      };
+      let written = await attempt([]);
+      if (written && written.found.length > 0) written = await attempt(written.found);
+      if (!written || written.found.length > 0) {
         out.skipped++;
         await backoff(m);
         continue;
       }
-      // The title is model-written too: deterministic rules only (it is advice); anything dropped → the playbook's own title.
-      const titleCheck = await verifyText(deps.ai, scope, c, [cand], parsed.data.title, null, { year, period });
-      const title = titleCheck.dropped === 0 && titleCheck.kept ? parsed.data.title : pb.title;
+      const { data: parsedData, rationale, title } = written;
       const evidenceIds = [...new Set(events.flatMap((e) => e.changes.flatMap((ch) => ch.evidenceIds)))].sort();
       const inserted = await deps.db
         .insert(recommendation)
         .values({
-          agencyId: c.agencyId, clientId, title, rationale: verified.kept, evidenceIds, eventIds: events.map((e) => e.eventId), moveId: m.id,
-          playbookId: pb.id, playbookVersion: pb.version > 0 ? pb.version : null, effort: parsed.data.effort, impact: parsed.data.impact, owner: parsed.data.owner, source: 'move',
-          upsellTag: parsed.data.upsell_tag === 'none' ? null : parsed.data.upsell_tag,
+          agencyId: c.agencyId, clientId, title, rationale, evidenceIds, eventIds: events.map((e) => e.eventId), moveId: m.id,
+          playbookId: pb.id, playbookVersion: pb.version > 0 ? pb.version : null, effort: parsedData.effort, impact: parsedData.impact, owner: parsedData.owner, source: 'move',
+          upsellTag: parsedData.upsell_tag === 'none' ? null : parsedData.upsell_tag,
         })
         .onConflictDoNothing()
         .returning({ id: recommendation.id });

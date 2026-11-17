@@ -1,10 +1,13 @@
 import type { Ai, JsonSchemaFormat } from '@cs/ai';
 import { redactForModel } from '@cs/collectors';
+import { enforcedTerms, findBannedTerms, type VoiceSettings } from '@cs/core';
 import { agencyServiceable, client, clientWorkAllowed, type Db, runbook, runbookItem } from '@cs/db';
 import type { PackLoader, VerticalPack } from '@cs/verticals';
 import { and, eq, sql } from 'drizzle-orm';
 import { isDeepStrictEqual } from 'node:util';
 import { z } from 'zod';
+import { withVoice } from '../voice/block';
+import { loadVoice } from '../voice/load';
 import { type RunbookItem, playContentSchema } from './items';
 import { legacyClientItems } from './legacy';
 import { copyItems, packUsesGenericPlays, withColumnThresholds } from './state';
@@ -51,7 +54,7 @@ type PlayContent = { trigger: string; title: string; template: string; effort?: 
  * The deterministic gate on the model's rewrite (R8): only a play's title/template (and optionally its service ids) can change.
  * A rejected item keeps its base; `rejected` lists its key (`'*'` = the whole answer was not the expected shape).
  */
-export function applyTailoring(base: RunbookItem[], raw: unknown, ctx: { areaIds: string[] }): { items: RunbookItem[]; rejected: string[] } {
+export function applyTailoring(base: RunbookItem[], raw: unknown, ctx: { areaIds: string[]; bannedTerms?: readonly string[] }): { items: RunbookItem[]; rejected: string[] } {
   const parsed = tailorOutputSchema.safeParse(raw);
   if (!parsed.success) return { items: base, rejected: [WHOLE_ANSWER] };
   const byKey = new Map(base.map((i) => [i.key, i]));
@@ -67,7 +70,10 @@ export function applyTailoring(base: RunbookItem[], raw: unknown, ctx: { areaIds
     const next = playContentSchema.safeParse({ ...baseContent, title: o.title, template: o.template });
     const allowed = new Set(placeholdersOf(baseContent.template));
     const areasOk = o.businessAreaIds === null || o.businessAreaIds.every((a) => ctx.areaIds.includes(a));
-    if (!next.success || !placeholdersOf(o.template).every((p) => allowed.has(p)) || !areasOk) {
+    // A banned term (Q3, V4: the caller passes the terms already exempted for the business name) rejects the play; the base stays.
+    const banned = (ctx.bannedTerms?.length ?? 0) > 0 && findBannedTerms(`${o.title}
+${o.template}`, ctx.bannedTerms!).length > 0;
+    if (banned || !next.success || !placeholdersOf(o.template).every((p) => allowed.has(p)) || !areasOk) {
       rejected.push(o.key);
       continue;
     }
@@ -96,7 +102,7 @@ const INSTRUCTION = (vertical: string, audience: string) =>
   'Optionally limit a play to the service ids it is about (businessAreaIds, or null for no limit). Return JSON.';
 
 /** Calls the model for the given plays; the reply is parsed JSON (throws on an AI error or unparseable text). */
-async function askModel(ai: Ai, c: TailorContext, plays: RunbookItem[], task: 'runbook_tailor' | 'runbook_retailor' = 'runbook_tailor'): Promise<unknown> {
+async function askModel(ai: Ai, c: TailorContext, voice: VoiceSettings, plays: RunbookItem[], task: 'runbook_tailor' | 'runbook_retailor' = 'runbook_tailor'): Promise<unknown> {
   const red = (s: string) => redactForModel(s, { businessNames: [c.name] });
   const input = {
     vertical: red(c.pack.name),
@@ -109,7 +115,7 @@ async function askModel(ai: Ai, c: TailorContext, plays: RunbookItem[], task: 'r
   };
   const res = await ai.chat(
     task,
-    { messages: [{ role: 'system', content: INSTRUCTION(c.pack.name, c.pack.audience_noun) }, { role: 'user', content: JSON.stringify(input) }], jsonSchema: tailorJsonSchema },
+    { messages: [{ role: 'system', content: withVoice(INSTRUCTION(c.pack.name, c.pack.audience_noun), voice) }, { role: 'user', content: JSON.stringify(input) }], jsonSchema: tailorJsonSchema },
     { agencyId: c.agencyId, clientId: c.clientId, verticalId: c.verticalId },
   );
   return JSON.parse(res.text);
@@ -155,7 +161,8 @@ export async function tailorClientRunbook(
   try {
     const plays = base.filter((i) => i.kind === 'play');
     if (plays.length > 0) {
-      const r = applyTailoring(base, await askModel(d.ai, c, plays), { areaIds: row.services });
+      const voice = await loadVoice(d.db, clientId);
+      const r = applyTailoring(base, await askModel(d.ai, c, voice, plays), { areaIds: row.services, bannedTerms: enforcedTerms(voice.bannedTerms, [c.name]) });
       if (!r.rejected.includes(WHOLE_ANSWER)) result = r;
     } else result = { items: base, rejected: [] };
   } catch (err) {
@@ -213,7 +220,8 @@ export async function proposeTailoring(
       key, kind: 'play', content: parsed.data, enabled: true, businessAreaIds: null, version: 1, upstreamVersion: null,
       upstreamSnapshot: null, dismissedUpstreamVersion: null, customised: false, removedUpstream: false,
     };
-    const r = applyTailoring([item], await askModel(d.ai, c, [item], 'runbook_retailor'), { areaIds: row.services });
+    const voice = await loadVoice(d.db, clientId);
+    const r = applyTailoring([item], await askModel(d.ai, c, voice, [item], 'runbook_retailor'), { areaIds: row.services, bannedTerms: enforcedTerms(voice.bannedTerms, [c.name]) });
     if (r.rejected.length > 0) return null;
     const out = r.items[0]!;
     const content = out.content as PlayContent;

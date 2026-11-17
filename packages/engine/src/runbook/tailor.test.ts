@@ -284,3 +284,66 @@ describe('proposeTailoring', () => {
     expect(whole.calls.chat.map((c) => c.task)).toEqual(['runbook_tailor']);
   });
 });
+
+/** 13a2 Task 7: voice in the tailor prompt; a banned term rejects the tailored play (Q3). */
+describe('tailoring voice and banned terms', () => {
+  const parent = { trigger: 'price_change', title: 'Respond to price changes', template: 'Check {{competitor}} on {{service}}.' };
+  const reply = (title: string) => JSON.stringify({ items: [{ key: 'play:price_change', title, template: 'Watch {{competitor}} on {{service}} calls.', businessAreaIds: null }] });
+  async function setVoice(bannedTerms: string[]) {
+    const [rb] = await dbs.owner.insert(runbook).values({ level: 'agency', agencyId: IDS.agencyA }).returning({ id: runbook.id });
+    await dbs.owner.insert(runbookItem).values({ runbookId: rb!.id, itemKey: 'knob:voice', kind: 'knob', content: { tone: 'formal', preferredTerms: [], bannedTerms }, enabled: true, updatedBy: 'test' });
+  }
+  const systemsOf = (ai: ReturnType<typeof createFakeAi>) => {
+    const systems: string[] = [];
+    const inner = ai.chat.bind(ai);
+    ai.chat = async (task, input, scope) => {
+      systems.push(String(input.messages[0]!.content));
+      return inner(task, input, scope);
+    };
+    return systems;
+  };
+  const BASE_INSTRUCTION = (v: VerticalPack) =>
+    `Rewrite each play's title and template so it fits a ${v.name} serving ${v.audience_noun}. Keep every {{placeholder}} exactly as written, add no new placeholders, ` +
+    'keep titles under 200 characters with no placeholders, keep the advice practical and specific to the listed services. ' +
+    'Optionally limit a play to the service ids it is about (businessAreaIds, or null for no limit). Return JSON.';
+
+  it('banned term in a tailored play → rejected, base kept', () => {
+    const r = applyTailoring([BASE], out({ title: 'Beat the cheap rival' }), { ...ctx, bannedTerms: ['cheap'] });
+    expect(r.rejected).toEqual(['play:a']);
+    expect(r.items[0]).toEqual(BASE);
+    expect(applyTailoring([BASE], out({ template: 'Be CHEAP on {{service}}.' }), { ...ctx, bannedTerms: ['cheap'] }).rejected).toEqual(['play:a']);
+    expect(applyTailoring([BASE], out({}), { ...ctx, bannedTerms: ['cheap'] }).rejected).toEqual([]);
+  });
+
+  it('default voice: prompt unchanged', async () => {
+    const ai = createFakeAi({ chat: () => reply('Defend your HVAC price') });
+    const systems = systemsOf(ai);
+    await proposeTailoring({ db, ai, packs: hvacPacks }, IDS.clientA1, 'play:price_change', parent);
+    expect(systems).toEqual([BASE_INSTRUCTION(hvac)]);
+  });
+
+  it('prompt carries the voice block', async () => {
+    await setVoice(['cheap']);
+    const ai = rewriteAll();
+    const systems = systemsOf(ai);
+    await tailorClientRunbook(deps(ai), IDS.clientA1);
+    expect(systems[0]).toContain(BASE_INSTRUCTION(hvac));
+    expect(systems[0]).toContain('<voice>');
+    expect(systems[0]).toContain('"cheap"');
+  });
+
+  it('tailorClientRunbook keeps the base for plays with a banned term', async () => {
+    await setVoice(['tailored']);
+    const r = await tailorClientRunbook(deps(rewriteAll()), IDS.clientA1);
+    expect(r.status).toBe('failed');
+    expect(r.rejected.length).toBe(hvac.playbooks.length);
+  });
+
+  it('retailor banned term → null', async () => {
+    await setVoice(['cheap']);
+    const ai = createFakeAi({ chat: () => reply('Stay cheap') });
+    expect(await proposeTailoring({ db, ai, packs: hvacPacks }, IDS.clientA1, 'play:price_change', parent)).toBeNull();
+    const ok = createFakeAi({ chat: () => reply('Defend your HVAC price') });
+    expect(await proposeTailoring({ db, ai: ok, packs: hvacPacks }, IDS.clientA1, 'play:price_change', parent)).not.toBeNull();
+  });
+});
