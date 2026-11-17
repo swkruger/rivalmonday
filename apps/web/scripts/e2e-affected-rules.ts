@@ -13,7 +13,7 @@ export type Affected = { mode: 'none' | 'some' | 'all'; tags: string[]; reasons:
 export const KNOWN_TAGS = [
   '@smoke', '@auth', '@guest', '@dev-panel', '@clients', '@briefs', '@recommendations', '@alerts', '@usage', '@runbook',
   '@profile', '@platform', '@prospects', '@changes', '@evidence', '@moves', '@competitors', '@overview', '@alert-rules',
-  '@pricing', '@ads', '@reviews', '@rankings', '@nav', '@responsive', '@ai-connections', '@ask', '@kb', '@support', '@costs', '@rivals', '@starting-point', '@billing', '@client-billing', '@onboarding', '@setup', '@leads', '@navigation', '@catalogue', '@help', '@ops', '@errors', '@settings', '@waitlist', '@profile-page', '@hosts', '@domains',
+  '@pricing', '@ads', '@reviews', '@rankings', '@nav', '@responsive', '@ai-connections', '@ask', '@kb', '@support', '@costs', '@rivals', '@starting-point', '@billing', '@client-billing', '@onboarding', '@setup', '@leads', '@navigation', '@catalogue', '@help', '@ops', '@errors', '@settings', '@waitlist', '@profile-page', '@hosts', '@domains', '@whitelabel',
 ] as const;
 
 const WEB = 'apps/web/';
@@ -60,6 +60,8 @@ export const RULES: Rule[] = [
 
   // --- Foundations: everything ---
   { pattern: re(`${WEB}e2e/`), tags: 'all', why: 'E2E seed/helpers/setup' },
+  // 13a2: the neutral tab icon and the RM icons (platform host only) are asserted by the leak crawl and the MCP host check.
+  { pattern: re(`${WEB}public/(?:[^/]*icon[^/]*|brand/.*)$`), tags: ['@whitelabel'], why: 'tab icons: neutral on agency and MCP hosts, RM mark on the platform host (13a2 Q4)' },
   { pattern: re(`${WEB}(?:playwright\\.config\\.ts|package\\.json|next\\.config\\.[^/]+|tsconfig\\.json|postcss\\.config\\.[^/]+)$`), tags: 'all', why: 'web build/test config' },
   { pattern: re(`${APP}api/stripe/`), tags: [], why: 'Stripe webhook route (covered by its route test, no browser flow)' },
   { pattern: re(`${APP}api/postmark/`), tags: [], why: 'Postmark bounce webhook route (covered by its route test, no browser flow)' },
@@ -80,7 +82,7 @@ export const RULES: Rule[] = [
   { pattern: re(`${COMP}shell/`), tags: 'all', why: 'app shell (sidebar, top bar, nav)' },
   // 13a1: pure host decisions (host kinds and path rules; which memberships count on a host). The proxy and the viewer that call
   // them stay 'all' above/below; these modules alone are covered by the hosts spec, the guest link and the client sign-ins.
-  { pattern: re(`${SERVER}(?:hosts|host-viewer)\\.ts$`), tags: ['@hosts', '@guest', '@auth', '@ai-connections'], why: 'host routing rules and host-scoped viewer decisions (13a1)' },
+  { pattern: re(`${SERVER}(?:hosts|host-viewer)\\.ts$`), tags: ['@hosts', '@guest', '@auth', '@ai-connections', '@whitelabel'], why: 'host routing rules and host-scoped viewer decisions (13a1)' },
   {
     pattern: re(`${SERVER}(?:auth|auth-options|request-host|env|db|run-tool|tools|viewer|current-viewer|theme|branding|nav|safe-next|runtime-env|billing-redirect|billing-state)\\.ts$`),
     tags: 'all',
@@ -131,6 +133,7 @@ export const RULES: Rule[] = [
   { pattern: re(`${AGENCY}page\\.tsx$`), tags: ['@clients', '@client-billing', '@onboarding'], why: 'agency client list (billing pill and actions, getting-started checklist)' },
   { pattern: re(`${AGENCY}alerts/`), tags: ['@alerts'], why: 'alert queue' },
   { pattern: re(`${COMP}confidence-label\\.ts$`), tags: ['@briefs', '@starting-point'], why: 'confidence wording in the brief view and the approvals review controls (15b-2)' },
+  { pattern: re(`${COMP}highlight-terms\.tsx$`), tags: ['@briefs', '@whitelabel'], why: 'banned-word highlights on the approvals review page (13a2 review flags)' },
   { pattern: re(`${AGENCY}approvals/`), tags: ['@briefs', '@recommendations', '@starting-point'], why: 'brief approvals (a starting point is approved and sent here)' },
   { pattern: re(`${AGENCY}clients/`), tags: ['@clients'], why: 'new client' },
   { pattern: re(`${AGENCY}settings/runbook/`), tags: ['@runbook'], why: 'agency runbook (Agency settings; old Playbooks paths redirect here)' },

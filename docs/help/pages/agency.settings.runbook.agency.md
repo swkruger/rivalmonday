@@ -22,7 +22,7 @@ Each item has a badge that compares it with the standard runbook that came with 
 3. **Handle updates from the standard runbook.** *Review update* shows what changed, and your own version if you customised it. *Use the update* takes the new text; *Keep mine* leaves yours. A *New* item offers **Add** or **Not now**. One that is *Removed upstream* offers **Keep** or **Remove**.
 4. **Open a client's Runbook tab** (Client settings) to give that client its own copy. A client runbook is a copy of this one, with the plays tailored to the client's business.
 
-## Set the voice
+### Set the voice
 
 The **Voice** section sets how briefs, alerts and recommendations are worded for every client. Facts and numbers never change.
 

@@ -2,7 +2,7 @@ import { mkdir, rm, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { currentStandardPlan, ensureExemptPilot } from '@cs/billing';
 import { signLink } from '@cs/core/server';
-import { ad, agency, agencyBilling, alert, askMessage, askStarter, askThread, brief, briefItem, businessArea, catalogRows, capture, changeEvent, client, clientCompetitor, clientSetup, competitor, competitorSignal, competitorSuggestion, contact, createDb, discoveryRun, detectedChange, intakeLink, lead, eventChange, eventScore, evidence, llmCall, move, moveEvent, plan, pricePoint, prospectReport, rankMapImage, rankScan, rankSnapshot, recommendation, review, reviewAnalysis, topicProposal, trackedPage, trendReport, type TrendReportData, vertical, waitlistEntry } from '@cs/db';
+import { ad, agency, agencyBilling, alert, askMessage, askStarter, askThread, brief, briefItem, businessArea, catalogRows, capture, changeEvent, client, clientCompetitor, clientSetup, competitor, competitorSignal, competitorSuggestion, contact, createDb, discoveryRun, detectedChange, intakeLink, kbArticle, lead, eventChange, eventScore, evidence, llmCall, move, moveEvent, plan, pricePoint, prospectReport, rankMapImage, rankScan, rankSnapshot, recommendation, review, reviewAnalysis, topicProposal, trackedPage, trendReport, type TrendReportData, vertical, waitlistEntry } from '@cs/db';
 import { copyItems, createClientRunbookIfAbsent, ensureAgencyRunbook, readRunbookItems } from '@cs/engine';
 import { createStoreFromEnv } from '@cs/storage';
 import { createCatalog } from '@cs/verticals';
@@ -240,12 +240,15 @@ export async function seed(): Promise<void> {
       report: { changes: { v: 1, threshold: 60, lines: [gradedLine('notable', 'Smith HVAC cut its AC tune-up to $79 (graded notable).'), gradedLine('minor', 'Smith HVAC touched its pricing page (graded minor).')], totals: { major: 0, notable: 1, minor: 1 } } },
     }).where(eq(brief.id, briefId));
 
-    await seedAsk(db, { agencyId, competitorId: comp!.id, eventId: workspace.eventId, evidenceId: workspace.evidenceId });
+    const askFixture = await seedAsk(db, { agencyId, competitorId: comp!.id, eventId: workspace.eventId, evidenceId: workspace.evidenceId });
 
     await seedRunbook(db, { agencyId });
 
     // 15b-1 (`help.spec.ts`): the real page guides, topic articles and glossary, exactly as `kb:seed` publishes them.
     await seedKnowledge(db, resolve(import.meta.dirname, '../../../docs/help'));
+
+    // 13a2 Task 13: the leak crawl's fixtures (after the knowledge seed: it links one published article).
+    const whiteLabel = await seedWhiteLabel(db, { agencyId, askFixture, competitorId: comp!.id, eventId: workspace.eventId, evidenceId: workspace.evidenceId });
 
     const token = signLink(E2E_LINK_SECRET, { sub: ownerContact!.id, agency: agencyId, client: clientId, t: 'brief', id: briefId });
     await mkdir(dirname(OWNER_LINK_FILE), { recursive: true });
@@ -263,7 +266,7 @@ export async function seed(): Promise<void> {
     const slugs = Object.fromEntries(slugRows.map((r) => [r.name, r.host_slug]));
     const [otherClient] = await db.select({ id: client.id }).from(client).where(eq(client.agencyId, target!.id));
     await mkdir(dirname(HOSTS_FIXTURE_FILE), { recursive: true });
-    await writeFile(HOSTS_FIXTURE_FILE, JSON.stringify({ slug: slugs['E2E Agency']!, other: { clientId: otherClient!.id, slug: slugs['Support Target Agency']! }, slugs } satisfies HostsFixture));
+    await writeFile(HOSTS_FIXTURE_FILE, JSON.stringify({ slug: slugs['E2E Agency']!, other: { clientId: otherClient!.id, slug: slugs['Support Target Agency']! }, slugs, whiteLabel } satisfies HostsFixture));
 
     // Phase 10: the seeded agencies stand in for pre-Phase-10 agencies, which migration 0066 backfills as completed
     // `legacy` onboarding. Without a row the getting-started checklist shows on /agency (and pushes the portfolio down).
@@ -287,7 +290,22 @@ export type HostsFixture = {
   other: { clientId: string; slug: string };
   /** Every seeded agency's `host_slug`, by name. */
   slugs: Record<string, string>;
+  /** 13a2 Task 13: the leak crawl's client (the asker's first Ask client) and every dynamic route param it needs. */
+  whiteLabel: { clientId: string; params: WhiteLabelParams };
 };
+
+/** The ids the leak crawl fills into dynamic routes (`e2e/agency-routes.ts` `routeParams`). */
+export type WhiteLabelParams = {
+  briefId: string; alertId: string; reportId: string; competitorId: string; evidenceId: string; threadId: string;
+  /** A published client-visible knowledge article. */
+  kbId: string;
+  /** E2E Agency's intake slug (`/start/<slug>` on its host). */
+  intakeSlug: string;
+};
+
+/** The flagged `ready` brief of 13a2 (`banned_term`): on Toggle Air Co, a client no approvals or workflow assertion counts. */
+export const FLAGGED_BRIEF = { clientName: 'Toggle Air Co', term: 'cheap', summary: 'Smith HVAC is promoting a cheap tune-up special this week.' } as const;
+export const WL_INTAKE_SLUG = 'e2e-white-label';
 
 // Sorts after 'E2E Agency': kb.spec.ts picks the agency select's index 1.
 export const WAITLIST_AGENCY = 'Waitlist Agency E2E';
@@ -494,12 +512,13 @@ const ASK_STARTERS = [
 async function seedAsk(
   db: ReturnType<typeof createDb>['db'],
   o: { agencyId: string; competitorId: string; eventId: string; evidenceId: string },
-): Promise<void> {
+): Promise<AskFixture> {
   const { agencyId } = o;
   const area = { center: { lat: 32.4, lng: -97.79 }, radiusKm: 25, zips: ['76048'] };
   const base = { agencyId, verticalId: 'hvac_plumbing', keywords: ['ac repair'], serviceArea: area };
   const [askCo, privateCo, quotaCo, toggleCo] = await db.insert(client).values([
-    { ...base, name: 'Ask Demo Heating', features: ['dashboard', 'ask'] },
+    // `alert_rules` and `mcp` open the client's Alert rules and AI connections pages for the leak crawl (13a2 Task 13).
+    { ...base, name: 'Ask Demo Heating', features: ['dashboard', 'ask', 'alert_rules', 'mcp'] },
     { ...base, name: 'Private Plumbing Co', features: ['dashboard', 'ask'], askReviewAllowed: false },
     { ...base, name: 'Summit Cooling Co', features: ['dashboard', 'ask'], askMonthlyQuota: ASK_QUOTA },
     { ...base, name: 'Toggle Air Co', features: ['ask'] },
@@ -537,6 +556,7 @@ async function seedAsk(
   const fixture: AskFixture = { askCo: askCo!, privateCo: privateCo!, quotaCo: quotaCo!, toggleCo: toggleCo!, askThreadId, privateThreadId, starters: ASK_STARTERS };
   await mkdir(dirname(ASK_FIXTURE_FILE), { recursive: true });
   await writeFile(ASK_FIXTURE_FILE, JSON.stringify(fixture));
+  return fixture;
 }
 
 /** 12a E2E: what `competitors-rivals.spec.ts` reads from `RIVALS_FIXTURE_FILE`. */
@@ -870,4 +890,61 @@ async function seedRunbook(db: ReturnType<typeof createDb>['db'], o: { agencyId:
   await createClientRunbookIfAbsent(db, c!.id, items, 'e2e-seed');
   await createInvitation(db, { agencyId, email: ASK_USER_EMAIL, role: 'client_owner', clientId: c!.id, invitedBy: 'e2e-seed' });
   await acceptInvitations(db, { id: ASK_USER_ID, email: ASK_USER_EMAIL, name: 'Asha Asker' });
+}
+
+/**
+ * 13a2 Task 13: what every client route of the asker's first Ask client needs (a sent brief, a delivered alert, a trend report),
+ * E2E Agency's intake link, and one flagged `ready` brief for the review-flag test.
+ */
+async function seedWhiteLabel(
+  db: ReturnType<typeof createDb>['db'],
+  o: { agencyId: string; askFixture: AskFixture; competitorId: string; eventId: string; evidenceId: string },
+): Promise<{ clientId: string; params: WhiteLabelParams }> {
+  const { agencyId, competitorId } = o;
+  const clientId = o.askFixture.askCo.id;
+  const item = { agencyId, competitorId, confidence: 0.9, effort: 'L', impact: 'H' } as const;
+  const [sent] = await db.insert(brief).values({
+    agencyId, clientId, deliveryDate: '2026-10-05', periodStart: new Date('2026-09-29T00:00:00Z'), periodEnd: new Date('2026-10-05T00:00:00Z'),
+    status: 'sent', summary: 'Smith HVAC made one notable move this week.', sentAt: new Date('2026-10-05T12:00:00Z'),
+  }).returning({ id: brief.id });
+  await db.insert(briefItem).values({
+    ...item, clientId, briefId: sent!.id, ord: 1, headline: 'Smith HVAC cut AC tune-ups to $79', whatChanged: 'Smith HVAC dropped its AC tune-up price to $79.',
+    whyItMatters: 'This undercuts the standard tune-up offer in the service area.', recommendedAction: 'Consider a matching or bundled promotion.', evidenceIds: [o.evidenceId], eventIds: [o.eventId],
+  });
+  const [delivered] = await db.insert(alert).values({
+    agencyId, clientId, competitorId, eventId: o.eventId, score: 86, headline: 'Smith HVAC cut its AC tune-up to $79', body: 'Smith HVAC dropped its AC tune-up price to $79.',
+    written: 'template', evidenceIds: [o.evidenceId], status: 'delivered', mode: 'direct', delivery: 'immediate', deliveredAt: new Date('2026-10-06T15:00:00Z'), deliveredLocalDate: '2026-10-06',
+  }).returning({ id: alert.id });
+  const data: TrendReportData = {
+    quarter: '2026-Q3', windowDays: 92,
+    businesses: [{ competitorId, name: 'Smith HVAC', self: false, reviews: 1, avgRating: 2, prevAvgRating: null, activeAds: 2 }],
+    eventsByType: { price_change: 1 }, moves: [], briefsSent: 1, alertsDelivered: 1, recommendations: { created: 0, done: 0, inProgress: 0, dismissed: 0 },
+  };
+  const [report] = await db.insert(trendReport).values({
+    agencyId, clientId, quarter: data.quarter, periodStart: new Date('2026-07-01T00:00:00Z'), periodEnd: new Date('2026-10-01T00:00:00Z'),
+    data, status: 'sent', createdAt: new Date('2026-10-02T08:00:00Z'), sentAt: new Date('2026-10-02T08:00:00Z'),
+  }).returning({ id: trendReport.id });
+
+  const [article] = await db.select({ id: kbArticle.id }).from(kbArticle)
+    .where(and(eq(kbArticle.level, 'platform'), eq(kbArticle.status, 'published'), eq(kbArticle.clientVisible, true), eq(kbArticle.audience, 'all')))
+    .limit(1);
+  if (!article) throw new Error('seedWhiteLabel: no published client-visible platform article (run after seedKnowledge)');
+
+  await db.insert(intakeLink).values({ agencyId, slug: WL_INTAKE_SLUG });
+
+  // The flagged brief (V8): ready, a banned term survived the rewrite.
+  const [toggle] = await db.select({ id: client.id }).from(client).where(and(eq(client.agencyId, agencyId), eq(client.name, FLAGGED_BRIEF.clientName)));
+  const [flagged] = await db.insert(brief).values({
+    agencyId, clientId: toggle!.id, deliveryDate: '2026-10-19', periodStart: new Date('2026-10-13T00:00:00Z'), periodEnd: new Date('2026-10-19T00:00:00Z'),
+    status: 'ready', summary: FLAGGED_BRIEF.summary, reviewReason: 'banned_term', reviewTerms: [FLAGGED_BRIEF.term],
+  }).returning({ id: brief.id });
+  await db.insert(briefItem).values({
+    ...item, clientId: toggle!.id, briefId: flagged!.id, ord: 1, headline: 'Smith HVAC runs a cheap tune-up special', whatChanged: 'Smith HVAC launched a tune-up special.',
+    whyItMatters: 'A low price can pull price shoppers away.', recommendedAction: 'Consider a bundled offer.',
+  });
+
+  return {
+    clientId,
+    params: { briefId: sent!.id, alertId: delivered!.id, reportId: report!.id, competitorId, evidenceId: o.evidenceId, threadId: o.askFixture.askThreadId, kbId: article.id, intakeSlug: WL_INTAKE_SLUG },
+  };
 }

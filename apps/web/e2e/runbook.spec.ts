@@ -1,14 +1,12 @@
-import { existsSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import { brief, briefItem, catalogRows, client, clientCompetitor, createDb } from '@cs/db';
 import { generateBrief } from '@cs/engine';
 import { createCatalog } from '@cs/verticals';
-import { type Browser, expect, test, type TestInfo } from '@playwright/test';
+import { type Browser, expect, test } from '@playwright/test';
 import { eq } from 'drizzle-orm';
 import { createFakeAi, noul } from '../../../packages/engine/test/fake-ai';
 import { day, seedScoredEvent } from '../../../packages/engine/test/seed';
 import { ADMIN_STATE, ensureAdminState } from './admin-session';
-import { agencyBaseURL, agencyOriginOf, signIn } from './helpers';
+import { agencyOriginOf, ensureClientHostState, hostsFixture } from './helpers';
 import { ASK_USER_EMAIL, RB_CLIENT, RB_TAILORED_KEY } from './seed';
 
 /**
@@ -16,7 +14,6 @@ import { ASK_USER_EMAIL, RB_CLIENT, RB_TAILORED_KEY } from './seed';
  * the agency runbook) has a tailored client runbook: the tailoring job itself never runs in E2E. The steps share state
  * (the client's customised play feeds the brief), so they run in order.
  */
-const ASKER_STATE = fileURLToPath(new URL('../test-results/asker-state.json', import.meta.url));
 const PLAY = 'play:price_cut_bundle';
 const CUSTOM_PREFIX = 'Distillery tasting bundle';
 const CUSTOM = `${CUSTOM_PREFIX}: pair {{service}} with a cellar tour instead of matching {{competitor}}.`;
@@ -32,21 +29,16 @@ async function clientId(): Promise<string> {
   }
 }
 
-async function ensureAskerState(browser: Browser, testInfo: TestInfo): Promise<void> {
-  if (existsSync(ASKER_STATE)) return;
-  const id = await clientId();
-  const context = await browser.newContext({ baseURL: agencyOriginOf(), storageState: { cookies: [], origins: [] } });
-  const page = await context.newPage();
-  await signIn(page, ASK_USER_EMAIL, `/c/${id}`, agencyOriginOf());
-  await expect(page).toHaveURL(new RegExp(`/c/${id}$`));
-  await context.storageState({ path: ASKER_STATE });
-  await context.close();
+/** The Ask client owner's session on E2E Agency's host (shared with the other specs that sign this user in there). */
+async function ensureAskerState(browser: Browser): Promise<string> {
+  return ensureClientHostState(browser, ASK_USER_EMAIL, hostsFixture().slug, `/c/${await clientId()}`);
 }
 
 test.describe.serial('runbooks', () => {
+  let askerState = '';
   test.beforeAll(async ({ browser }, testInfo) => {
     await ensureAdminState(browser, testInfo);
-    await ensureAskerState(browser, testInfo);
+    askerState = await ensureAskerState(browser);
   });
 
   test.describe('as the agency admin', () => {
@@ -98,11 +90,15 @@ test.describe.serial('runbooks', () => {
   });
 
   test.describe('as the client owner', () => {
-    test.use({ storageState: ASKER_STATE, baseURL: agencyBaseURL() });
-
-    test('the client runbook page is a 404', { tag: ['@runbook', '@clients'] }, async ({ page }) => {
-      const response = await page.goto(`/c/${await clientId()}/settings/runbook`);
-      expect(response?.status()).toBe(404);
+    test('the client runbook page is a 404', { tag: ['@runbook', '@clients'] }, async ({ browser }) => {
+      const context = await browser.newContext({ baseURL: agencyOriginOf(), storageState: askerState });
+      try {
+        const page = await context.newPage();
+        const response = await page.goto(`/c/${await clientId()}/settings/runbook`);
+        expect(response?.status()).toBe(404);
+      } finally {
+        await context.close();
+      }
     });
   });
 
@@ -140,5 +136,66 @@ test.describe.serial('runbooks', () => {
       await db.delete(brief).where(eq(brief.clientId, id));
       await close();
     }
+  });
+});
+
+/**
+ * 13a2 R3: the Voice section of the agency runbook and of a client runbook. The preview answers from the E2E fixture (no paid
+ * call). Runs after the runbook tests above, so the agency voice it saves reaches no brief a test generates.
+ */
+test.describe.serial('voice', () => {
+  test.use({ storageState: ADMIN_STATE });
+  test.beforeAll(async ({ browser }, testInfo) => {
+    await ensureAdminState(browser, testInfo);
+  });
+
+  const voice = (page: import('@playwright/test').Page) => page.locator('[data-item="knob:voice"]');
+
+  test('agency admin saves a voice and previews it', { tag: ['@runbook'] }, async ({ page }) => {
+    await page.goto('/agency/settings/runbook');
+    const section = voice(page);
+    await section.getByRole('radio', { name: /Formal/ }).check();
+    await section.getByRole('button', { name: 'Add a pair' }).click();
+    await section.getByLabel('Say').fill('tune-up visit');
+    await section.getByLabel('Instead of').fill('service call');
+    await section.getByLabel('Banned words').fill('cheap');
+    await section.getByRole('button', { name: 'Add', exact: true }).click();
+    await expect(section.getByRole('button', { name: 'Remove cheap' })).toBeVisible();
+
+    // The preview shows the unsaved form in the result region (always mounted).
+    await section.getByRole('button', { name: 'Preview' }).click();
+    const result = section.getByTestId('voice-result');
+    await expect(result.getByRole('heading', { name: 'Sample alert' })).toBeVisible();
+    await expect(result).toContainText('formal voice');
+    await expect(result).toContainText('"tune-up visit"');
+
+    await section.getByRole('button', { name: 'Save voice' }).click();
+    await expect(result).toContainText('Saved. New briefs and alerts use this voice.');
+
+    // It is stored: a reload shows the same voice.
+    await page.reload();
+    await expect(voice(page).getByRole('radio', { name: /Formal/ })).toBeChecked();
+    await expect(voice(page).getByLabel('Say')).toHaveValue('tune-up visit');
+    await expect(voice(page).getByRole('button', { name: 'Remove cheap' })).toBeVisible();
+  });
+
+  test('client override saves and returns to the agency voice', { tag: ['@runbook', '@clients'] }, async ({ page }) => {
+    await page.goto(`/c/${await clientId()}/settings/runbook`);
+    const section = voice(page);
+    await expect(section.getByText('Uses the agency voice.')).toBeVisible();
+    await expect(section.getByText('Tone: Formal.')).toBeVisible();
+
+    await section.getByRole('button', { name: 'Set a voice for this client' }).click();
+    await section.getByRole('radio', { name: /Direct/ }).check();
+    await section.getByRole('button', { name: 'Save voice' }).click();
+    await expect(section.getByTestId('voice-result')).toContainText('Saved. New briefs and alerts use this voice.');
+    await page.reload();
+    await expect(voice(page).getByText('Own voice')).toBeVisible();
+    await expect(voice(page).getByRole('radio', { name: /Direct/ })).toBeChecked();
+
+    await voice(page).getByRole('button', { name: 'Use the agency voice' }).click();
+    await expect(voice(page).getByText('Uses the agency voice.')).toBeVisible();
+    await expect(voice(page).getByText('Tone: Formal.')).toBeVisible();
+    await expect(voice(page).getByText('Own voice')).toHaveCount(0);
   });
 });

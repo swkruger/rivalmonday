@@ -162,13 +162,25 @@ describe('resolveAffected', () => {
       expect(resolve(f).tags, f).toEqual(['@domains', '@smoke']);
     }
     for (const f of ['apps/web/src/server/hosts.ts', 'apps/web/src/server/host-viewer.ts']) {
-      expect(resolve(f).tags, f).toEqual(['@ai-connections', '@auth', '@guest', '@hosts', '@smoke']);
+      expect(resolve(f).tags, f).toEqual(['@ai-connections', '@auth', '@guest', '@hosts', '@smoke', '@whitelabel']);
     }
     expect(resolve('apps/web/src/app/rm-internal/host-redirect/route.ts').tags).toEqual(['@hosts', '@kb', '@navigation', '@smoke']);
     // The proxy and per-origin auth run on every page: everything (which includes @hosts).
     for (const f of ['apps/web/src/proxy.ts', 'apps/web/src/server/auth.ts', 'apps/web/src/server/request-host.ts']) expect(resolve(f).mode, f).toBe('all');
     expect(resolve('apps/web/e2e/hosts.spec.ts').tags).toContain('@hosts');
     expect(resolve('apps/web/e2e/domains.spec.ts').tags).toContain('@domains');
+  });
+
+  it('maps the white-label surfaces to @whitelabel (13a2)', () => {
+    // Tab icons, host rules, the root layout and the error pages all change what an agency host shows.
+    for (const f of ['apps/web/public/neutral-icon.svg', 'apps/web/public/favicon.ico', 'apps/web/public/brand/rm-mark.svg']) expect(resolve(f).tags, f).toEqual(['@smoke', '@whitelabel']);
+    expect(resolve('apps/web/src/server/hosts.ts').tags).toContain('@whitelabel');
+    for (const f of ['apps/web/src/app/layout.tsx', 'apps/web/src/app/not-found.tsx', 'apps/web/src/app/error.tsx', 'apps/web/src/proxy.ts']) {
+      expect(resolve(f).mode, f).toBe('all');
+    }
+    // The voice section is covered by the runbook tests (voice save and preview), the review flag by the white-label spec.
+    for (const f of ['apps/web/src/components/runbook/voice-section.tsx', 'apps/web/src/components/runbook/voice-fields.tsx']) expect(resolve(f).tags, f).toContain('@runbook');
+    expect(resolve('apps/web/e2e/white-label.spec.ts').tags).toEqual(expect.arrayContaining(['@whitelabel', '@briefs']));
   });
 
   it('maps the Slack & Teams page to @settings (15c-2a)', () => {

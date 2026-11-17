@@ -1,9 +1,8 @@
-import { existsSync, readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
+import { readFileSync } from 'node:fs';
 import { type Browser, expect, test, type TestInfo } from '@playwright/test';
 import { MCP_CLIENTS_FILE } from '../playwright.config';
 import { ADMIN_STATE, ensureAdminState } from './admin-session';
-import { agencyOrigin, agencyOriginOf, contextOnHost, hostRequest, hostsFixture, PLATFORM_ORIGIN, signIn } from './helpers';
+import { agencyOrigin, agencyOriginOf, contextOnHost, cookieHeader, ensureClientHostState, hostRequest, hostsFixture, PLATFORM_ORIGIN } from './helpers';
 import { IN_SLUG, SI_AGENCY } from './seed';
 
 /**
@@ -11,29 +10,18 @@ import { IN_SLUG, SI_AGENCY } from './seed';
  * serves only its own agency. One magic-link sign-in (the client owner `mcp-owner@e2e.test` on E2E Agency's host); the
  * cross-host cases re-scope saved session cookies to the other host (host-only cookies, one auth secret).
  */
-const AGENCY_CLIENT_STATE = fileURLToPath(new URL('../test-results/agency-client-state.json', import.meta.url));
 const CLIENT_EMAIL = 'mcp-owner@e2e.test';
 type McpClients = Record<'first' | 'second', { id: string; name: string }>;
 const clients = (): McpClients => JSON.parse(readFileSync(MCP_CLIENTS_FILE, 'utf8')) as McpClients;
 const hostOf = (url: string) => new URL(url).host;
 
 /** The client owner's session on E2E Agency's host (the one new magic-link sign-in of this phase). */
-async function ensureAgencyClientState(browser: Browser): Promise<void> {
-  if (existsSync(AGENCY_CLIENT_STATE)) return;
-  const origin = agencyOriginOf();
-  const context = await browser.newContext({ baseURL: origin, storageState: { cookies: [], origins: [] } });
-  try {
-    const page = await context.newPage();
-    await signIn(page, CLIENT_EMAIL, `/c/${clients().first.id}`, origin);
-    await expect(page).toHaveURL(`${origin}/c/${clients().first.id}`);
-    await context.storageState({ path: AGENCY_CLIENT_STATE });
-  } finally {
-    await context.close();
-  }
+async function ensureAgencyClientState(browser: Browser): Promise<string> {
+  return ensureClientHostState(browser, CLIENT_EMAIL, hostsFixture().slug, `/c/${clients().first.id}`);
 }
 
 test('client signs in on the agency host and sees their client', { tag: ['@hosts', '@auth'] }, async ({ browser }) => {
-  await ensureAgencyClientState(browser);
+  const AGENCY_CLIENT_STATE = await ensureAgencyClientState(browser);
   const origin = agencyOriginOf();
   const context = await browser.newContext({ baseURL: origin, storageState: AGENCY_CLIENT_STATE });
   try {
@@ -63,7 +51,7 @@ test('agency admin session on the agency host is redirected to the platform', { 
 });
 
 test('client-only session on the platform is redirected to the agency host', { tag: ['@hosts', '@auth'] }, async ({ browser }) => {
-  await ensureAgencyClientState(browser);
+  const AGENCY_CLIENT_STATE = await ensureAgencyClientState(browser);
   const origin = agencyOriginOf();
   const context = await contextOnHost(browser, AGENCY_CLIENT_STATE, PLATFORM_ORIGIN);
   try {
@@ -77,7 +65,7 @@ test('client-only session on the platform is redirected to the agency host', { t
 });
 
 test("other agency's client on the agency host → 404", { tag: ['@hosts'] }, async ({ browser }) => {
-  await ensureAgencyClientState(browser);
+  const AGENCY_CLIENT_STATE = await ensureAgencyClientState(browser);
   const { other } = hostsFixture();
   const origin = agencyOriginOf();
   const context = await browser.newContext({ baseURL: origin, storageState: AGENCY_CLIENT_STATE });
@@ -122,7 +110,9 @@ test('agency host /agency → platform only for staff of that agency', { tag: ['
   try {
     const page = await context.newPage();
     const res = await page.goto(`${origin}/agency/settings?x=1`);
-    const first = res?.request().redirectedFrom();
+    // The platform may redirect again (its settings index); the chain starts at the agency host request.
+    let first = res?.request().redirectedFrom();
+    while (first?.redirectedFrom()) first = first.redirectedFrom()!;
     expect(first?.url()).toBe(`${origin}/agency/settings?x=1`);
     const hop = await first?.response();
     expect(hop?.status()).toBe(307);
@@ -142,17 +132,12 @@ test('platform guest cookie is refused at /agency on an agency host', { tag: ['@
 });
 
 test('client session at /agency on an agency host → 404, no Location', { tag: ['@hosts', '@auth'] }, async ({ browser }) => {
-  await ensureAgencyClientState(browser);
-  const origin = agencyOriginOf();
-  const context = await browser.newContext({ baseURL: origin, storageState: AGENCY_CLIENT_STATE });
-  try {
-    for (const path of ['/agency', '/agency/settings?x=1']) {
-      const res = await context.request.get(`${origin}${path}`, { maxRedirects: 0 });
-      expect(res.status(), path).toBe(404);
-      expect(res.headers().location, path).toBeUndefined();
-    }
-  } finally {
-    await context.close();
+  const state = await ensureAgencyClientState(browser);
+  // `hostRequest`: a Node-side request cannot resolve `*.localhost` (a Playwright `APIRequestContext` fails with ENOTFOUND).
+  for (const path of ['/agency', '/agency/settings?x=1']) {
+    const res = await hostRequest(`${hostsFixture().slug}.localhost`, path, { headers: { cookie: cookieHeader(state) } });
+    expect(res.status, path).toBe(404);
+    expect(res.headers.location, path).toBeUndefined();
   }
 });
 

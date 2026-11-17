@@ -1,7 +1,8 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { readdir, readFile } from 'node:fs/promises';
 import { request as httpRequest } from 'node:http';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { type Browser, type BrowserContext, type Cookie, expect, type Page } from '@playwright/test';
 import { HOSTS_FIXTURE_FILE, OUTBOX } from '../playwright.config';
 import type { HostsFixture } from './seed';
@@ -173,4 +174,34 @@ export async function openMagicLink(page: Page, link: string): Promise<void> {
 export async function signIn(page: Page, email: string, next = '/agency', origin = ''): Promise<void> {
   await page.goto(`${origin}/sign-in?next=${encodeURIComponent(next)}`);
   await openMagicLink(page, await requestMagicLink(page, email));
+}
+
+/** A saved storage state's cookies as a `Cookie` header, for `hostRequest` (Node cannot resolve `*.localhost`, so no `APIRequestContext`). */
+export const cookieHeader = (statePath: string): string =>
+  (JSON.parse(readFileSync(statePath, 'utf8')) as { cookies: { name: string; value: string }[] }).cookies.map((c) => `${c.name}=${c.value}`).join('; ');
+
+/** Where `ensureClientHostState` saves the session of `email` on the host of agency `slug`. */
+export const clientHostStatePath = (email: string, slug: string): string =>
+  fileURLToPath(new URL(`../test-results/client-state-${slug}-${email.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.json`, import.meta.url));
+
+/**
+ * A client user's session on an agency's own host (13a1: their sign-in lives there, cookies are host-only), signed in once per
+ * run and reused as storage state. Returns the state file. `next` is where the sign-in lands (the platform default `/agency`
+ * does not exist for a client on an agency host); without it the landing page is whatever the host picks for the user.
+ */
+export async function ensureClientHostState(browser: Browser, email: string, slug: string, next = '/'): Promise<string> {
+  const state = clientHostStatePath(email, slug);
+  if (existsSync(state)) return state;
+  const origin = agencyOrigin(slug);
+  const context = await browser.newContext({ baseURL: origin, storageState: { cookies: [], origins: [] } });
+  try {
+    const page = await context.newPage();
+    await signIn(page, email, next, origin);
+    if (next === '/') await expect(page).not.toHaveURL(/\/sign-in|check-email|magic-link/);
+    else await expect(page).toHaveURL(`${origin}${next}`);
+    await context.storageState({ path: state });
+  } finally {
+    await context.close();
+  }
+  return state;
 }

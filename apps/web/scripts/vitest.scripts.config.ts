@@ -5,5 +5,5 @@ import { defineConfig } from 'vitest/config';
  * `pnpm --filter @cs/web exec vitest run --config scripts/vitest.scripts.config.ts`.
  */
 export default defineConfig({
-  test: { include: ['scripts/e2e-affected*.test.ts', 'scripts/profile-args.test.ts'] },
+  test: { include: ['scripts/e2e-affected*.test.ts', 'scripts/profile-args.test.ts', 'e2e/agency-routes.test.ts'] },
 });

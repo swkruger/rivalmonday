@@ -75,6 +75,8 @@ const BUILD = process.env.E2E_SKIP_BUILD === '1' ? '' : 'pnpm build && pnpm chec
 
 export default defineConfig({
   testDir: './e2e',
+  // `e2e/*.test.ts` are vitest unit tests of E2E helpers (`agency-routes.test.ts`).
+  testMatch: '**/*.spec.ts',
   globalSetup: './e2e/global-setup.ts',
   fullyParallel: false,
   workers: 1,

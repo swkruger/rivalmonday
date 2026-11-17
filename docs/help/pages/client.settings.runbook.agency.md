@@ -22,7 +22,7 @@ Each item carries a badge that says where it stands against the agency runbook: 
 
 Only admins and account managers can edit, and not in a read-only support session.
 
-## Give a client its own voice
+### Give a client its own voice
 
 The **Voice** section shows the agency voice until you set one for this client. Facts and numbers never change.
 
