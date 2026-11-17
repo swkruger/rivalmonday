@@ -115,7 +115,7 @@ tasks:
 
   it('bundled ai.yaml: ask_assistant, ask_guard_decisions, ask_interpretation_decisions, verifier_decisions, embeddings, vertical_draft, runbook_retailor are request_path and fit', async () => {
     const cfg = await loadAiConfigFile(DEFAULT_AI_CONFIG_PATH);
-    for (const name of ['ask_assistant', 'ask_guard_decisions', 'ask_interpretation_decisions', 'verifier_decisions', 'embeddings', 'vertical_draft', 'runbook_retailor']) {
+    for (const name of ['ask_assistant', 'ask_guard_decisions', 'ask_interpretation_decisions', 'verifier_decisions', 'embeddings', 'vertical_draft', 'runbook_retailor', 'voice_preview']) {
       const t = cfg.tasks[name]!;
       expect(t.request_path, name).toBe(true);
       const stages = t.provider === 'jev' && t.escalate_to ? 2 : 1;
@@ -124,6 +124,11 @@ tasks:
     const tailor = cfg.tasks.runbook_tailor;
     expect(tailor).toMatchObject({ request_path: false, max_tokens: 4000 });
     expect(cfg.tasks.runbook_retailor).toMatchObject({ model: (tailor as { model: string }).model, max_tokens: 1000 });
+  });
+
+  it('config has voice_preview', async () => {
+    const cfg = await loadAiConfigFile(DEFAULT_AI_CONFIG_PATH);
+    expect(cfg.tasks.voice_preview).toMatchObject({ provider: 'openrouter', model: 'anthropic/claude-sonnet-4.6', fallbacks: ['anthropic/claude-haiku-4.5'], temperature: 0.3, max_tokens: 300, request_path: true, timeout_ms: 20000, max_attempts: 2 });
   });
 
   it('images flag defaults false; jev images:true escalating to a non-image task is refused', () => {

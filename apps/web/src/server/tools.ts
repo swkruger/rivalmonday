@@ -18,6 +18,7 @@ import { perEnv } from './env-cache';
 import { enqueueFor, jobStatusFor, queueStatsFor } from './queue';
 import { platformAdmins } from './runtime-env';
 import { runbookTailorerFor } from './runbook-tailor';
+import { voicePreviewFor } from './voice-preview';
 import { tagRequest } from './sentry-tags';
 import { nowMs, profilingOn, recordToolTiming } from './tool-timing';
 import { geocodeFor } from './geocode';
@@ -90,6 +91,7 @@ export const toolDeps = perEnv((name: EnvName): ToolDeps => {
     geocode: geocodeFor(name, service, { fake: webEnv().setupFakeLookup, apiKey: webEnv().stadiaApiKey }),
     verticalDrafter: verticalDrafterFor(name, service, catalog, { fake: webEnv().setupFakeLookup, processEnv: process.env }),
     runbookTailorer: runbookTailorerFor(name, service, catalog, { fake: webEnv().setupFakeLookup, processEnv: process.env }),
+    voicePreview: voicePreviewFor(name, service, { fake: webEnv().setupFakeLookup, processEnv: process.env }),
     ...(webEnv().webhookFakeSend ? { webhookFetch: fakeWebhookFetch } : {}),
     supportEmail: webEnv().supportReplyTo,
     billing: gatewayFor(webEnv().stripe ?? {}, name) ?? undefined, // R27: absent = billing not configured

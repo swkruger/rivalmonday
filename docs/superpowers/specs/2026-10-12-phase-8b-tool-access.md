@@ -91,6 +91,7 @@ dismiss_runbook_update (runbooks.ts) | write | updates runbook item
 add_runbook_item (runbooks.ts) | write | inserts item; key * creates the client runbook and enqueues runbook-tailor
 remove_runbook_item (runbooks.ts) | write | tombstones or deletes runbook item
 retailor_runbook_item (runbooks.ts) | write | one paid model call, saves nothing
+preview_voice (voice.ts) | write | one paid model call, saves nothing; web-only, 10 a day per agency
 get_portfolio (portfolio.ts) | read | read-only
 get_price_matrix (pricing.ts) | read | read-only
 get_price_history (pricing.ts) | read | read-only

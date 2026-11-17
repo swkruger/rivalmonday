@@ -314,6 +314,7 @@ export const ISOLATION_FIXTURES: Record<string, IsolationFixture> = {
   // 13a1 domains (admin only; amA → permission_denied). The world gives A and B a current custom and sending domain each, so a
   // set is the one-at-a-time `conflict` for both agencies; removes run for real (fake vendors).
   get_agency_domains: agency(),
+  preview_voice: agency({ voice: { tone: 'direct', preferredTerms: [], bannedTerms: ['cheap'] } }),
   set_custom_domain: { kind: 'agency', input: () => ({ hostname: 'intel.iso-world.test' }), allowConflict: DOMAIN_ONE_AT_A_TIME, skipPositive: DOMAIN_ONE_AT_A_TIME },
   remove_custom_domain: agency(),
   set_sending_domain: { kind: 'agency', input: () => ({ domain: 'iso-world.test' }), allowConflict: DOMAIN_ONE_AT_A_TIME, skipPositive: DOMAIN_ONE_AT_A_TIME },

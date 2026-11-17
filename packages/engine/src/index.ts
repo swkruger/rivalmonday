@@ -59,4 +59,6 @@ export * from './workspace/scope';
 export * from './workspace/pressure';
 export * from './workspace/ads';
 export * from './workspace/kpi';
+export * from './voice/block';
 export * from './voice/load';
+export * from './voice/preview';

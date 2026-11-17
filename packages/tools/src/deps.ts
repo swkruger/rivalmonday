@@ -1,6 +1,6 @@
 import type { BillingGateway } from '@cs/billing';
 import type { GeocodeQuery, GeoPoint, MapsPlace } from '@cs/collectors';
-import { type CallScope, ToolError } from '@cs/core';
+import { type CallScope, ToolError, type VoiceSettings } from '@cs/core';
 import type { Db, HostEnv } from '@cs/db';
 import type { DeliveryConfig, PackLoader } from '@cs/engine';
 import type { Catalog, VerticalDraft } from '@cs/verticals';
@@ -65,6 +65,8 @@ export interface ToolDeps {
   verticalDrafter?: (input: { placeId: string; nearbyCategories: string[] }, scope: CallScope) => Promise<{ draft: VerticalDraft | null; similar: { id: string; name: string }[] }>;
   /** Phase 14b: one AI rewrite of a play for a client (web builds it; a fixture under SETUP_FAKE_LOOKUP/demo/test). Absent: `retailor_runbook_item` answers `proposed: null`. Never writes. */
   runbookTailorer?: (input: { clientId: string; key: string; parentContent: unknown }) => Promise<{ title: string; template: string; businessAreaIds: string[] | null } | null>;
+  /** Phase 13a2 (V7): one sample alert in a draft voice (web builds it; a fixture under SETUP_FAKE_LOOKUP/demo/test). Absent: `preview_voice` refuses with a user-facing `internal`. Never writes. */
+  voicePreview?: (voice: VoiceSettings, scope: CallScope) => Promise<string>;
   /** Phase 11a: free-text Maps search for `find_business` (web builds it from DataForSEO, or a fixture under SETUP_FAKE_LOOKUP). Absent: the tool refuses with a user-facing `internal`. */
   setupLookup?: (q: { keyword: string; locationName: string }, scope: CallScope) => Promise<MapsPlace[]>;
   /** Phase 16 (O13): US geocoder for the typed address (Stadia; web builds it, a fixture under SETUP_FAKE_LOOKUP/demo/test). Pre-client calls ledger with a null clientId. Absent (no STADIA_API_KEY): callers skip the centre. */

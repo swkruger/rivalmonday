@@ -80,6 +80,7 @@ export function isolationDeps(w: IsolationWorld): { deps: ToolDeps; enqueued: un
     leadEmail: { transport: createMemoryTransport(), appUrl: 'https://app.example', sender: testSenderConfig({ platformFrom: 'team@app.example' }), platformAdmins: [] },
     platformAdmins: [],
     setupLookup: async () => [],
+    voicePreview: async () => 'Sample alert text.', // 13a2: preview_voice reaches its tenancy checks without a model
     evidenceStore: {
       async get(key) {
         const text = w.evidenceText.get(key);
