@@ -22,6 +22,10 @@ describe('voiceOfItems', () => {
   it('disabled client knob → agency', () => {
     expect(voiceOfItems([item(direct, { customised: true, enabled: false })], [item(formal)])).toEqual(formal);
   });
+  it('agency has no knob + client has a non-customised enabled copy → DEFAULT_VOICE', () => {
+    expect(voiceOfItems([item(direct)], null)).toEqual(DEFAULT_VOICE);
+    expect(voiceOfItems([item(direct)], [])).toEqual(DEFAULT_VOICE);
+  });
   it('no knobs → DEFAULT_VOICE', () => {
     expect(voiceOfItems(null, null)).toEqual(DEFAULT_VOICE);
     expect(voiceOfItems([], [])).toEqual(DEFAULT_VOICE);

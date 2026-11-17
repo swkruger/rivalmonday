@@ -24,7 +24,7 @@ export function voiceOfItems(clientItems: RunbookItem[] | null, agencyItems: Run
     const v = voiceOf(clientItems, 'client runbook');
     if (v) return v;
   }
-  return voiceOf(agencyItems, 'agency runbook') ?? (own ? voiceOf(clientItems, 'client runbook') : null) ?? DEFAULT_VOICE;
+  return voiceOf(agencyItems, 'agency runbook') ?? DEFAULT_VOICE;
 }
 
 /** One query: the client's and its agency's `knob:voice` rows. Does not depend on the runbook source (legacy clients included). */
@@ -45,6 +45,7 @@ export async function loadVoice(db: Db, clientId: string): Promise<VoiceSettings
   const items = (level: 'client' | 'agency'): RunbookItem[] | null => {
     const mine = rows.filter((r) => r.level === level && r.itemKey !== null);
     if (mine.length === 0) return null;
+    // Only key/kind/content/enabled/customised matter to voiceOfItems; the other fields are placeholders.
     return mine.map((r) => ({
       key: r.itemKey!, kind: r.kind!, content: r.content, enabled: r.enabled!, businessAreaIds: null, version: r.version!,
       upstreamVersion: null, upstreamSnapshot: null, dismissedUpstreamVersion: null, customised: r.customised!, removedUpstream: false,
