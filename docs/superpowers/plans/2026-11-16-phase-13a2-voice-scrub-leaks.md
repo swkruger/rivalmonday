@@ -19,7 +19,7 @@
 - **No evidence, no claim:** the verifier and its rules are unchanged; voice changes wording only. Model input goes through `redactForModel` and `escapeEvidence`; voice terms too.
 - Web reads = registered tools via `callTool`; writes via `runTool`; refusals 404 / `not_found`, never 403; a named out-of-scope client → `not_found`.
 - New tool `preview_voice`: `access` mark + `access-marks.test.ts` snapshot + `docs/superpowers/specs/2026-10-12-phase-8b-tool-access.md`; `ISOLATION_FIXTURES` entry; web-only (default channels); not in `PAUSED_WRITE_ALLOW_LIST`. No new tables (no `TABLE_CLASS` change).
-- **Migration:** one, generated, next free number at execution (**0114** at the time of writing; Task 0 confirms). Never edit applied migrations.
+- **Migration:** one, generated, next free number at execution (**0114**, confirmed free at Task 0, 2026-11-17: latest is 0113). Never edit applied migrations.
 - **Cost (R5, 7b):** writer retries and previews are ordinary `llm_call` rows under the 7b guards; the preview is agency spend (`clientId: null`), capped at 10/agency/UTC day. An `AiPausedError` is rethrown, never swallowed.
 - **Launch gate:** every page ≤ 8 app DB stages, also client pages on an agency host. This plan adds no page read (voice rides on `get_runbook`, flags on existing review tools).
 - UI: design system v1 (`docs/design-system/README.md`): sections before cards, 36 px controls, fixed chip tints, `WriteGuard` on controls, results in always-mounted regions. Help per 15b: tips in `apps/web/src/help/copy/*`, guides in `docs/help/pages/` (`help_key` `page:<context>.<page>`), `pnpm kb:seed`.
@@ -86,7 +86,7 @@ export async function loadVoice(db: Db, clientId: string): Promise<VoiceSettings
 **Tests (TDD):** core `term rules: 41 chars, "a*b", "<b>", "{x}", "a\nb", "" rejected; "can't", "Ünïcode", "co-op", "AC tune-up" accepted`; `21 banned terms rejected`; `"cheap" both said and banned → refused`; `"Cheap" and "cheap" banned → refused`; `findBannedTerms is case-insensitive and whole-word ("cheap" not in "cheaply"/"cheaper")`; `multi-word and apostrophe terms; whitespace runs match`; `Unicode letters are word characters ("café" not in "cafés")`; `returns terms in list order`; `enforcedTerms drops terms found in names`; `isDefaultVoice`; `effectiveVoice: override wins whole; null → agency; both null → DEFAULT_VOICE`. Engine `voiceOfItems`: `customised enabled client knob wins`, `non-customised client copy follows the agency`, `disabled client knob → agency`, `no knobs → DEFAULT_VOICE`, `invalid content skipped`; db-backed `legacy client (no client runbook) → agency knob`.
 **Done when:** `pnpm --filter @cs/core exec vitest run voice`, `pnpm --filter @cs/engine exec vitest run load runbook` green; `pnpm typecheck`.
 
-### Task 2: Migration 0114 — review flags + samples host slug
+### Task 2: Migration 0114 (confirmed free) — review flags + samples host slug
 **Goal:** P19 columns; V10.
 **Files:** `packages/db/src/schema/briefs.ts` (`brief`), `schema/delivery.ts` (`alert`, `ReviewReason`); migration `0114_voice_review.sql` (+snapshot/journal); new `packages/db/src/review-flags.test.ts`; `packages/tools/src/waitlist/sample.ts` (+test).
 **Interfaces:**
