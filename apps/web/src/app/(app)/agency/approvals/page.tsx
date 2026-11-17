@@ -68,6 +68,7 @@ export default async function ApprovalsPage() {
                   <div className="flex flex-wrap items-center gap-1.5">
                     <StatusChip tone={labelFor(BRIEF_STATUS, row.status).tone}>{labelFor(BRIEF_STATUS, row.status).label}</StatusChip>
                     {row.kind === 'quiet' && <StatusChip tone="neutral">Quiet week</StatusChip>}
+                    {row.status === 'ready' && row.reviewReason === 'banned_term' && <StatusChip tone="warning">Banned word</StatusChip>}
                   </div>
                 </TableCell>
                 <TableCell>

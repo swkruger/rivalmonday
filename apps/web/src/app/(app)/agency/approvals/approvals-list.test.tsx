@@ -12,7 +12,7 @@ vi.mock('@/server/tools', () => ({ callTool: async () => ({ items: m.items }) })
 vi.mock('next/navigation', () => ({ notFound: () => { throw new Error('NEXT_NOT_FOUND'); }, usePathname: () => '/agency/approvals', useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn() }) }));
 const { default: Page } = await import('./page');
 
-const row = (status: string, over: Record<string, unknown> = {}) => ({ briefId: `b-${status}`, clientId: 'c', clientName: `Client ${status}`, deliveryDate: '2026-10-12', status, kind: 'weekly', activeItems: 2, droppedItems: 0, touched: false, autoSend: false, ...over });
+const row = (status: string, over: Record<string, unknown> = {}) => ({ briefId: `b-${status}`, clientId: 'c', clientName: `Client ${status}`, deliveryDate: '2026-10-12', status, kind: 'weekly', activeItems: 2, droppedItems: 0, touched: false, autoSend: false, reviewReason: null, reviewTerms: null, ...over });
 const show = async () => render(<HelpProvider value={{ audience: 'agency', names: { assistant: 'Sunny' }, tips: {}, empty: {}, glossary: [] } as never}>{await Page()}</HelpProvider>);
 
 afterEach(cleanup);
@@ -24,6 +24,11 @@ describe('approvals list (15c-2a)', () => {
     for (const label of ['Ready for review', 'Approved', 'Sent', 'Failed — retrying', 'Drafting']) expect(screen.getByText(label), label).toBeTruthy();
     expect(screen.getAllByText('Week of Oct 12').length).toBe(5);
     expect(screen.queryByText('Nothing is waiting for your review')).toBeNull();
+  });
+  it('approvals list shows the chip', async () => {
+    m.items = [row('ready', { reviewReason: 'banned_term', reviewTerms: ['cheap'] }), row('approved', { reviewReason: 'banned_term', reviewTerms: ['cheap'] }), row('sent')];
+    await show();
+    expect(screen.getAllByText('Banned word').length).toBe(1);
   });
   it('last header cell has an accessible name', async () => {
     m.items = [row('ready')];

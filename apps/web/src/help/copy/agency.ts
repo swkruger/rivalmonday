@@ -84,7 +84,7 @@ export const AGENCY_COPY = {
       // source: packages/tools/src/tools/review.ts:listBriefQueue (activeItems, droppedItems, touched, autoSend, kind quiet)
       items: {
         title: 'Items and badges',
-        body: 'The count shows items still in the brief and items removed from it (by the fact-check or by you). Edited means someone changed the draft. Auto-send means the client gets an untouched brief on Monday 07:00 without approval. Quiet week means no significant competitor moves.',
+        body: 'The count shows items still in the brief and items removed from it (by the fact-check or by you). Edited means someone changed the draft. Auto-send means the client gets an untouched brief on Monday 07:00 without approval. Quiet week means no significant competitor moves. Banned word means the draft uses a banned word: auto-send skips it, so edit it or approve it as it is.',
       },
     },
     empty: {

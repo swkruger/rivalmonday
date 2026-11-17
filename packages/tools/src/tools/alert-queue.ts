@@ -53,6 +53,7 @@ export const listAlertQueue = defineTool({
       items: rows.slice(0, ALERT_QUEUE_CAP).map(({ a, clientName, competitorName }) => ({
         id: a.id, clientId: a.clientId, clientName, competitorName: competitorName ?? 'Competitor', headline: a.headline, body: a.body, score: a.score, status: a.status,
         heldForDigest: a.status === 'approved', written: a.written, evidenceCount: a.evidenceIds.length, createdAt: a.createdAt.toISOString(),
+        ...(a.status === 'pending_review' && a.reviewReason === 'banned_term' ? { reviewReason: a.reviewReason, reviewTerms: a.reviewTerms ?? [] } : { reviewReason: null, reviewTerms: null }),
       })),
       capped: rows.length > ALERT_QUEUE_CAP,
       clients,

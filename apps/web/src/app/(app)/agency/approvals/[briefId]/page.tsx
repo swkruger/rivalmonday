@@ -1,11 +1,12 @@
 import { isAgencyRole } from '@cs/core';
 import { scorecardModel } from '@cs/engine';
 import type { BriefReview } from '@cs/tools';
-import { Band, Section, StatusChip } from '@cs/ui';
+import { Alert, Band, Section, StatusChip } from '@cs/ui';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { cache } from 'react';
+import { HighlightTerms } from '@/components/highlight-terms';
 import { HelpText } from '@/components/help/help-context';
 import { TipRow } from '@/components/help/tip-row';
 import { PageHeader } from '@/components/page-header';
@@ -50,6 +51,8 @@ export default async function ApprovalReviewPage({ params }: { params: Promise<{
   const editable = brief.status === 'ready';
   const fixed = brief.factCheck.sentences > 0 || brief.factCheck.items > 0;
   const startingPoint = brief.kind === 'starting_point';
+  // V8: the flag shows only while the brief waits for review.
+  const bannedTerms = brief.status === 'ready' && brief.reviewReason === 'banned_term' ? brief.reviewTerms ?? [] : [];
   const refs = await evidenceRefsFor(ctx, brief.clientId, sorted.flatMap((i) => i.evidenceIds), brief.clientTimezone);
 
   return (
@@ -89,7 +92,11 @@ export default async function ApprovalReviewPage({ params }: { params: Promise<{
         )}
       </Band>
 
-      <p className="leading-relaxed">{brief.summary}</p>
+      {bannedTerms.length > 0 && (
+        <Alert tone="warning">This brief uses a banned word: {bannedTerms.join(', ')}. Auto-send skips it; edit it or approve it as it is.</Alert>
+      )}
+
+      <p className="leading-relaxed"><HighlightTerms text={brief.summary} terms={bannedTerms} /></p>
 
       {brief.kind === 'quiet' && <p className="text-muted-ink">No significant competitor moves this week.</p>}
 
@@ -106,6 +113,7 @@ export default async function ApprovalReviewPage({ params }: { params: Promise<{
             first={item.status === 'active' && active[0]?.id === item.id}
             last={item.status === 'active' && active[active.length - 1]?.id === item.id}
             refs={refs}
+            bannedTerms={bannedTerms}
           />
         ))}
       </Section>

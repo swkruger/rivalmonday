@@ -14,11 +14,23 @@ const dismissMock = vi.mocked(dismissAlertAction);
 
 const base: AlertQueueRow = {
   id: 'a1', clientId: 'c1', clientName: 'A1 HVAC', competitorName: 'Smith HVAC', headline: 'Price cut', body: 'Smith HVAC cut tune-ups to $59.',
-  score: 82, status: 'pending_review', heldForDigest: false, written: 'model', evidenceCount: 1, createdAt: '2026-10-01T00:00:00.000Z',
+  score: 82, status: 'pending_review', heldForDigest: false, written: 'model', evidenceCount: 1, createdAt: '2026-10-01T00:00:00.000Z', reviewReason: null, reviewTerms: null,
 };
 
 describe('AlertList', () => {
   beforeEach(() => vi.clearAllMocks());
+
+  it('alert row marks the term and shows the chip and note', () => {
+    const { container } = render(<AlertList items={[{ ...base, headline: 'Cheap tune-ups', reviewReason: 'banned_term', reviewTerms: ['cheap'] }]} assistantName="Friday" />);
+    expect([...container.querySelectorAll('mark')].map((m) => m.textContent)).toEqual(['Cheap']);
+    expect(screen.getByText('Banned word')).toBeTruthy();
+    expect(screen.getByText('It uses a banned word (cheap), so it waits for your review.')).toBeTruthy();
+  });
+
+  it('an unflagged or no-longer-pending row shows no chip', () => {
+    render(<AlertList items={[base, { ...base, id: 'a2', status: 'approved', reviewReason: 'banned_term', reviewTerms: ['cheap'] }]} assistantName="Friday" />);
+    expect(screen.queryByText('Banned word')).toBeNull();
+  });
 
   it('shows Approve & send for a pending_review alert', () => {
     render(<AlertList items={[base]} assistantName="Friday" />);

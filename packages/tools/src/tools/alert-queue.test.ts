@@ -42,6 +42,16 @@ async function bulkAlerts(clientId: string, n: number): Promise<void> {
 }
 
 describe('alert queue', () => {
+  it('list_alert_queue carries the banned-term flag on pending rows only (V8)', async () => {
+    await dbs.owner.update(alert).set({ reviewReason: 'banned_term', reviewTerms: ['cheap'] });
+    const rows = (await queue(am)).items as unknown as { id: string; status: string; reviewReason: string | null; reviewTerms: string[] | null }[];
+    for (const r of rows) {
+      if (r.status === 'pending_review') expect(r).toMatchObject({ reviewReason: 'banned_term', reviewTerms: ['cheap'] });
+      else expect(r).toMatchObject({ reviewReason: null, reviewTerms: null });
+    }
+    expect(rows.some((r) => r.status === 'pending_review')).toBe(true);
+  });
+
   it('refuses a clientId outside the caller scope or agency (7c1 isolation: not_found, never an empty queue)', async () => {
     await expect(queue(am, { clientId: IDS.clientA2 })).rejects.toMatchObject({ code: 'not_found' });
     const adminB = createAccessContext({ agencyId: IDS.agencyB, userId: 'u-admin-b', role: 'agency_admin', clientScope: 'all', features: [] });

@@ -34,3 +34,7 @@ On the client's Settings page under Alert rules.
 ### What happens to an alert I dismiss?
 
 Nothing is sent to the client. A reason is required.
+
+### What does the Banned word chip mean?
+
+The alert uses a word on your banned list, so it waits for your review, in every alert mode. The word is highlighted in the headline and text. Approve it to send it as written, or dismiss it.

@@ -32,3 +32,7 @@ Briefs are drafted on Thursday night in the client's time zone. A client that ha
 ### Where do alerts that need review go?
 
 Alerts held for your check are under Alert review, not here.
+
+### What does the Banned word chip mean?
+
+The brief uses a word on your banned list. Auto-send skips it; open it, edit it or approve it as it is.

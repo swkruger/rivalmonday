@@ -63,12 +63,15 @@ export const BriefDetail = BriefSummary.extend({
 });
 export type BriefDetail = z.infer<typeof BriefDetail>;
 
+/** 13a2 V8: agency review tools only; null unless the row is still waiting (brief `ready`, alert `pending_review`). */
+const ReviewFlag = { reviewReason: z.enum(['banned_term']).nullable(), reviewTerms: z.array(z.string()).nullable() };
 export const BriefQueueRow = z.object({
   briefId: uuid, clientId: uuid, clientName: z.string(), deliveryDate: z.string(), status: z.string(), kind: z.string(),
   activeItems: z.number().int(), droppedItems: z.number().int(), touched: z.boolean(), autoSend: z.boolean(),
+  ...ReviewFlag,
 });
 export type BriefQueueRow = z.infer<typeof BriefQueueRow>;
-export const BriefReview = BriefDetail.extend({ clientName: z.string(), clientTimezone: z.string(), autoSend: z.boolean(), touched: z.boolean(), factCheck: z.object({ items: z.number().int(), sentences: z.number().int() }) });
+export const BriefReview = BriefDetail.extend({ clientName: z.string(), clientTimezone: z.string(), autoSend: z.boolean(), touched: z.boolean(), factCheck: z.object({ items: z.number().int(), sentences: z.number().int() }), ...ReviewFlag });
 export type BriefReview = z.infer<typeof BriefReview>;
 
 export const AlertSummary = z.object({
@@ -82,6 +85,7 @@ export type AlertDetail = z.infer<typeof AlertDetail>;
 export const AlertQueueRow = z.object({
   id: uuid, clientId: uuid, clientName: z.string(), competitorName: z.string(), headline: z.string(), body: z.string(), score: z.number(), status: z.string(),
   heldForDigest: z.boolean(), written: z.string().nullable(), evidenceCount: z.number().int(), createdAt: iso,
+  ...ReviewFlag,
 });
 export type AlertQueueRow = z.infer<typeof AlertQueueRow>;
 

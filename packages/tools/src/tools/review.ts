@@ -26,6 +26,10 @@ export async function countBriefsAwaitingReview(tx: Tx): Promise<number> {
   return row?.n ?? 0;
 }
 
+/** V8: the flag shows only while the brief waits for review. */
+const briefFlag = (status: string, reason: 'banned_term' | null, terms: string[] | null) =>
+  status === 'ready' && reason === 'banned_term' ? { reviewReason: reason, reviewTerms: terms ?? [] } : { reviewReason: null, reviewTerms: null };
+
 export const listBriefQueue = defineTool({
   name: 'list_brief_queue',
   access: 'read',
@@ -55,6 +59,7 @@ export const listBriefQueue = defineTool({
         briefId: r.b.id, clientId: r.b.clientId, clientName: r.clientName, deliveryDate: r.b.deliveryDate, status: r.b.status, kind: r.b.kind,
         activeItems: its.filter((i) => i.status === 'active').length, droppedItems: its.filter((i) => i.status === 'dropped').length,
         touched: !(await isUntouched(deps.service, r.b.id)), autoSend: r.autoSend,
+        ...briefFlag(r.b.status, r.b.reviewReason, r.b.reviewTerms),
       });
     }
     out.sort((a, b) => Number(b.status === 'ready') - Number(a.status === 'ready') || a.clientName.localeCompare(b.clientName));
@@ -72,9 +77,9 @@ export const getBriefReview = defineTool({
   async handler(ctx, { briefId }, deps) {
     const detail = await briefDetail(deps, ctx, briefId, { changes: true });
     const [row] = await withTenant(deps.app, ctx, (tx) =>
-      tx.select({ dropped: brief.dropped, clientName: client.name, clientTimezone: client.timezone, autoSend: client.briefAutoSend }).from(brief).innerJoin(client, eq(client.id, brief.clientId)).where(eq(brief.id, briefId)));
+      tx.select({ dropped: brief.dropped, clientName: client.name, clientTimezone: client.timezone, autoSend: client.briefAutoSend, status: brief.status, reviewReason: brief.reviewReason, reviewTerms: brief.reviewTerms }).from(brief).innerJoin(client, eq(client.id, brief.clientId)).where(eq(brief.id, briefId)));
     if (!row) throw new ToolError('not_found', 'Brief not found');
-    return { ...detail, clientName: row.clientName, clientTimezone: row.clientTimezone, autoSend: row.autoSend, touched: !(await isUntouched(deps.service, briefId)), factCheck: row.dropped };
+    return { ...detail, clientName: row.clientName, clientTimezone: row.clientTimezone, autoSend: row.autoSend, touched: !(await isUntouched(deps.service, briefId)), factCheck: row.dropped, ...briefFlag(row.status, row.reviewReason, row.reviewTerms) };
   },
 });
 

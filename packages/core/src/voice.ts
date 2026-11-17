@@ -26,12 +26,14 @@ export const isDefaultVoice = (v: VoiceSettings) => v.tone === 'friendly' && v.p
 export const effectiveVoice = (agency: VoiceSettings | null, override: VoiceSettings | null): VoiceSettings => override ?? agency ?? DEFAULT_VOICE;
 
 const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+/** The whole-word matcher for one term (case-insensitive; Unicode letters/digits are word characters), or null for a blank term. */
+export function bannedTermRegex(term: string, flags = 'iu'): RegExp | null {
+  const body = escapeRe(term.trim()).replace(/\s+/g, '\\s+');
+  return body === '' ? null : new RegExp(`(?<![\\p{L}\\p{N}])${body}(?![\\p{L}\\p{N}])`, flags);
+}
 /** Case-insensitive, whole-word (Unicode letters/digits are word characters); the banned terms found, in list order. */
 export function findBannedTerms(text: string, terms: readonly string[]): string[] {
-  return terms.filter((t) => {
-    const body = escapeRe(t.trim()).replace(/\s+/g, '\\s+');
-    return body !== '' && new RegExp(`(?<![\\p{L}\\p{N}])${body}(?![\\p{L}\\p{N}])`, 'iu').test(text);
-  });
+  return terms.filter((t) => bannedTermRegex(t)?.test(text) === true);
 }
 /** V4: terms that occur inside a business or competitor name are not enforced for that text. */
 export const enforcedTerms = (terms: readonly string[], names: readonly string[]): string[] =>

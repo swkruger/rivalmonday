@@ -25,6 +25,10 @@ const sendNowMock = vi.mocked(sendNowAction);
 const item = { id: 'i1', ord: 1, competitorId: 'c', subject: 'competitor' as const, competitorName: 'Smith HVAC', headline: 'Smith HVAC cut its AC tune-up to $79', whatChanged: 'w', whyItMatters: 'y', recommendedAction: 'r', confidence: 0.9, effort: 'L', impact: 'H', evidenceIds: ['e1', 'e2'], status: 'active', upsellTag: 'ppc_audit' };
 
 describe('approval review controls', () => {
+  it('brief detail marks banned terms in the item fields', () => {
+    const { container } = render(<ReviewItem briefId="b1" clientId="c1" item={{ ...item, headline: 'Cheap tune-ups', whyItMatters: 'A cheaper rival, a cheap deal' }} editable first last bannedTerms={['cheap']} />);
+    expect([...container.querySelectorAll('mark')].map((m) => m.textContent)).toEqual(['Cheap', 'cheap']);
+  });
   it('offers editing on a ready brief, with first/last move buttons disabled', () => {
     render(<ReviewItem briefId="b1" clientId="c1" item={item} editable first last />);
     expect(screen.getByRole('button', { name: /edit/i })).toBeTruthy();

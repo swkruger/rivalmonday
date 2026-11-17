@@ -39,3 +39,7 @@ No. Removed items are left out of the brief the client sees.
 ### What is a quiet week?
 
 A week with no significant competitor moves. The page says so and the brief has few or no items.
+
+### What does the banned-word notice mean?
+
+A brief that still uses a banned word shows a notice at the top, and the words are highlighted in the summary and the items. Auto-send skips it; edit it or approve it as it is.

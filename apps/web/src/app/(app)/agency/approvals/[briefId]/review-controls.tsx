@@ -4,6 +4,7 @@ import { Button, Card, Dialog, DialogContent, DialogDescription, DialogFooter, D
 import { useActionState, useOptimistic, useState, useTransition } from 'react';
 import { confidenceLabel } from '@/components/confidence-label';
 import { EvidenceChips } from '@/components/evidence-chips';
+import { HighlightTerms } from '@/components/highlight-terms';
 import type { EvidenceRefs } from '@/server/evidence-refs';
 import { WriteGuard } from '@/components/read-only';
 import type { FormResult } from '@/server/forms';
@@ -165,7 +166,7 @@ function RateButtons({ item }: { item: BriefItemView }) {
  * Active items can be edited/removed/reordered while the brief is `ready`; rating is always available for an
  * active item so the agency can tell the engine which recommendations landed, even after the brief is sent.
  */
-export function ReviewItem({ briefId, clientId, item, editable, first, last, refs }: { briefId: string; clientId: string; item: BriefItemView; editable: boolean; first: boolean; last: boolean; refs?: EvidenceRefs }) {
+export function ReviewItem({ briefId, clientId, item, editable, first, last, refs, bannedTerms = [] }: { briefId: string; clientId: string; item: BriefItemView; editable: boolean; first: boolean; last: boolean; refs?: EvidenceRefs; bannedTerms?: readonly string[] }) {
   const dropped = item.status !== 'active';
   return (
     <Card
@@ -173,13 +174,13 @@ export function ReviewItem({ briefId, clientId, item, editable, first, last, ref
       role="article"
       className={`gap-1.5 p-4 ${dropped ? 'opacity-60' : ''}`}
     >
-      <h3 className="text-base font-semibold text-ink">{item.headline}</h3>
+      <h3 className="text-base font-semibold text-ink"><HighlightTerms text={item.headline} terms={bannedTerms} /></h3>
       <p>
-        <b>{item.competitorName}:</b> {item.whatChanged}
+        <b>{item.competitorName}:</b> <HighlightTerms text={item.whatChanged} terms={bannedTerms} />
       </p>
-      <p>{item.whyItMatters}</p>
+      <p><HighlightTerms text={item.whyItMatters} terms={bannedTerms} /></p>
       <p>
-        <b className="text-secondary">Suggested:</b> {item.recommendedAction}
+        <b className="text-secondary">Suggested:</b> <HighlightTerms text={item.recommendedAction} terms={bannedTerms} />
       </p>
       <div className="mt-2 flex flex-wrap items-center gap-1.5">
         <EvidenceChips clientId={clientId} ids={item.evidenceIds} refs={refs} />

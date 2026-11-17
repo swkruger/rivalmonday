@@ -49,6 +49,31 @@ describe('brief queue', () => {
   });
 });
 
+describe('review flags (13a2 task 9)', () => {
+  it('get_brief_review and list_brief_queue carry the banned-term flag while the brief is ready', async () => {
+    await dbs.owner.update(brief).set({ reviewReason: 'banned_term', reviewTerms: ['cheap'] }).where(eq(brief.id, briefId));
+    const r = (await registry.invoke(am, 'get_brief_review', { briefId })) as { reviewReason: string | null; reviewTerms: string[] | null };
+    expect(r).toMatchObject({ reviewReason: 'banned_term', reviewTerms: ['cheap'] });
+    const { items: rows } = (await registry.invoke(am, 'list_brief_queue', {})) as { items: Record<string, unknown>[] };
+    expect(rows[0]).toMatchObject({ reviewReason: 'banned_term', reviewTerms: ['cheap'] });
+  });
+  it('an unflagged brief carries nulls, and a sent brief hides a leftover flag (V8)', async () => {
+    const r = (await registry.invoke(am, 'get_brief_review', { briefId })) as { reviewReason: string | null; reviewTerms: string[] | null };
+    expect(r).toMatchObject({ reviewReason: null, reviewTerms: null });
+    await dbs.owner.update(brief).set({ status: 'sent', reviewReason: 'banned_term', reviewTerms: ['cheap'] }).where(eq(brief.id, briefId));
+    const sent = (await registry.invoke(am, 'get_brief_review', { briefId })) as { reviewReason: string | null; reviewTerms: string[] | null };
+    expect(sent).toMatchObject({ reviewReason: null, reviewTerms: null });
+  });
+  it('get_brief output has no reviewReason key', async () => {
+    await dbs.owner.update(brief).set({ reviewReason: 'banned_term', reviewTerms: ['cheap'] }).where(eq(brief.id, briefId));
+    const out = (await registry.invoke(am, 'get_brief', { briefId })) as Record<string, unknown>;
+    expect(out).not.toHaveProperty('reviewReason');
+    expect(out).not.toHaveProperty('reviewTerms');
+    const list = (await registry.invoke(am, 'list_briefs', { clientId: IDS.clientA1 })) as { items: Record<string, unknown>[] };
+    expect(JSON.stringify(list)).not.toContain('reviewReason');
+  });
+});
+
 describe('review actions', () => {
   it('edits, reorders, rates and drops, marking the brief touched', async () => {
     const { warnings } = (await registry.invoke(am, 'edit_brief_item', { itemId: items[0], headline: 'Smith HVAC cut tune-ups' })) as { warnings: string[] };

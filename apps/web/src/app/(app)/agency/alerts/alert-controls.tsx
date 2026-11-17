@@ -2,6 +2,7 @@
 import type { AlertQueueClient, AlertQueueRow } from '@cs/tools';
 import { Band, Button, Card, CardContent, ConfirmDialog, Label, StatusChip, Tag, nativeSelectClass, textareaClass } from '@cs/ui';
 import { useState } from 'react';
+import { HighlightTerms } from '@/components/highlight-terms';
 import { HelpEmpty } from '@/components/help/empty-state';
 import { ErrorNote } from '@/components/form-error';
 import { WriteGuard } from '@/components/read-only';
@@ -94,6 +95,8 @@ export function waiting(createdAt: string, now: Date): string {
 function AlertCard({ alert, run, pending, assistantName, now, onOpenDismiss }: { alert: AlertQueueRow; run: RunAction; pending: boolean; assistantName: string; now: Date; onOpenDismiss: () => void }) {
   const pendingReview = alert.status === 'pending_review';
   const status = labelFor(ALERT_STATUS, alert.status);
+  // V8: the flag shows only while the alert waits for review.
+  const bannedTerms = pendingReview && alert.reviewReason === 'banned_term' ? alert.reviewTerms ?? [] : [];
   return (
     <Card>
       <CardContent>
@@ -103,11 +106,13 @@ function AlertCard({ alert, run, pending, assistantName, now, onOpenDismiss }: {
           <span>{alert.competitorName}</span>
           <span className="ml-auto rounded-sm bg-primary-soft px-2 py-0.5 text-xs font-medium text-primary-soft-text">Score {Math.round(alert.score)}</span>
           <StatusChip tone={status.tone}>{status.label}</StatusChip>
+          {bannedTerms.length > 0 && <StatusChip tone="warning">Banned word</StatusChip>}
           {alert.heldForDigest && <StatusChip tone="info">Held for the 17:00 digest</StatusChip>}
         </div>
-        <h3 className="mt-3 text-base font-semibold text-ink">{alert.headline}</h3>
+        <h3 className="mt-3 text-base font-semibold text-ink"><HighlightTerms text={alert.headline} terms={bannedTerms} /></h3>
         <Band className="mt-2 flex flex-col gap-1.5">
-          <p>{alert.body}</p>
+          <p><HighlightTerms text={alert.body} terms={bannedTerms} /></p>
+          {bannedTerms.length > 0 && <p className="text-muted-ink">It uses a banned word ({bannedTerms.join(', ')}), so it waits for your review.</p>}
           <div className="mt-1 flex flex-wrap items-center gap-1.5">
             <Tag>{alert.evidenceCount} evidence items</Tag>
             {pendingReview && <span className="text-xs text-muted-ink">{waiting(alert.createdAt, now)}</span>}
