@@ -79,9 +79,19 @@ describe('MCP leak sweep', () => {
       ['fetch event', await call(c, 'fetch', { id: `event:${live.eventId}` })],
       ['list_alerts', await call(c, 'list_alerts', { clientId: IDS.clientA1 })],
     ];
+    const seeded: Record<string, string> = {
+      list_briefs: 'Weekly brief 2026-10-05', get_brief: 'Furnace repair headline', 'fetch brief_item': 'Furnace repair headline', 'fetch event': 'Smith HVAC', list_alerts: 'Furnace repair alert',
+    };
     for (const [name, r] of outs) {
       expect(r.isError, `${name}: ${r.content[0]?.text}`).toBeUndefined();
-      expect(brandLeaks(r.content.map((x) => x.text).join('\n')), name).toEqual([]);
+      const text = r.content.map((x) => x.text).join('\n');
+      expect(text, `${name} carries the seeded content`).toContain(seeded[name]!);
+      expect(brandLeaks(text), name).toEqual([]);
+      // Tool URLs are origin-relative (resolved on the host the client called, the agency host), never an absolute platform link.
+      const urls = [...text.matchAll(/"url":"([^"]*)"/g)].map((m) => m[1]!);
+      if (name !== 'get_brief') expect(urls.length, `${name} returns a url`).toBeGreaterThan(0);
+      for (const u of urls) expect(u, `${name}: ${u}`).toMatch(/^\/(?!\/)/);
+      expect(text, name).not.toMatch(/https?:\/\/[^\s"]*rivalmonday/i);
     }
   });
 });
