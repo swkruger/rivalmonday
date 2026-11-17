@@ -92,6 +92,8 @@ describe('renderBriefPdf', () => {
       expect(brandLeaks(JSON.stringify(calls[0]!.meta)), 'meta').toEqual([]);
       expect(calls[0]!.meta.author).toBe('Agency A');
       expect(brandLeaks(calls[0]!.html), 'html').toEqual([]);
+      // PdfDeps carries no app origin and the PDF prints no links, so no platform-host link can be built (a printed href would be a leak).
+      expect(calls[0]!.html).not.toMatch(/href="https?:\/\/[^"]*rivalmonday/i);
     };
     await sweep(); // the weekly report
     await dbs.owner.update(brief).set({ kind: 'starting_point' }).where(eq(brief.id, id));

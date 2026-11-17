@@ -60,10 +60,10 @@ describe('MCP leak sweep', () => {
 
   it('list_briefs, get_brief, fetch and list_alerts outputs for a client role are clean', async () => {
     const live = await seedEvent({ score: 80, route: 'alert', ageDays: 1, summary: 'Smith HVAC cut its furnace repair price' });
-    const [al] = await dbs.owner.insert(alert).values({
+    await dbs.owner.insert(alert).values({
       agencyId: IDS.agencyA, clientId: IDS.clientA1, competitorId: IDS.competitorX, eventId: live.eventId, score: 82, headline: 'Furnace repair alert', body: 'Smith HVAC moved.',
       status: 'delivered', mode: 'after_am_check', evidenceIds: [],
-    }).returning();
+    });
     const [b] = await dbs.owner.insert(brief).values({
       agencyId: IDS.agencyA, clientId: IDS.clientA1, periodStart: new Date('2026-09-28T00:00:00Z'), periodEnd: new Date('2026-10-04T00:00:00Z'), deliveryDate: '2026-10-05', status: 'sent', summary: 'Quiet week.',
     }).returning();
@@ -79,7 +79,6 @@ describe('MCP leak sweep', () => {
       ['fetch event', await call(c, 'fetch', { id: `event:${live.eventId}` })],
       ['list_alerts', await call(c, 'list_alerts', { clientId: IDS.clientA1 })],
     ];
-    expect(al).toBeDefined();
     for (const [name, r] of outs) {
       expect(r.isError, `${name}: ${r.content[0]?.text}`).toBeUndefined();
       expect(brandLeaks(r.content.map((x) => x.text).join('\n')), name).toEqual([]);

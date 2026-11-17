@@ -16,10 +16,11 @@ export const TEMPLATE_AUDIENCE: Record<Template, 'client' | 'staff'> = {
 };
 
 const FIXTURE = resolveBranding('Cool Agency', null);
-const APP_URL = 'https://rivalmonday.app';
-const NEUTRAL = 'https://cool-agency.example-neutral.test';
-// Preview links point at app.example.com; a client-facing link is on the agency/neutral origin, never the platform host.
-const onNeutralOrigin = <T,>(v: T): T => JSON.parse(JSON.stringify(v).replaceAll('https://app.example.com', NEUTRAL)) as T;
+const APP_URL = 'https://rivalmonday.app'; // the platform origin
+const NEUTRAL = 'https://cool-agency.example-neutral.test'; // where a client's links live
+// Preview links point at app.example.com; delivery puts a client's links on the agency/neutral origin, never the platform host.
+const onOrigin = <T,>(v: T, origin: string): T => JSON.parse(JSON.stringify(v).replaceAll('https://app.example.com', origin)) as T;
+const withFixture = (p: EmailPayload) => ({ ...p, props: { ...p.props, branding: FIXTURE } }) as EmailPayload;
 
 // `sign_in.signup` is the agency sign-up confirmation (an agency owner, not a client, on the platform): agency audience, may name the platform (Q9).
 const isAgencySignup = (p: { payload: EmailPayload }) => p.payload.template === 'sign_in' && !!p.payload.props.signup;
@@ -30,14 +31,21 @@ describe('email leak sweep (client templates)', () => {
     expect(new Set(clientPreviews.map((p) => p.payload.template))).toEqual(new Set(
       ['alert', 'alert_digest', 'brief', 'trend_report', 'sign_in', 'client_invite', 'competitor_review', 'client_billing_notice', 'lead_verify', 'lead_confirmation', 'lead_declined'],
     ));
-    expect(APP_URL).toContain('rivalmonday'); // the platform host the links must not use
   });
 
   it.each(clientPreviews.map((p) => [p.id, p] as const))('%s: subject, html and text carry no brand leak', async (_id, p) => {
-    const payload = onNeutralOrigin({ ...p.payload, props: { ...p.payload.props, branding: FIXTURE } }) as EmailPayload;
-    const out = await renderEmail(payload);
+    const out = await renderEmail(onOrigin(withFixture(p.payload), NEUTRAL));
     expect(brandLeaks(out.subject), 'subject').toEqual([]);
     expect(brandLeaks(out.html), 'html').toEqual([]);
     expect(brandLeaks(out.text), 'text').toEqual([]);
+  });
+});
+
+describe('the sweep sees the platform origin', () => {
+  it('a client link built on the platform host is caught (control)', async () => {
+    const p = clientPreviews.find((x) => x.id === 'client_invite')!;
+    const out = await renderEmail(onOrigin(withFixture(p.payload), APP_URL));
+    expect(brandLeaks(out.html)).toContain('platform name');
+    expect(brandLeaks(out.text)).toContain('platform name');
   });
 });
