@@ -3919,6 +3919,15 @@ exports[`launch-gate 6b output parity: client runbook (snapshot recorded before 
       "date",
       "event",
     ],
+    "voice": {
+      "agency": null,
+      "effective": {
+        "bannedTerms": [],
+        "preferredTerms": [],
+        "tone": "friendly",
+      },
+      "own": null,
+    },
   },
   "clientRole": {
     "message": "Unknown tool: get_runbook",
@@ -5125,6 +5134,15 @@ exports[`launch-gate 6b output parity: client runbook (snapshot recorded before 
       "date",
       "event",
     ],
+    "voice": {
+      "agency": null,
+      "effective": {
+        "bannedTerms": [],
+        "preferredTerms": [],
+        "tone": "friendly",
+      },
+      "own": null,
+    },
   },
   "otherAgency": {
     "message": "Client not found",

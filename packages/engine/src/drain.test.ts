@@ -7,6 +7,7 @@ import { randomUUID } from 'node:crypto';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { createFakeAi, tagResult } from '../test/fake-ai';
 import { day, fixture, seedPage, seedWebCapture } from '../test/seed';
+import { AD_IMAGE_SINCE } from './ads/images';
 import { drainEngine } from './drain';
 import { createPackLoader } from './tag/tag-stage';
 import { loadVerticalPack } from '@cs/verticals';
@@ -59,8 +60,9 @@ describe('drainEngine', () => {
   });
 
   it('without adMedia the image lists are not run; with it they are', async () => {
-    const since = new Date(Date.now() - 86_400_000);
-    const firstSeenAt = new Date(Date.now() - 3_600_000);
+    // Anchored to the fixed cutoff (not `now`): the candidate must stay pre-AD_IMAGE_SINCE whatever today is.
+    const since = new Date(AD_IMAGE_SINCE.getTime() - 86_400_000);
+    const firstSeenAt = new Date(AD_IMAGE_SINCE.getTime() - 3_600_000);
     const [gcap] = await dbs.service.insert(capture).values({ competitorId: IDS.competitorX, source: 'google_ads', status: 'ok', collectorVersion: 'dfs/1', capturedAt: firstSeenAt }).returning();
     const mkAd = async () =>
       (await dbs.service

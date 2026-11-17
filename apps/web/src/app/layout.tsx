@@ -15,7 +15,7 @@ const inter = localFont({
 
 /**
  * 15a §2.7 / D12: no product name here — `(app)` names the viewer's agency, `(platform)` names the product.
- * Q4: the Rival Monday mark and `/favicon.ico` are the platform host's tab icon only; every other host shows the neutral icon.
+ * Q4: the platform mark (`/brand/rm-mark.svg`) and `/favicon.ico` are the platform host's tab icon only; every other host shows the neutral icon.
  * No `generator` meta (Next adds none unless set).
  */
 export async function generateMetadata(): Promise<Metadata> {
