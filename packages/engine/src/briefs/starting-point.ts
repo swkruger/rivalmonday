@@ -1,6 +1,6 @@
 import type { Ai, ChatMessage, JsonSchemaFormat } from '@cs/ai';
 import { auditedCompetitors, redactForModel } from '@cs/collectors';
-import type { CallScope, SelfRuleId } from '@cs/core';
+import { type CallScope, enforcedTerms, findBannedTerms, type SelfRuleId, type VoiceSettings } from '@cs/core';
 import { brief, briefItem, capture, citationListing, client, type BriefDropStats, type Db, evidence, observation, rankScan, rankSnapshot } from '@cs/db';
 import { and, asc, desc, eq, inArray, isNotNull, sql } from 'drizzle-orm';
 import { z } from 'zod';
@@ -13,6 +13,8 @@ import { eventsEvidenceIds } from '../listed-events/counts';
 import { BRIEF_MAX_ATTEMPTS, BRIEF_STALE_MINUTES, briefErrorMessage, type BriefRunResult } from './generate';
 import { type BriefClient, loadBriefClient } from './gather';
 import { loadClientRunbook } from '../runbook/store';
+import { withVoice } from '../voice/block';
+import { loadVoice } from '../voice/load';
 import { renderPlaybook } from './playbooks';
 import { checkSentence, type RuleEvidence, splitSentences } from './rules';
 import { safeTimezone } from './schedule';
@@ -96,11 +98,11 @@ const WRITER_SYSTEM = [
 const findingRef = (i: number) => `F${i + 1}`;
 
 /** Optional writer pass (D11): model text only for `why_it_matters`; input redacted with the business names kept. */
-async function writeWhy(ai: Ai, scope: CallScope, c: BriefClient, findings: { fact: string; title: string }[], names: string[]): Promise<Map<string, string>> {
+async function writeWhy(ai: Ai, scope: CallScope, c: BriefClient, findings: { fact: string; title: string }[], names: string[], voice: VoiceSettings): Promise<Map<string, string>> {
   const red = (s: string) => escapeBlock(redactForModel(s, { businessNames: names }));
   const blocks = findings.map((f, i) => `<finding id="${findingRef(i)}">\nAction: ${red(f.title)}\nFACT: ${red(f.fact)}\n</finding>`);
   const messages: ChatMessage[] = [
-    { role: 'system', content: WRITER_SYSTEM },
+    { role: 'system', content: withVoice(WRITER_SYSTEM, voice) },
     { role: 'user', content: `${red(`Business: ${c.name} (${c.verticalName})`)}\n\nFINDINGS:\n${blocks.join('\n')}` },
   ];
   const res = await ai.chat(BRIEF_WRITER_TASK, { messages, jsonSchema: writerJson }, scope);
@@ -288,11 +290,15 @@ export async function generateStartingPoint(deps: { db: Db; ai: Ai; packs: PackL
       let checkedSentences = 0;
       let droppedSentences = 0; // counted only when the whole pass completes: a failed pass discards its model text and its drops
       try {
-        const drafts = await writeWhy(deps.ai, scope, c, kept.map((k) => ({ fact: k.f.fact, title: k.title })), [c.name, ...rivalNames]);
+        const voice = await loadVoice(deps.db, clientId);
+        const terms = enforcedTerms(voice.bannedTerms, [c.name, ...rivalNames]);
+        const drafts = await writeWhy(deps.ai, scope, c, kept.map((k) => ({ fact: k.f.fact, title: k.title })), [c.name, ...rivalNames], voice);
         const evidenceForModel = `${evText}\n${kept.map((k) => k.f.fact).join('\n')}`;
         for (let i = 0; i < kept.length; i++) {
           const text = drafts.get(findingRef(i));
           if (!text) continue;
+          // V5: a banned word falls back to the deterministic text; no retry, no flag (a starting point is approved by hand).
+          if (findBannedTerms(text, terms).length > 0) continue;
           const sentences = splitSentences(text);
           checkedSentences += sentences.length;
           const passing = sentences.map((s, j) => ({ key: `s${j}`, sentence: s, mode: 'interpretation' as const })).filter((x) => checkSentence(x.sentence, { ...ruleEv, text: evidenceForModel }, ruleCtx).ok);

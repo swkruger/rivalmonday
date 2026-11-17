@@ -1,5 +1,5 @@
 import { type AccessContext, canAccessClient, formatDayRange, type GradedChangesView, isAgencyRole, REPORT_CAPS, ToolError } from '@cs/core';
-import { agencyServiceable, clientServiceable, brief, briefItem, type BriefKind, client, clientOriginFor, competitor, type Db, feedback, type HostEnv, withTenant } from '@cs/db';
+import { type ReviewReason, agencyServiceable, clientServiceable, brief, briefItem, type BriefKind, client, clientOriginFor, competitor, type Db, feedback, type HostEnv, withTenant } from '@cs/db';
 import type { Branding, BriefEmailProps, BriefHighlights, FeedbackContact } from '@cs/email';
 import { and, asc, eq, gte, inArray, isNull, ne, or, sql } from 'drizzle-orm';
 import type { Conn } from '../delivery/contacts';
@@ -16,6 +16,10 @@ export const DELIVERY_LOCAL_HOUR = 7;
 export const DELIVERY_GRACE_DAYS = 6;
 /** Decided copy (12b): the client-facing title of a starting point; `agencyProduct` is the agency's brand display name. */
 export const startingPointSubject = (agencyProduct: string) => `Your starting point with ${agencyProduct}`;
+
+/** Decided copy (13a2 Appendix E): the banned-term line of the ready (`willLeave`) and overdue notices. */
+export const bannedTermLine = (terms: readonly string[], willLeave: boolean) =>
+  `It uses a banned word (${terms.join(', ')}), so auto-send ${willLeave ? 'will leave' : 'left'} it for you.`;
 
 export interface BriefDeliveryView {
   b: typeof brief.$inferSelect;
@@ -135,7 +139,7 @@ export async function deliverDueBriefs(deps: { db: Db; delivery: DeliveryConfig 
   const out = { sent: [] as string[], autoApproved: 0, overdue: 0 };
   const floor = new Date(now.getTime() - (DELIVERY_GRACE_DAYS + 2) * 86_400_000).toISOString().slice(0, 10);
   const rows = await deps.db
-    .select({ id: brief.id, agencyId: brief.agencyId, clientId: brief.clientId, status: brief.status, deliveryDate: brief.deliveryDate, timezone: client.timezone, autoSend: client.briefAutoSend, clientName: client.name })
+    .select({ id: brief.id, agencyId: brief.agencyId, clientId: brief.clientId, status: brief.status, deliveryDate: brief.deliveryDate, timezone: client.timezone, autoSend: client.briefAutoSend, clientName: client.name, reviewReason: brief.reviewReason, reviewTerms: brief.reviewTerms })
     .from(brief)
     .innerJoin(client, eq(client.id, brief.clientId))
     .where(and(inArray(brief.status, ['approved', 'ready']), isNull(brief.sentAt), gte(brief.deliveryDate, floor), ne(brief.kind, 'starting_point'), agencyServiceable(client.agencyId), clientServiceable(client)));
@@ -145,7 +149,8 @@ export async function deliverDueBriefs(deps: { db: Db; delivery: DeliveryConfig 
     if (!due || clock.date > addDays(r.deliveryDate, DELIVERY_GRACE_DAYS)) continue;
     try {
       if (r.status === 'ready') {
-        if (r.autoSend && (await isUntouched(deps.db, r.id))) {
+        // V8: a banned-word flag keeps the brief out of auto-send until a person approves it.
+        if (r.autoSend && r.reviewReason === null && (await isUntouched(deps.db, r.id))) {
           await deps.db.transaction((tx) => approveBriefTx(tx, r.id, 'system', now, { auto: true }));
           out.autoApproved++;
         } else {
@@ -162,10 +167,10 @@ export async function deliverDueBriefs(deps: { db: Db; delivery: DeliveryConfig 
   return out;
 }
 
-async function notifyOverdue(deps: { db: Db; delivery: DeliveryConfig }, r: { id: string; agencyId: string; clientId: string; deliveryDate: string; clientName: string; autoSend: boolean }, now: Date): Promise<number> {
+async function notifyOverdue(deps: { db: Db; delivery: DeliveryConfig }, r: { id: string; agencyId: string; clientId: string; deliveryDate: string; clientName: string; autoSend: boolean; reviewReason: ReviewReason | null; reviewTerms: string[] | null }, now: Date): Promise<number> {
   const branding = await loadBranding(deps.db, r.agencyId);
   const title = `Brief not sent: ${r.clientName}`;
-  const lines = [`The brief for ${r.deliveryDate} is still waiting for approval, so it was not sent at 07:00 client time.`, r.autoSend ? 'It was edited, so auto-send left it for you.' : 'Auto-send is off for this client.', 'Approve it (it then goes out within the hour) or use "send now".'];
+  const lines = [`The brief for ${r.deliveryDate} is still waiting for approval, so it was not sent at 07:00 client time.`, r.autoSend ? (r.reviewReason === 'banned_term' ? bannedTermLine(r.reviewTerms ?? [], false) : 'It was edited, so auto-send left it for you.') : 'Auto-send is off for this client.', 'Approve it (it then goes out within the hour) or use "send now".'];
   const n = await notify(deps.db, deps.delivery, {
     agencyId: r.agencyId, clientId: r.clientId, kind: 'brief_overdue', audience: 'agency', subjectType: 'brief', subjectId: r.id, dedupe: `brief_overdue:${r.id}`, link: { t: 'brief', id: r.id }, now,
     build: (rec, link) => ({ title, body: lines.join('\n'), email: { template: 'agency_notice', props: { branding, recipientName: rec?.name ?? null, clientName: r.clientName, notice: 'brief_overdue', title, lines, link, actionLabel: 'Review brief' } } }),

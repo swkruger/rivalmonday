@@ -1,4 +1,5 @@
-import { agencyWebhook, brief, notification } from '@cs/db';
+import { agencyWebhook, brief, client, notification } from '@cs/db';
+import { eq } from 'drizzle-orm';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { day } from '../../test/seed';
@@ -32,6 +33,16 @@ describe('notifyBriefOutcome', () => {
     expect(rows.map((r) => r.channel).sort()).toEqual(['email', 'in_app', 'slack']);
     expect(rows.find((r) => r.channel === 'in_app')!.body).toContain('2 items');
     expect(rows.some((r) => r.address === 'owner@a1.example')).toBe(false);
+  });
+
+  it('ready notice says auto-send will leave a flagged brief for the AM', async () => {
+    await dbs.owner.update(client).set({ briefAutoSend: true }).where(eq(client.id, IDS.clientA1));
+    const b = await seedBrief('ready');
+    await dbs.owner.update(brief).set({ reviewReason: 'banned_term', reviewTerms: ['cheap'] }).where(eq(brief.id, b.id));
+    await notifyBriefOutcome({ db: dbs.service, delivery }, { status: 'ready', briefId: b.id, kind: 'standard', items: 2, dropped: { items: 1, sentences: 2 } }, day(0));
+    const body = (await dbs.owner.select().from(notification)).find((r) => r.channel === 'in_app')!.body;
+    expect(body).toContain('It uses a banned word (cheap), so auto-send will leave it for you.');
+    expect(body).not.toContain('Auto-send is on');
   });
 
   it('reports a failure only once the last attempt has failed', async () => {

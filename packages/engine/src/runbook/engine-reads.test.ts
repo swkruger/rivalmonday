@@ -1,3 +1,4 @@
+import { DEFAULT_VOICE } from '@cs/core';
 import { client, playbookOverride, runbook } from '@cs/db';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { loadVerticalPack, type VerticalPack } from '@cs/verticals';
@@ -118,7 +119,7 @@ describe('what the runbook changes', () => {
     const items = await inlineClientCopy('hvac_plumbing');
     const idx = priceIdx(items);
     items[idx] = { ...items[idx]!, content: { ...(items[idx]!.content as object), template: 'Runbook says: match {{competitor}} quietly.' } };
-    const prompt = (plays: Awaited<ReturnType<typeof loadClientRunbook>>['plays']) => buildWriterPrompt(bc, [cand], plays, period).messages[1]!.content ?? '';
+    const prompt = (plays: Awaited<ReturnType<typeof loadClientRunbook>>['plays']) => buildWriterPrompt(bc, [cand], plays, period, DEFAULT_VOICE).messages[1]!.content ?? '';
     expect(prompt((await loadClientRunbook(deps(), IDS.clientA1)).plays)).not.toContain('Runbook says');
     await createClientRunbook(db, IDS.clientA1, items, 'u1');
     expect(prompt((await loadClientRunbook(deps(), IDS.clientA1)).plays)).toContain('Runbook says: match Smith HVAC quietly.');

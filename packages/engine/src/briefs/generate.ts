@@ -1,11 +1,12 @@
 import type { Ai } from '@cs/ai';
-import { BriefReport } from '@cs/core';
+import { BriefReport, enforcedTerms, findBannedTerms } from '@cs/core';
 import { agencyServiceable, clientWorkAllowed, brief, type BriefDropStats, briefItem, type BriefKind, changeEvent, client, type Db, recommendation } from '@cs/db';
 import { and, asc, desc, eq, inArray, isNotNull, ne, notInArray, sql } from 'drizzle-orm';
 import type { VerticalPack } from '@cs/verticals';
 import type { PackLoader } from '../tag/tag-stage';
 import { candidateEventIds, candidateEvidenceIds, gatherBriefCandidates, loadBriefClient } from './gather';
 import { loadClientRunbook } from '../runbook/store';
+import { loadVoice } from '../voice/load';
 import { type Playbook, playbookRef } from './playbooks';
 import { briefDue, briefPeriod, deliveryDateFor, localParts, safeTimezone } from './schedule';
 import { selectBriefItems } from './select';
@@ -14,7 +15,7 @@ import { buildBriefReport } from './report';
 import { countSummary, majorSummary } from './summary';
 import { trendSnapshot } from './trend';
 import { verifyDraft, type VerifiedItem } from './verify';
-import { writeBrief } from './writer';
+import { draftText, writeBrief } from './writer';
 
 export const BRIEF_MAX_ATTEMPTS = 3;
 export const BRIEF_STALE_MINUTES = 30;
@@ -110,10 +111,23 @@ export async function generateBrief(deps: { db: Db; ai: Ai; packs: PackLoader; g
     const trend = await trendSnapshot(deps, clientId, period);
     let verified = { summary: '', items: [] as Awaited<ReturnType<typeof verifyDraft>>['items'], dropped: { items: 0, sentences: 0 } as BriefDropStats, checked: 0 };
     let playbooks: (Playbook & { version: number })[] = [];
+    let review: { reason: 'banned_term'; terms: string[] } | null = null;
     if (selected.length > 0) {
       playbooks = (await loadClientRunbook(deps, clientId)).plays;
-      const draft = await writeBrief(deps.ai, scope, c, selected, playbooks, period);
-      verified = await verifyDraft(deps.ai, scope, c, selected, draft, { year: localParts(now, tz).year, period });
+      // The verifier never sees the voice (it only checks claims); a banned word (Q3, V4) gets one retry, then a review flag.
+      const voice = await loadVoice(deps.db, clientId);
+      const terms = enforcedTerms(voice.bannedTerms, [c.name, ...selected.map((s) => s.competitorName)]);
+      const vopts = { year: localParts(now, tz).year, period };
+      const draft = await writeBrief(deps.ai, scope, c, selected, playbooks, period, voice);
+      verified = await verifyDraft(deps.ai, scope, c, selected, draft, vopts);
+      const found = findBannedTerms(draftText(verified), terms);
+      if (found.length > 0) {
+        // An AiPausedError (or any failure) on the retry fails the attempt like the first write does; never swallowed here.
+        const again = await writeBrief(deps.ai, scope, c, selected, playbooks, period, voice, found);
+        verified = await verifyDraft(deps.ai, scope, c, selected, again, vopts);
+        const found2 = findBannedTerms(draftText(verified), terms);
+        if (found2.length > 0) review = { reason: 'banned_term', terms: found2 };
+      }
     }
 
     // Built before the commit transaction: a report or scorecard failure must never fail the brief (each is stored as null).
@@ -144,7 +158,7 @@ export async function generateBrief(deps: { db: Db; ai: Ai; packs: PackLoader; g
       const kind: BriefKind = items.length > 0 || majors > 0 ? 'standard' : 'quiet';
       const summary = items.length === 0 ? (majors > 0 ? majorSummary(majors) : QUIET_SUMMARY) : items.length === verified.items.length ? verified.summary : countSummary(items.length);
       // Fence first: if a newer attempt reclaimed this brief, store nothing.
-      const won = await tx.update(brief).set({ status: 'ready', kind, summary, scorecard, report, trend, dropped, claimsChecked: verified.checked, generatedAt: new Date(), updatedAt: new Date() }).where(owned).returning({ id: brief.id });
+      const won = await tx.update(brief).set({ status: 'ready', kind, summary, scorecard, report, trend, dropped, claimsChecked: verified.checked, reviewReason: review?.reason ?? null, reviewTerms: review?.terms ?? null, generatedAt: new Date(), updatedAt: new Date() }).where(owned).returning({ id: brief.id });
       if (won.length === 0) return { status: 'skipped', reason: 'superseded by a newer attempt' };
       if (items.length > 0) {
         await tx.insert(briefItem).values(items.map((i, ord) => ({

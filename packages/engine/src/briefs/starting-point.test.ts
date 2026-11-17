@@ -1,5 +1,5 @@
 import { createAccessContext } from '@cs/core';
-import { brief, briefItem, capture, citationListing, client, clientSetup, competitor, competitorSignal, evidence, listedEvent, notification, observation, playbookOverride, recommendation, review, stageRun } from '@cs/db';
+import { brief, briefItem, capture, citationListing, client, clientSetup, competitor, competitorSignal, evidence, listedEvent, notification, observation, playbookOverride, recommendation, review, runbook, runbookItem, stageRun } from '@cs/db';
 import { GBP_EVENTS_URL } from '@cs/collectors';
 import { LISTED_EVENTS_STAGE, LISTED_EVENTS_VERSION } from '../listed-events/stage';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
@@ -100,6 +100,22 @@ describe('generateStartingPoint', () => {
     expect(ai.calls.chat).toHaveLength(1);
     expect(ai.calls.chat[0]!.task).toBe('brief_writer');
     expect(ai.calls.chat[0]!.content).toContain('You got 1 new reviews in 90 days; Smith HVAC got 6.');
+  });
+
+  it('starting point why with a term → deterministic text (V5: no retry, no flag), the voice reaches the writer', async () => {
+    await seedFindings();
+    const [rb] = await dbs.owner.insert(runbook).values({ level: 'agency', agencyId: IDS.agencyA }).returning({ id: runbook.id });
+    await dbs.owner.insert(runbookItem).values({ runbookId: rb!.id, itemKey: 'knob:voice', kind: 'knob', content: { tone: 'direct', preferredTerms: [], bannedTerms: ['fresh'] }, enabled: true, updatedBy: 'test' });
+    const ai = createFakeAi({ chat: writer, decide: supportAll });
+    const systems: string[] = [];
+    const chat = ai.chat.bind(ai);
+    ai.chat = (task, input, scope) => { systems.push(String(input.messages[0]!.content)); return chat(task, input, scope); };
+    expect(await run(ai)).toMatchObject({ status: 'ready', items: 2 });
+    expect(systems).toHaveLength(1); // no retry
+    expect(systems[0]).toContain('Never use these words: "fresh".');
+    // F1's sentence ("Fresh reviews help you show up first.") used the banned word: its deterministic text stands in.
+    expect((await items()).map((i) => i.whyItMatters)).toEqual([SELF_WHY_IT_MATTERS.review_velocity_gap, SELF_WHY_IT_MATTERS.profile_gap]);
+    expect((await dbs.owner.select().from(brief))[0]).toMatchObject({ reviewReason: null, reviewTerms: null });
   });
 
   it('keeps deterministic text when the writer fails', async () => {

@@ -1,5 +1,5 @@
-import { BriefReport } from '@cs/core';
-import { agency, agencyServiceable, brief, briefItem, changeEvent, client, clientWorkAllowed, competitor, type Db, move, moveEvent, recommendation, review } from '@cs/db';
+import { AiPausedError, BriefReport } from '@cs/core';
+import { agency, agencyServiceable, brief, briefItem, changeEvent, client, clientWorkAllowed, competitor, type Db, move, moveEvent, recommendation, review, runbook, runbookItem } from '@cs/db';
 import { IDS, openTestDbs, pauseAgency, pauseClient, seedTenancy, spendPauseClient, truncateAll } from '@cs/db/test-helpers';
 import { and, eq, ne } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
@@ -205,6 +205,100 @@ describe('generateBrief', () => {
     ai.chat = async (t, i, s) => { scopes.push(s); return chat(t, i, s); };
     await run(ai);
     expect(scopes).toEqual([{ agencyId: IDS.agencyA, clientId: IDS.clientA1 }]);
+  });
+});
+
+/** 13a2 Task 5: the agency voice reaches the weekly writer, never the verifier; a banned word gets one retry, then a review flag. */
+describe('generateBrief voice and banned terms', () => {
+  const cheapDraft = draft(['C1'], 'Smith HVAC cut its cheap AC tune-up to $69.');
+  const cleanDraft = draft(['C1']);
+  async function setVoice(bannedTerms: string[]) {
+    const [rb] = await dbs.owner.insert(runbook).values({ level: 'agency', agencyId: IDS.agencyA }).returning({ id: runbook.id });
+    await dbs.owner.insert(runbookItem).values({ runbookId: rb!.id, itemKey: 'knob:voice', kind: 'knob', content: { tone: 'formal', preferredTerms: [], bannedTerms }, enabled: true, updatedBy: 'test' });
+  }
+  /** Fake AI whose writer answers `drafts` in order (the last repeats); records each writer system prompt. */
+  function ai(drafts: (string | Error)[]) {
+    const fake = createFakeAi({ chat: () => 'unused', decide: supportAll });
+    const systems: string[] = [];
+    let n = 0;
+    fake.chat = async (task, input, scope) => {
+      systems.push(String(input.messages[0]!.content));
+      const next = drafts[Math.min(n++, drafts.length - 1)]!;
+      if (next instanceof Error) throw next;
+      const orig = createFakeAi({ chat: () => next });
+      return orig.chat(task, input, scope);
+    };
+    return { fake, systems };
+  }
+  const writerCalls = (f: ReturnType<typeof ai>) => f.systems.length;
+
+  it('clean first draft → one writer call, no flag', async () => {
+    await setVoice(['cheap']);
+    await seedEvent();
+    const a = ai([cleanDraft]);
+    expect(await run(a.fake)).toMatchObject({ status: 'ready', items: 1 });
+    expect(writerCalls(a)).toBe(1);
+    expect(a.systems[0]).toContain('Never use these words: "cheap".');
+    expect((await dbs.owner.select().from(brief))[0]).toMatchObject({ reviewReason: null, reviewTerms: null });
+  });
+
+  it('term then clean retry → two calls, unflagged', async () => {
+    await setVoice(['cheap']);
+    await seedEvent();
+    const a = ai([cheapDraft, cleanDraft]);
+    expect(await run(a.fake)).toMatchObject({ status: 'ready', items: 1 });
+    expect(writerCalls(a)).toBe(2);
+    expect(a.systems[1]).toContain('Your last draft used: "cheap".');
+    expect((await dbs.owner.select().from(brief))[0]).toMatchObject({ reviewReason: null, reviewTerms: null });
+    expect((await dbs.owner.select().from(briefItem))[0]!.headline).not.toMatch(/cheap/);
+  });
+
+  it('term twice → ready + banned_term + terms', async () => {
+    await setVoice(['cheap']);
+    await seedEvent();
+    const a = ai([cheapDraft, cheapDraft]);
+    expect(await run(a.fake)).toMatchObject({ status: 'ready', items: 1 });
+    expect(writerCalls(a)).toBe(2);
+    expect((await dbs.owner.select().from(brief))[0]).toMatchObject({ status: 'ready', reviewReason: 'banned_term', reviewTerms: ['cheap'] });
+  });
+
+  it('a regenerated brief clears an older flag (V8: the commit always sets both columns)', async () => {
+    await setVoice(['cheap']);
+    await seedEvent();
+    await run(ai([cheapDraft, cheapDraft]).fake);
+    await dbs.owner.update(brief).set({ status: 'failed', attempts: 1 });
+    expect(await run(ai([cleanDraft]).fake)).toMatchObject({ status: 'ready' });
+    expect((await dbs.owner.select().from(brief))[0]).toMatchObject({ reviewReason: null, reviewTerms: null });
+  });
+
+  it('term inside a competitor name is not enforced', async () => {
+    await setVoice(['hvac']);
+    await seedEvent();
+    const a = ai([draft(['C1'], 'Smith HVAC cut its AC tune-up to $69.')]);
+    expect(await run(a.fake)).toMatchObject({ status: 'ready', items: 1 });
+    expect(writerCalls(a)).toBe(1);
+    expect((await dbs.owner.select().from(brief))[0]).toMatchObject({ reviewReason: null, reviewTerms: null });
+  });
+
+  it('verifier input has no voice block', async () => {
+    await setVoice(['cheap']);
+    await seedEvent();
+    const a = ai([cleanDraft]);
+    await run(a.fake);
+    expect(a.systems[0]).toContain('<voice>');
+    expect(a.fake.calls.decide.length).toBeGreaterThan(0);
+    const verifierSees = JSON.stringify(a.fake.calls.decide);
+    expect(verifierSees).not.toContain('<voice>');
+    expect(verifierSees).not.toContain('Never use these words');
+  });
+
+  it('AiPausedError on the retry propagates (the attempt fails, nothing is stored)', async () => {
+    await setVoice(['cheap']);
+    await seedEvent();
+    const paused = new AiPausedError('client');
+    const a = ai([cheapDraft, paused]);
+    expect(await run(a.fake)).toMatchObject({ status: 'failed', error: paused.message });
+    expect(await dbs.owner.select().from(briefItem)).toHaveLength(0);
   });
 });
 

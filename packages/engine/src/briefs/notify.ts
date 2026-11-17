@@ -1,6 +1,7 @@
 import { brief, client, type Db } from '@cs/db';
 import { eq } from 'drizzle-orm';
 import { type DeliveryConfig, loadBranding, notify } from '../delivery/outbox';
+import { bannedTermLine } from './deliver';
 import { BRIEF_MAX_ATTEMPTS, type BriefRunResult } from './generate';
 
 /** Decided copy (12b): the AM notice for a ready starting point. */
@@ -31,7 +32,7 @@ export async function notifyBriefOutcome(deps: { db: Db; delivery: DeliveryConfi
     ? [
         b.kind === 'quiet' ? 'A quiet week: no item passed the bar.' : `${result.items} item${result.items === 1 ? '' : 's'} for delivery on ${b.deliveryDate}.`,
         b.summary,
-        row.autoSend ? 'Auto-send is on: it goes out Monday 07:00 client time unless you edit, drop or reorder an item.' : 'Approve it before Monday 07:00 client time.',
+        row.autoSend && b.reviewReason === 'banned_term' ? bannedTermLine(b.reviewTerms ?? [], true) : row.autoSend ? 'Auto-send is on: it goes out Monday 07:00 client time unless you edit, drop or reorder an item.' : 'Approve it before Monday 07:00 client time.',
         ...drops,
       ]
     : [

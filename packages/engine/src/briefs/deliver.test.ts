@@ -101,6 +101,16 @@ describe('deliverDueBriefs', () => {
     expect(await read(id)).toMatchObject({ status: 'sent', approvedBy: 'system' });
   });
 
+  it('auto-send skips a flagged untouched brief; the overdue notice names the terms', async () => {
+    await dbs.owner.update(client).set({ briefAutoSend: true }).where(eq(client.id, IDS.clientA1));
+    const id = await seedBrief('ready', [{ ord: 0, headline: 'H0' }], { reviewReason: 'banned_term', reviewTerms: ['cheap', 'best price'] });
+    expect(await deliverDueBriefs(deps(), MON_0705)).toEqual({ sent: [], autoApproved: 0, overdue: 1 });
+    expect(await read(id)).toMatchObject({ status: 'ready', reviewReason: 'banned_term' });
+    const [row] = (await sentRows('brief_overdue')).filter((r) => r.channel === 'in_app');
+    expect(row!.body).toContain('It uses a banned word (cheap, best price), so auto-send left it for you.');
+    expect(row!.body).not.toContain('It was edited');
+  });
+
   it('does not auto-send a touched brief or one without auto-send; the AM gets one overdue notice', async () => {
     await dbs.owner.update(client).set({ briefAutoSend: true }).where(eq(client.id, IDS.clientA1));
     const id = await seedBrief('ready', [{ ord: 0, headline: 'H0' }]);

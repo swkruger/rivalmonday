@@ -1,7 +1,8 @@
 import type { Ai, ChatMessage, JsonSchemaFormat } from '@cs/ai';
-import type { CallScope } from '@cs/core';
+import type { CallScope, VoiceSettings } from '@cs/core';
 import type { Level } from '@cs/db';
 import { z } from 'zod';
+import { withVoice } from '../voice/block';
 import { EVIDENCE_CHANNEL_LABEL, escapeEvidence } from './evidence';
 import { type BriefCandidate, type BriefClient, candidateEvents } from './gather';
 import { candidateLifecycle, candidateTrigger, type Playbook, playbookFor, playbookVars, renderPlaybook } from './playbooks';
@@ -109,7 +110,7 @@ export function candidateContextText(c: BriefCandidate): string {
   return c.kind === 'move' ? `${escapeEvidence(`Detected pattern: ${c.summary}`)}\n${evidence}` : evidence;
 }
 
-export function buildWriterPrompt(c: BriefClient, candidates: BriefCandidate[], playbooks: Playbook[], period: BriefPeriod): { messages: { role: 'system' | 'user'; content: string }[]; jsonSchema: JsonSchemaFormat } {
+export function buildWriterPrompt(c: BriefClient, candidates: BriefCandidate[], playbooks: Playbook[], period: BriefPeriod, voice: VoiceSettings, avoid: readonly string[] = []): { messages: { role: 'system' | 'user'; content: string }[]; jsonSchema: JsonSchemaFormat } {
   const blocks = candidates.map((cand, i) => {
     const pb = playbookFor(playbooks, candidateTrigger(cand), candidateLifecycle(cand));
     const head = [`Competitor: ${cand.competitorName}`, `Kind: ${cand.kind === 'move' ? `pattern (${cand.moveType})` : cand.changeType}`];
@@ -123,7 +124,7 @@ export function buildWriterPrompt(c: BriefClient, candidates: BriefCandidate[], 
     `Service area towns: ${c.towns.join(', ') || 'not set'}`,
     `${periodLine(period)}. Prefer the dates shown in the evidence over relative time words like "this week".`,
   ].join('\n'));
-  return { jsonSchema: draftJson, messages: [{ role: 'system', content: SYSTEM }, { role: 'user', content: `${context}\n\nCANDIDATES:\n${blocks.join('\n')}` }] };
+  return { jsonSchema: draftJson, messages: [{ role: 'system', content: withVoice(SYSTEM, voice, avoid) }, { role: 'user', content: `${context}\n\nCANDIDATES:\n${blocks.join('\n')}` }] };
 }
 
 export function parseDraft(text: string, refs: string[]): BriefDraft {
@@ -140,8 +141,13 @@ export function parseDraft(text: string, refs: string[]): BriefDraft {
   return { summary: p.data.summary.trim(), items };
 }
 
-export async function writeBrief(ai: Ai, scope: CallScope, c: BriefClient, candidates: BriefCandidate[], playbooks: Playbook[], period: BriefPeriod): Promise<BriefDraft> {
-  const { messages, jsonSchema } = buildWriterPrompt(c, candidates, playbooks, period);
+export async function writeBrief(ai: Ai, scope: CallScope, c: BriefClient, candidates: BriefCandidate[], playbooks: Playbook[], period: BriefPeriod, voice: VoiceSettings, avoid: readonly string[] = []): Promise<BriefDraft> {
+  const { messages, jsonSchema } = buildWriterPrompt(c, candidates, playbooks, period, voice, avoid);
   const res = await ai.chat(BRIEF_WRITER_TASK, { messages, jsonSchema }, scope);
   return parseDraft(res.text, candidates.map((_, i) => candidateRef(i)));
+}
+
+/** Every model-written field of a draft, for the banned-term check (Q3). */
+export function draftText(d: { summary: string; items: Pick<DraftItem, 'headline' | 'what_changed' | 'why_it_matters' | 'recommended_action'>[] }): string {
+  return [d.summary, ...d.items.flatMap((i) => [i.headline, i.what_changed, i.why_it_matters, i.recommended_action])].join('\n');
 }

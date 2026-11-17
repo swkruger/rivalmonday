@@ -1,5 +1,5 @@
 import { type Ai, CassetteMissError } from '@cs/ai';
-import type { CallScope } from '@cs/core';
+import { type CallScope, DEFAULT_VOICE } from '@cs/core';
 import {
   type BriefCandidate, type BriefDraft, type BriefPeriod, candidateEvidenceIds, candidateEvidenceText, candidateLifecycle, candidateRef, candidateTrigger,
   countSummary, type DraftItem, periodLine, playbookFor, playbookVars, renderPlaybook, type VerifiedBrief, verifyDraft, writeBrief,
@@ -96,7 +96,7 @@ async function runCase(c: EvalCase, ai: Ai, deps: Required<BriefsRunnerDeps>): P
   let draft: BriefDraft;
   let out: VerifiedBrief;
   try {
-    draft = await deps.write(ai, scope, input.client, input.candidates, input.playbooks, input.periodDates);
+    draft = await deps.write(ai, scope, input.client, input.candidates, input.playbooks, input.periodDates, DEFAULT_VOICE);
     out = await deps.verify(ai, scope, input.client, input.candidates, draft, { year: input.year, period: input.periodDates });
   } catch (err) {
     if (err instanceof CassetteMissError || err instanceof BudgetExceededError) throw err;

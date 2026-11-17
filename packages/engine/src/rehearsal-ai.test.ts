@@ -1,6 +1,7 @@
 import { type AiConfig, DEFAULT_AI_CONFIG_PATH, type DecisionQuestion, loadAiConfigFile } from '@cs/ai';
 import type { AiGuard, CallScope, LedgerSink, LlmCallRecord } from '@cs/core';
 import { brief, briefItem } from '@cs/db';
+import { DEFAULT_VOICE } from '@cs/core';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { loadVerticalPack } from '@cs/verticals';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -122,7 +123,7 @@ describe('createRehearsalAi', () => {
     const client = { id: 'c', agencyId: 'a', name: 'A1 HVAC', verticalId: 'v', verticalName: 'HVAC', services: [], serviceNames: [], towns: [], zips: [], competitorNames: [], briefThreshold: 40 };
     const { messages, jsonSchema } = buildWriterPrompt(client, [cand('e1', 'Smith HVAC', 'Smith HVAC cut its tune-up to $69'), cand('e2', 'Jones Air', 'New ad offers 20% off')], [], {
       start: new Date('2026-09-28T00:00:00Z'), end: new Date('2026-10-05T00:00:00Z'),
-    });
+    }, DEFAULT_VOICE);
     const res = await ai.chat('brief_writer', { messages, jsonSchema }, scope(null));
     const draft = JSON.parse(res.text) as { items: { ref: string; headline: string; what_changed: string }[] };
     expect(z.fromJSONSchema(jsonSchema.schema).safeParse(draft).success).toBe(true);
