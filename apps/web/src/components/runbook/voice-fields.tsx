@@ -114,7 +114,7 @@ export function VoiceFields({ value, onChange, onProblem, disabled }: {
       </div>
 
       <div className="flex flex-col gap-2">
-        <Label htmlFor="voice-banned">Banned words</Label>
+        {disabled ? <span className="text-sm font-medium">Banned words</span> : <Label htmlFor="voice-banned">Banned words</Label>}
         <p className="text-sm text-muted-ink">A brief or alert that still uses one waits for your review. Whole words only: banning “cheap” doesn’t catch “cheaper”.</p>
         {!disabled && (
           <div className="flex flex-wrap items-center gap-3">

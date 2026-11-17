@@ -34,6 +34,13 @@ describe('findBannedTerms', () => {
     expect(findBannedTerms('the ac   tune-up special', ['AC tune-up'])).toEqual(['AC tune-up']);
     expect(findBannedTerms("we can't wait", ["can't"])).toEqual(["can't"]);
   });
+  it('curly apostrophes and Unicode hyphens match plain ones, and the reverse', () => {
+    expect(findBannedTerms('we can’t wait', ["can't"])).toEqual(["can't"]);
+    expect(findBannedTerms('the tune‑up and tune–up', ['tune-up'])).toEqual(['tune-up']);
+    expect(findBannedTerms("we can't wait", ['can’t'])).toEqual(['can’t']);
+    expect(findBannedTerms('a tune-up', ['tune‑up'])).toEqual(['tune‑up']);
+    expect(findBannedTerms('tuneup', ['tune-up'])).toEqual([]);
+  });
   it('Unicode letters are word characters ("café" not in "cafés")', () => {
     expect(findBannedTerms('two cafés', ['café'])).toEqual([]);
     expect(findBannedTerms('a café.', ['café'])).toEqual(['café']);

@@ -1,5 +1,5 @@
 import type { Ai } from '@cs/ai';
-import { BriefReport, enforcedTerms, findBannedTerms } from '@cs/core';
+import { AiPausedError, BriefReport, enforcedTerms, findBannedTerms } from '@cs/core';
 import { agencyServiceable, clientWorkAllowed, brief, type BriefDropStats, briefItem, type BriefKind, changeEvent, client, type Db, recommendation } from '@cs/db';
 import { and, asc, desc, eq, inArray, isNotNull, ne, notInArray, sql } from 'drizzle-orm';
 import type { VerticalPack } from '@cs/verticals';
@@ -122,11 +122,18 @@ export async function generateBrief(deps: { db: Db; ai: Ai; packs: PackLoader; g
       verified = await verifyDraft(deps.ai, scope, c, selected, draft, vopts);
       const found = findBannedTerms(draftText(verified), terms);
       if (found.length > 0) {
-        // An AiPausedError (or any failure) on the retry fails the attempt like the first write does; never swallowed here.
-        const again = await writeBrief(deps.ai, scope, c, selected, playbooks, period, voice, found);
-        verified = await verifyDraft(deps.ai, scope, c, selected, again, vopts);
-        const found2 = findBannedTerms(draftText(verified), terms);
-        if (found2.length > 0) review = { reason: 'banned_term', terms: found2 };
+        // A pause on the retry fails the attempt like the first write. Any other failure keeps the first draft for review.
+        try {
+          const again = await writeBrief(deps.ai, scope, c, selected, playbooks, period, voice, found);
+          const retried = await verifyDraft(deps.ai, scope, c, selected, again, vopts);
+          const found2 = findBannedTerms(draftText(retried), terms);
+          verified = retried;
+          if (found2.length > 0) review = { reason: 'banned_term', terms: found2 };
+        } catch (err) {
+          if (err instanceof AiPausedError) throw err;
+          console.warn(`[briefs] banned-word retry failed, keeping the first draft for review: ${clientId}: ${briefErrorMessage(err)}`);
+          review = { reason: 'banned_term', terms: found };
+        }
       }
     }
 

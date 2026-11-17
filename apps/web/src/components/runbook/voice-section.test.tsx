@@ -109,4 +109,21 @@ describe('Voice section', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Preview' }));
     await waitFor(() => expect(region().textContent).toContain(LIMIT));
   });
+
+  it('clears the preview when the form changes and when a preview fails', async () => {
+    const action = vi.fn<RunbookAction>()
+      .mockResolvedValueOnce({ ok: true, preview: { text: 'First sample.', bannedTerms: [] } })
+      .mockResolvedValueOnce({ ok: true, preview: { text: 'Second sample.', bannedTerms: [] } })
+      .mockResolvedValueOnce({ ok: false, error: LIMIT });
+    render(<RunbookEditor data={data()} canEdit action={action} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Preview' }));
+    await waitFor(() => expect(region().textContent).toContain('First sample.'));
+    fireEvent.click(screen.getByRole('radio', { name: /Formal/ }));
+    expect(region().textContent).not.toContain('First sample.');
+    fireEvent.click(screen.getByRole('button', { name: 'Preview' }));
+    await waitFor(() => expect(region().textContent).toContain('Second sample.'));
+    fireEvent.click(screen.getByRole('button', { name: 'Preview' }));
+    await waitFor(() => expect(region().textContent).toContain(LIMIT));
+    expect(region().textContent).not.toContain('Second sample.');
+  });
 });

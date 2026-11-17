@@ -28,7 +28,11 @@ export const effectiveVoice = (agency: VoiceSettings | null, override: VoiceSett
 const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 /** The whole-word matcher for one term (case-insensitive; Unicode letters/digits are word characters), or null for a blank term. */
 export function bannedTermRegex(term: string, flags = 'iu'): RegExp | null {
-  const body = escapeRe(term.trim()).replace(/\s+/g, '\\s+');
+  // Typographic apostrophes and Unicode hyphens/dashes match their plain forms, in either direction (models often write them).
+  const body = escapeRe(term.trim())
+    .replace(/['‘’ʼ]/g, "['‘’ʼ]")
+    .replace(/[-‐‑‒–−]/g, '[\\-‐‑‒–−]')
+    .replace(/\s+/g, '\\s+');
   return body === '' ? null : new RegExp(`(?<![\\p{L}\\p{N}])${body}(?![\\p{L}\\p{N}])`, flags);
 }
 /** Case-insensitive, whole-word (Unicode letters/digits are word characters); the banned terms found, in list order. */

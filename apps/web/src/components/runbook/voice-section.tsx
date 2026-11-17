@@ -54,10 +54,14 @@ export function VoiceSection({ voice, level, canEdit, action, clientName }: {
     const c = checkVoice(value);
     if (!c.ok) return setProblem(c.error);
     setMessage(null);
+    setPreview(null);
     start(async () => {
       const r = await action({ op: 'preview', voice: c.voice });
       if (r.ok && r.preview) setPreview(r.preview);
-      else if (!r.ok) setMessage({ kind: 'error', text: r.error });
+      else if (!r.ok) {
+        setPreview(null);
+        setMessage({ kind: 'error', text: r.error });
+      }
     });
   };
   const useAgency = () => {
@@ -107,7 +111,11 @@ export function VoiceSection({ voice, level, canEdit, action, clientName }: {
 
       {showFields && (
         <>
-          <VoiceFields value={value} onChange={setValue} onProblem={setProblem} disabled={!canEdit} />
+          <VoiceFields value={value} onChange={(v) => {
+              setValue(v);
+              setPreview(null);
+            }}
+            onProblem={setProblem} disabled={!canEdit} />
           {canEdit && (
             <WriteGuard>
               <div className="flex flex-wrap items-center gap-3">

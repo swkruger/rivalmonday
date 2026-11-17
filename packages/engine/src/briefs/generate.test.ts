@@ -292,7 +292,7 @@ describe('generateBrief voice and banned terms', () => {
     expect(verifierSees).not.toContain('Never use these words');
   });
 
-  it('AiPausedError on the retry propagates (the attempt fails, nothing is stored)', async () => {
+  it('AiPausedError on the retry records the attempt as failed and stores nothing', async () => {
     await setVoice(['cheap']);
     await seedEvent();
     const paused = new AiPausedError('client');

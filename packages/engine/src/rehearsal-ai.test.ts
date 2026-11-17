@@ -1,7 +1,6 @@
 import { type AiConfig, DEFAULT_AI_CONFIG_PATH, type DecisionQuestion, loadAiConfigFile } from '@cs/ai';
-import type { AiGuard, CallScope, LedgerSink, LlmCallRecord } from '@cs/core';
+import { type AiGuard, type CallScope, DEFAULT_VOICE, type LedgerSink, type LlmCallRecord } from '@cs/core';
 import { brief, briefItem } from '@cs/db';
-import { DEFAULT_VOICE } from '@cs/core';
 import { IDS, openTestDbs, seedTenancy, truncateAll } from '@cs/db/test-helpers';
 import { loadVerticalPack } from '@cs/verticals';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
