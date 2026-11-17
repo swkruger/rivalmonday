@@ -1,8 +1,8 @@
-import { type AccessContext, isAgencyRole, SPEND_PAUSED_COPY, toolkit, ToolError } from '@cs/core';
+import { type AccessContext, isAgencyRole, SPEND_PAUSED_COPY, toolkit, ToolError, type VoiceSettings } from '@cs/core';
 import { agencyServiceable, client, clientWorkAllowed, playbookOverride, runbookItem, runbook, withTenant } from '@cs/db';
 import {
   compareWithParent, copyItems, createClientRunbookIfAbsent, ensureAgencyRunbook, ensurePlatformRunbook, legacyClientItems, packUsesGenericPlays, PLAYBOOK_VARS,
-  parseItemContent, readRunbookItems, type RunbookItem, type UpdateState, withColumnThresholds, writeItem,
+  parseItemContent, readRunbookItems, type RunbookItem, type UpdateState, VOICE_KEY, voiceOfItems, withColumnThresholds, writeItem,
 } from '@cs/engine';
 import { and, eq } from 'drizzle-orm';
 import { z } from 'zod';
@@ -12,7 +12,7 @@ import { type PlatformRole, requirePlatformOperator } from '../platform';
 import { withPlatformAudit } from '../platform/audit';
 import { setClientThresholdsColumn, validateThresholds } from './alert-rules';
 import { allInOrder, workspaceClient, type WorkspaceClient } from '../workspace/scope';
-import { RunbookItemRow, RunbookItemView, RunbookOwner, RunbookTailoring } from './schemas';
+import { RunbookItemRow, RunbookItemView, RunbookOwner, RunbookTailoring, RunbookVoice } from './schemas';
 
 /**
  * Phase 14b Task 6: the web tools behind the platform, agency and client runbook editors. Writes go through the service connection
@@ -154,6 +154,26 @@ async function syncClientThresholds(deps: ToolDeps, ctx: AccessContext, t: Targe
   await setClientThresholdsColumn(deps, ctx, t.client.id, item && c && item.enabled && item.customised ? validateThresholds(c.alert, c.brief) : null);
 }
 
+/** 13a2 V1: the platform runbook has no voice knob, so any write naming it there is `not_found`. */
+function noPlatformVoice(t: Target, key: string): void {
+  if (t.level === 'platform' && key === VOICE_KEY) throw NOT_FOUND();
+}
+
+/** The enabled, valid voice knob of one level's items (an invalid stored value counts as unset, as in the engine). */
+function enabledVoice(items: RunbookItem[] | null, mustBeCustomised: boolean): VoiceSettings | null {
+  const i = items?.find((x) => x.key === VOICE_KEY && x.kind === 'knob' && x.enabled && (!mustBeCustomised || x.customised));
+  if (!i) return null;
+  const r = parseItemContent(i.kind, i.key, i.content);
+  return r.ok ? (r.value as VoiceSettings) : null;
+}
+
+/** `get_runbook.voice`: resolved in memory with the engine's `voiceOfItems`, so the editor and the writers always agree. */
+function voiceView(t: Target, items: RunbookItem[]): z.input<typeof RunbookVoice> {
+  if (t.level === 'platform') return null;
+  if (t.level === 'agency') return { agency: enabledVoice(items, false), own: null, effective: voiceOfItems(null, items) };
+  return { agency: enabledVoice(t.parent, false), own: enabledVoice(items, true), effective: voiceOfItems(items, t.parent) };
+}
+
 const kindOf = (k: string): RunbookItem['kind'] | null => {
   const prefix = k.split(':')[0];
   return prefix === 'play' || prefix === 'self_rule' || prefix === 'knob' ? prefix : null;
@@ -186,7 +206,7 @@ export const getRunbook = defineTool({
   input: z.object({ owner: RunbookOwner }),
   output: z.object({
     level: z.enum(['platform', 'agency', 'client']), source: z.enum(['client', 'agency', 'legacy']).optional(), tailorStatus: z.string().nullable(), items: Items,
-    vars: z.array(z.string()), businessAreas: z.array(z.object({ id: z.string(), name: z.string() })),
+    vars: z.array(z.string()), businessAreas: z.array(z.object({ id: z.string(), name: z.string() })), voice: RunbookVoice,
   }),
   permission: 'agency',
   async handler(ctx, { owner }, deps) {
@@ -224,7 +244,7 @@ export const getRunbook = defineTool({
         upstreamSnapshot: snap && snap.content !== undefined ? { content: snap.content } : null,
       };
     });
-    return { level: t.level, ...(t.source ? { source: t.source } : {}), tailorStatus: t.tailorStatus, items: out, vars: [...PLAYBOOK_VARS], businessAreas };
+    return { level: t.level, ...(t.source ? { source: t.source } : {}), tailorStatus: t.tailorStatus, items: out, vars: [...PLAYBOOK_VARS], businessAreas, voice: voiceView(t, items) };
   },
 });
 
@@ -237,6 +257,7 @@ export const updateRunbookItem = defineTool({
   permission: 'agency',
   async handler(ctx, input, deps) {
     return mutate(deps, ctx, 'update_runbook_item', input, input.owner, async (t) => {
+      noPlatformVoice(t, input.key);
       const runbookId = need(t);
       const existing = t.items.find((i) => i.key === input.key);
       const kind = existing?.kind ?? (input.key.startsWith('knob:') ? 'knob' : null);
@@ -244,7 +265,12 @@ export const updateRunbookItem = defineTool({
       const parsed = parseItemContent(kind, input.key, input.content);
       if (!parsed.ok) throw refuse(parsed.error);
       const item = existing ?? { ...blank(input.key, kind, parsed.value), customised: true }; // no parent snapshot: client-owned
-      const next: RunbookItem = { ...item, content: parsed.value, businessAreaIds: checkAreas(t, item, input.businessAreaIds) };
+      let next: RunbookItem = { ...item, content: parsed.value, businessAreaIds: checkAreas(t, item, input.businessAreaIds) };
+      // 13a2 V1: saving the voice switches it on; at the client level it is a client-owned override (no parent snapshot, so it stays customised).
+      if (input.key === VOICE_KEY) {
+        next = { ...next, enabled: true };
+        if (t.client) next = { ...next, customised: true, upstreamSnapshot: null, upstreamVersion: t.parent?.find((i) => i.key === VOICE_KEY)?.version ?? null };
+      }
       checkKnobs(t, next);
       await writeItem(deps.service, runbookId, next, ctx.userId);
       await syncClientThresholds(deps, ctx, t, input.key);
@@ -283,6 +309,7 @@ export const pullRunbookUpdate = defineTool({
   permission: 'agency',
   async handler(ctx, input, deps) {
     return mutate(deps, ctx, 'pull_runbook_update', input, input.owner, async (t) => {
+      noPlatformVoice(t, input.key);
       const runbookId = need(t);
       const item = t.items.find((i) => i.key === input.key);
       const up = t.parent?.find((i) => i.key === input.key);
@@ -358,6 +385,7 @@ export const addRunbookItem = defineTool({
         await createClientRunbook(deps, ctx, t);
         return null;
       }
+      noPlatformVoice(t, input.key);
       const runbookId = need(t);
       const up = t.parent?.find((i) => i.key === input.key);
       if (!up || t.items.some((i) => i.key === input.key)) throw NOT_FOUND();

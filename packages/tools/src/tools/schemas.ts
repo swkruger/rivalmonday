@@ -1,5 +1,5 @@
 import { AdMatch, Signals } from '@cs/collectors';
-import { GradedChangesView } from '@cs/core';
+import { GradedChangesView, VoiceSettingsSchema } from '@cs/core';
 import { Scorecard } from '@cs/engine';
 import { z } from 'zod';
 
@@ -168,6 +168,9 @@ export const RunbookItemRow = RunbookItemView.extend({
   /** What the level above looked like when this item last took it (the "before" side of an update diff); null when this item was never copied from above. */
   upstreamSnapshot: z.object({ content: z.unknown() }).nullable(),
 });
+/** 13a2 V1: the voice an agency/client runbook resolves to; null at the platform level (no voice knob there). */
+export const RunbookVoice = z.object({ agency: VoiceSettingsSchema.nullable(), own: VoiceSettingsSchema.nullable(), effective: VoiceSettingsSchema }).nullable();
+export type RunbookVoice = z.infer<typeof RunbookVoice>;
 export const RunbookTailoring = z.object({ title: z.string(), template: z.string(), businessAreaIds: z.array(z.string()).nullable() });
 export type RunbookTailoring = z.infer<typeof RunbookTailoring>;
 

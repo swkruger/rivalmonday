@@ -392,3 +392,69 @@ describe('client runbook', () => {
     expect(await itemOf(admin, C1, key)).toMatchObject({ enabled: false, state: 'in_sync' });
   });
 });
+
+describe('voice (13a2)', () => {
+  const V = (tone: string, banned: string[] = []) => ({ tone, preferredTerms: [], bannedTerms: banned });
+  const VK = 'knob:voice';
+  const voiceOf = async (ctx: AccessContext, o: object) => (await call(ctx, 'get_runbook', { owner: o })).voice;
+
+  it('agency admin saves a voice; get_runbook voice.agency = it', async () => {
+    const saved = await call(admin, 'update_runbook_item', { owner: A, key: VK, content: V('formal', ['cheap']) });
+    expect(saved).toMatchObject({ key: VK, enabled: true });
+    expect(await voiceOf(admin, A)).toMatchObject({ agency: V('formal', ['cheap']), effective: V('formal', ['cheap']) });
+    expect((await voiceOf(admin, C1)).agency).toEqual(V('formal', ['cheap']));
+  });
+
+  it('account_manager cannot save the agency voice (not_found)', async () => {
+    expect((await fails(call(am, 'update_runbook_item', { owner: A, key: VK, content: V('formal') }))).code).toBe('not_found');
+  });
+
+  it('AM saves a client override in scope; out-of-scope client -> not_found', async () => {
+    await call(admin, 'add_runbook_item', { owner: C1, key: '*' });
+    const saved = await call(am, 'update_runbook_item', { owner: C1, key: VK, content: V('direct', ['cheap']) });
+    expect(saved).toMatchObject({ enabled: true, customised: true, upstreamVersion: null });
+    expect(await voiceOf(am, C1)).toMatchObject({ own: V('direct', ['cheap']), effective: V('direct', ['cheap']) });
+    expect((await fails(call(am, 'update_runbook_item', { owner: { level: 'client', clientId: IDS.clientA2 }, key: VK, content: V('direct') }))).code).toBe('not_found');
+  });
+
+  it('client role -> not_found', async () => {
+    expect((await fails(call(owner, 'update_runbook_item', { owner: C1, key: VK, content: V('direct') }))).code).toBe('not_found');
+    expect((await fails(call(owner, 'get_runbook', { owner: C1 }))).code).toBe('not_found');
+  });
+
+  it('platform knob:voice write -> not_found; the platform voice is null', async () => {
+    expect((await fails(call(staff, 'update_runbook_item', { owner: P, key: VK, content: V('formal') }))).code).toBe('not_found');
+    expect((await fails(call(staff, 'add_runbook_item', { owner: P, key: VK }))).code).toBe('not_found');
+    expect((await fails(call(staff, 'pull_runbook_update', { owner: P, key: VK, content: V('formal') }))).code).toBe('not_found');
+    expect(await voiceOf(staff, P)).toBeNull();
+  });
+
+  it('client override survives an agency change; a non-customised copy shows the new agency voice', async () => {
+    await call(admin, 'update_runbook_item', { owner: A, key: VK, content: V('formal') });
+    await call(admin, 'add_runbook_item', { owner: C1, key: '*' });
+    // The client runbook was copied with the agency voice (not customised): it follows the agency.
+    await call(admin, 'update_runbook_item', { owner: A, key: VK, content: V('direct') });
+    expect(await voiceOf(admin, C1)).toMatchObject({ own: null, effective: V('direct') });
+    expect((await itemOf(admin, C1, VK)).content).toEqual(V('direct'));
+    await call(am, 'update_runbook_item', { owner: C1, key: VK, content: V('friendly', ['cheap']) });
+    await call(admin, 'update_runbook_item', { owner: A, key: VK, content: V('formal') });
+    expect(await voiceOf(admin, C1)).toMatchObject({ own: V('friendly', ['cheap']), agency: V('formal'), effective: V('friendly', ['cheap']) });
+  });
+
+  it('remove -> own null, effective = agency', async () => {
+    await call(admin, 'update_runbook_item', { owner: A, key: VK, content: V('formal') });
+    await call(admin, 'add_runbook_item', { owner: C1, key: '*' });
+    await call(am, 'update_runbook_item', { owner: C1, key: VK, content: V('direct') });
+    await call(am, 'remove_runbook_item', { owner: C1, key: VK });
+    expect(await voiceOf(admin, C1)).toMatchObject({ own: null, effective: V('formal') });
+  });
+
+  it('client without own runbook: save refused "Create the client runbook first."', async () => {
+    expect((await fails(call(am, 'update_runbook_item', { owner: C1, key: VK, content: V('direct') }))).message).toBe('Create the client runbook first.');
+  });
+
+  it('invalid term -> invalid_input', async () => {
+    expect((await fails(call(admin, 'update_runbook_item', { owner: A, key: VK, content: V('formal', ['bad<term>']) }))).code).toBe('invalid_input');
+    expect((await fails(call(admin, 'update_runbook_item', { owner: A, key: VK, content: V('shouty') }))).code).toBe('invalid_input');
+  });
+});
