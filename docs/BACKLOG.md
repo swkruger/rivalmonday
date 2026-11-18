@@ -43,6 +43,7 @@ Gate itself done (launch-gate, 2026-11-04: `profile-gate.sh --seed` exit 0, 71/7
 - [ ] Set `"agentGuidance": false` in `turbo.json` if AGENTS.md churns — *from Phase 1 review*
 
 ### Phase 6 follow-ups (MCP, Ask, knowledge base)
+- [ ] Ask/Friday voice (`ask_assistant`, `ask_starters`): guard and eval cassettes; `generateStarters` not swept by the voice/leak checks - *13a2*
 - [ ] Next → Friday `ask_assistant`: `max_tokens` 6000 with `timeout_ms` 20000 and no streaming, so a long final answer after many tool calls times out on both models ("Friday couldn't answer"; eval `ask-ground-06` hit it twice). Fix by streaming or a lower answer cap; changing the task config re-keys the ask cassette (~$2 re-record) — *18c*
 - [ ] MCP `manage` scope for client roles; ANN vector index (events, pages, `kb_chunk`) — *from 6a/6c*
 - [ ] MCP hardening: vector-only pages; unredacted model-written titles; uncapped `fetch` brief text; screenshot mime hard-coded; `resources.ts` upsell offset-0; `add_recommendation` not one tx; `revoke_oauth_grant` partial failure; consent second-tab race; `clientScope[0]` assumption — *from 6a*
@@ -109,10 +110,8 @@ Gate itself done (launch-gate, 2026-11-04: `profile-gate.sh --seed` exit 0, 71/7
 - [ ] Discount cap counts current holders; an agency that swaps coupon frees its slot (Decision 7) — owner call if lifetime redemptions are wanted — *phase-7b2*
 - [ ] `refunded_at`/`disputed_at` write-once and not shown; exempt refund/dispute signals from the R3 ordering guard — *9b M6*
 - [ ] `stripe_connect_event` stores unhandled event types (insert before the `HANDLED` check) — *9b M7*
-- [ ] Connect product name uses `agency.name`, not `branding.displayName` (shows on Checkout/receipts) — *9b M9*
 - [ ] Re-adopt subscriptions on `disconnected` client rows after a reconnect to the same account; `open_billing_portal` for a customer of a forgotten account — *9b re-review*
 - [ ] Missed `account.application.deauthorized` → reconnect reuses a dead account id; admin only sees the generic Stripe-failure copy — *9b R24*
-- [ ] Per-agency browser-tab titles on client pages (root title "Rival Monday" leaks; only `/c/[id]/settings/billing` fixed) — *9b R18*
 - [ ] Yearly Connect client billing, then show $2,490/yr on the site (D8) — *pricing-v2*
 - [ ] Self-serve yearly → monthly (scheduled switch at renewal; today via support) — *pricing-v2*
 - [ ] Hard review gate on agency sign-ups (fence is soft today) — *pricing-v2*
@@ -141,15 +140,16 @@ Gate itself done (launch-gate, 2026-11-04: `profile-gate.sh --seed` exit 0, 71/7
 - [ ] Test hygiene: >120-char CHECK tests, `parseWebEnv` new-var test, funnel non-active `cardAdded` case, sequential double-run nudge test, refused-duplicate E2E fixed 3 s wait, mock-based console spies — *phase-10*
 
 ## Phase 13a follow-ups (white-label hosts, domains, sender)
-**13a2 (own worktree `phase-13a2`)**
-- [ ] Hosts: surface an unparsable `APP_URL` as a `hostEnvFor` problem (env.ts `hostEnv!`); short-circuit `RESERVED_HOST_SLUGS` before the query (fix the hosts.ts:73 comment); test a hostname removed by A then live for B; bound the host cache (LRU, not insertion order); unknown-host `/health` pass-through test — *from 13a1*
-- [ ] MCP/auth: `productNameFor` agency fallback (P17); fix the stale proxy.ts:9 comment; tests for revoked/accepted invitations in `hasSignInRightIn`; split the consent `page.test` states; smoke test refusing a platform guest cookie at `/agency` — *from 13a1*
 
 **Soon**
+- [ ] Owner decision: a 7b spend pause turns a weekly brief attempt into "failed" instead of surfacing the pause (global constraint says "rethrown") - *13a2*
+- [ ] Owner decision: during a client spend pause, direct-mode alerts still reach the client as the free evidence template - *13a2*
+- [ ] Site white-label claim (FAQ lines, ledger) once 13a1 is live on prod - *13a2*
 - [ ] Prod `deploy` has no `/sign-in` smoke check (a prod web without `NEUTRAL_DOMAIN` 500s while `/health` is green): add the staging-style curl; log the neutral domain at start-up on web and worker so a mismatch shows — *from 13a1*
-- [ ] Launch gate: seed `alertId`/`briefId` for a client user so the agency-host pass can run `--strict-routes` — *from 13a1*
 
 **Polish**
+- [ ] Crawl: `/start/v/[leadId]` classified `deny` but served on agency hosts (404 only via fake lead) - *13a2, next touch*
+- [ ] One constant for the AM alert note (`alert-controls.tsx` repeats `route.ts` NOTE); `preview_voice` cap check-then-act doc comment; `enabledVoice` duplicates `voiceOfItems` - *13a2, next touch*
 - [ ] Domains: `dnsRecords` update failure after `vercel.add` leaves a pending row (sweep covers it); support sessions can't read the Domains page (note in the 8b doc); an unnamed unique violation maps to slug-taken; no DKIM refresh from Postmark state (check at live verification); a misconfigured verifying row doesn't revert to pending — *from 13a1*
 - [ ] Domains: concurrency test for the `host_slug` advisory lock / operator slug refusal; verify jobs + sweep skip archived agencies (`archived_at IS NULL` in `listDomainsToVerify`/`expireStaleDomains`); per-agency cap/limiter on web domain writes; platform-side domain removal for archived agencies and purge releasing the Vercel hostname + Postmark domain (purge only skips today); web fallback test with `webEnv` returning `hostEnv` and no `NEUTRAL_DOMAIN` stub — *from 13a1*
 - [ ] Delivery: `clientOriginFor` computed per message in worker paths (precompute); mixed-membership inbox edge goes to `/inbox`; theme `hostForLogo` swallows errors; outbox test rows without an audience fall back to agency; the `pool_new` guard test can't fail; import placement in swept tests — *from 13a1*
@@ -177,7 +177,6 @@ Gate itself done (launch-gate, 2026-11-04: `profile-gate.sh --seed` exit 0, 71/7
 - [ ] 15c-1 deferred minors (no target): one shared `ui-primitives.test.tsx`; ConfirmDialog input id should use `useId`; chip hex duplicated in `status-chip.tsx` and `styles.css`; `labelFor` value type collapses to string; `EVIDENCE_KINDS`/`ALERT_STATUSES` SQL parity not enforced; `global-error` lacks Inter; PageSkeleton title height; "Other" series #94a3b8 fails dataviz checks (pre-existing); categorical slots pass dataviz adjacent-pair checks but fail the all-pairs normal floor (orange↔amber 13.7, orange↔pink 12.9; pre-existing); legacy stored radius >40 km shows custom and is rejected — *phase-15c1*
 - [ ] Soon (15c-3b plan moves): `syncSeats` takes no lock, a move racing it can leave the old seat qty on the new seat price (reconcile logs `plan price drift`); move dialog says v{N} but the tool targets whatever is current at submit; refused moves (on_hold/cancelled/no row) write an `ok` platform audit row (put the outcome in the note); audit-write failure after a committed move reports `failed/db_error` (rerun self-heals); E2E `platform-plan-move` leaves v2 (no MCP) current for later specs; `list_plan_agencies` is N+1 (fine <= 20 agencies) — *phase-15c3b*
 - [ ] 15c-3 polish (deferred minors from the 15c-3a final review): billingAccess/syncSeats extra `isOnHold` query; consistency CHECK one-direction test; hold copy in `assertCanActivateClient` always default support email; duplicated hold-setting test update (helper); live-billing predicates duplicated (`liveBillingQuery`/`liveBilling`); `CLI_USER` duplicated; stale `resend_invitation` doc comments in `team.ts`; `inviteMember` unused `_o.inviter`; `assertTeamInviteBudget` runs twice; `list_platform_agencies` description lacks status/counts; unarchive of a non-archived agency is a silent ok; no resume-failure-still-lifts test; success toasts lost on unmount; `tiles as Tiles` cast; action slices 200/600 vs limits 120/500; list not revalidated after rename/hold/archive; "All" view archived rows lack chip; isolation world has no held agency (R9 skipPositive); E2E archive step could wait for Unarchive before navigating (one fresh-build flake) — *phase-15c3*
-- [ ] 13a: client-visible "Rival Monday" fallbacks in MCP `serverInfo`/tool descriptions, `.well-known/oauth-protected-resource` `resource_name`, agency-facing KB `{{product}}` (client-facing KB help now falls back to "your agency"; `kbNamesFor` agency-facing still reads "Rival Monday") (only when no agency name resolves; the Ask system prompt now falls back to `agency.name`, 2026-10-19) — *phase-15a*. Also: support-session email subject and `support.ts` tool description still name the product (page label/fallback now "platform support", 15b-2) — *phase-15b2*
 - [ ] Soon: nav-count tools write an `audit_log` row every shell render (consider `skip-web`; update `channels.test` `SKIP_WEB_TOOLS`); switcher lists prospect clients (`list_clients` has no status filter); `togglePin` never prunes stale ids; `apps/web` page changes don't trigger `@cs/demo#test` (coverage scan); no hydration-path test for the sidebar cookie; `navForViewer` positional booleans — *phase-15a*
 - [ ] Soon (15b-1): `c/[clientId]/layout.tsx` adds an audited `get_client_profile` read per agency request (resolve the name from the switcher list instead); seed imports `PAGE_HELP_KEY` from `tools/help` (move to a shared module); `docs/help/asking-the-assistant.md` "Cancelled." spelling — *phase-15b*
 - [ ] Unscheduled: product tour (Overview, Portfolio); agency help override editor; cross-device pinned/recent clients; enterprise custom roles, multi-agency switcher, audit-log page; switcher "jump to any agency" via support session; Ask review to-do state + badge — *phase-15 decisions*
@@ -436,7 +435,6 @@ Gate itself done (launch-gate, 2026-11-04: `profile-gate.sh --seed` exit 0, 71/7
 - [ ] SMS (Twilio) — `sms` channel slot reserved — *from 4a/4b (Phase 7+)*
 - [ ] Passkeys/2FA — *from 5a*
 - [ ] Per-user digest hour; translating emails; "send now" for alerts — *from 4b*
-- [ ] Agency voice settings for the brief writer — *from 4a*
 - [ ] Batch-priced brief writing (not needed at pilot volume) — *from 4a*
 - [ ] Per-client page deactivation; drag-and-drop reordering; agency-wide recommendation board — *from 5b-1*
 - [ ] Delete/archive a prospect (needs soft-delete first); per-agency default caps/limits — *from 5b-2*
