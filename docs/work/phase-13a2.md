@@ -4,10 +4,10 @@
 **Plan/spec:** [13a2 plan 11-16](../superpowers/plans/2026-11-16-phase-13a2-voice-scrub-leaks.md) · [spec + addendum](../superpowers/specs/2026-10-17-phase-13a-white-label-design.md) (D6–D7, Voice, Scrubbing, Testing)
 
 ## Status (overwrite)
-Tasks 0-14 built (2026-11-17). Launch gate green on both hosts. Left: final whole-branch review (`test:affected`, `e2e:affected`, `eval:replay`, Review focus 1-5, one fix wave), owner copy sign-off, then `/rm-merge` on the owner's go-ahead.
+Built and final-reviewed (2026-11-17): opus final review clean after one fix wave (0 Critical/Important). Gates green: test:affected (3 stale tests fixed), e2e:affected 173/173, eval:replay no miss, launch gate both hosts. Left: owner copy sign-off, then `/rm-merge` on the owner's go-ahead.
 
 ## Next (overwrite)
-Controller: final review. Owner: `pnpm copy:review` (see below), then go-ahead to merge.
+Owner: `pnpm copy:review` (step 1 below), decide the two pause follow-ups (backlog), then go-ahead to merge.
 
 ## Interfaces this branch adds or changes
 - **Migration 0114:** `brief`/`alert` get `review_reason text CHECK IN ('banned_term')` and `review_terms jsonb`; the samples agency host slug becomes `samples`.
@@ -27,13 +27,19 @@ Controller: final review. Owner: `pnpm copy:review` (see below), then go-ahead t
 - **V11:** staff-only zones on agency hosts 404 for everyone else.
 - **Controller rulings:** `/platform*` is 404 for everyone on agency hosts. `/onboarding*` is in the staff zone. On `AiPausedError` the brief writer fails the attempt and the alert writer falls back to the template (unchanged). Staff of another agency outside the zones keep the 13a1 307.
 
-## Test and gate results (Task 14)
+## Test and gate results
+- Final: `test:affected` green after fixing 3 stale tests (parity snapshot +voice; layout comment; `drain.test` AD_IMAGE_SINCE date time bomb, also broken on main); `e2e:affected` 172/173, then smoke guest `/agency` updated to the V11 404 (5/5); `eval:replay` 4 suites, no miss.
 - `@cs/demo` coverage/tenancy/briefs/seed green; `pnpm --filter @cs/demo typecheck` green.
 - Launch gate platform host (`profile-gate.sh --seed`): 74 of 74 routes, max 6 DB stages.
 - Agency host (`e2e-agency.localhost:3100`, asker client cookie, `--filter /c/ --strict-routes`): 30 of 30 routes, max 8 (`/c/[clientId]/briefs/[briefId]`, at the limit).
 - `pnpm copy:status`: 90 unsigned in app-client, 14 app-agency, 30 app-platform, 76 app-shared, 37 help, 5 guides, 2 glossary, 42 labels, 5 emails, 1 site, 65 mcp-tools (unsigned counts include strings from earlier phases).
 
 ## New backlog (target -> item)
+- Owner decision: a 7b spend pause turns a weekly brief attempt into "failed" instead of surfacing the pause (global constraint says "rethrown") -> Soon.
+- Owner decision: during a client spend pause, direct-mode alerts still reach the client as the free evidence template -> Soon.
+- `generateStarters` (Ask starters) not swept by the voice/leak checks (with Q6) -> Unscheduled.
+- Crawl: `/start/v/[leadId]` classified `deny` but served on agency hosts (404 only via fake lead) -> next touch.
+- One constant for the AM alert note (`alert-controls.tsx` repeats `route.ts` NOTE); `preview_voice` cap check-then-act doc comment; `enabledVoice` duplicates `voiceOfItems` -> next touch.
 - Ask/Friday voice (`ask_assistant`, `ask_starters`): guard and eval cassettes (Q6) -> Unscheduled.
 - Site white-label claim (FAQ lines, ledger) once 13a1 is live on prod (Q8) -> Soon.
 
@@ -45,6 +51,8 @@ Controller: final review. Owner: `pnpm copy:review` (see below), then go-ahead t
 5. `pnpm demo:reset`, then check Brazos approvals shows the flagged brief and Lone Star shows "Own voice".
 
 ## Merge notes
+- Lone Star (demo) keeps legacy plays: allowed, it now has a client runbook.
+- The `drain.test.ts` fix also repairs a date time bomb currently failing on main.
 - Root `CLAUDE.md`: favicon line "never white-label" becomes "platform host only" (Q4).
 - BACKLOG closures: l.427 agency voice (4a); l.112 Connect product (9b M9); l.115 tab titles (9b R18, done in 15a); l.166 (fallbacks + support copy; agency-facing KB stays per Q9); the 13a2-tagged items in Phase 13a follow-ups (hosts, MCP/auth); the `kbNamesFor` part; the l.150 launch-gate strict-routes seed item.
 - `pnpm kb:seed` after merge on each environment (new help pages). It reads `SERVICE_DATABASE_URL`; point it at the test DB explicitly in a worktree.
