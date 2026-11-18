@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { expect, test } from '@playwright/test';
 import { OWNER_LINK_FILE } from '../playwright.config';
-import { agencyOriginOf, openMagicLink, PLATFORM_ORIGIN, requestMagicLink } from './helpers';
+import { agencyOriginOf, openMagicLink, requestMagicLink } from './helpers';
 
 test('an invited admin signs in by magic link and sees the themed client list', { tag: ['@smoke', '@auth', '@clients', '@briefs'] }, async ({ page }) => {
   await page.goto('/agency');
@@ -26,9 +26,10 @@ test('a client opens a signed email link as a read-only guest without agency dat
   await expect(page.getByRole('heading', { name: 'Smith HVAC cut AC tune-ups to $59' })).toBeVisible();
   await expect(page.getByText(/viewing this through an email link/i)).toBeVisible();
   await expect(page.getByText(/ppc_audit/)).toHaveCount(0);
-  // Agency pages live on the platform, where the host-only guest cookie does not reach: sign in.
-  await page.goto(`${origin}/agency`);
-  await expect(page).toHaveURL((u) => u.origin === PLATFORM_ORIGIN && u.pathname === '/sign-in');
+  // 13a2 V11: agency pages on an agency host are a 404 for anyone but that agency's staff — never a sign-in bounce.
+  const res = await page.goto(`${origin}/agency`);
+  expect(res?.status()).toBe(404);
+  expect(new URL(page.url()).origin).toBe(origin);
   await expect(page.getByText(/ppc_audit/)).toHaveCount(0);
 });
 
