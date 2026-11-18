@@ -300,6 +300,16 @@ describe('generateBrief voice and banned terms', () => {
     expect(await run(a.fake)).toMatchObject({ status: 'failed', error: paused.message });
     expect(await dbs.owner.select().from(briefItem)).toHaveLength(0);
   });
+
+  it('any other retry failure keeps the first draft, flagged with its terms', async () => {
+    await setVoice(['cheap']);
+    await seedEvent();
+    const a = ai([cheapDraft, new Error('upstream 502')]);
+    expect(await run(a.fake)).toMatchObject({ status: 'ready', items: 1 });
+    expect(writerCalls(a)).toBe(2);
+    expect((await dbs.owner.select().from(brief))[0]).toMatchObject({ status: 'ready', reviewReason: 'banned_term', reviewTerms: ['cheap'] });
+    expect((await dbs.owner.select().from(briefItem))[0]!.headline).toMatch(/cheap/);
+  });
 });
 
 describe('quiet-week scorecard (12b T6)', () => {
