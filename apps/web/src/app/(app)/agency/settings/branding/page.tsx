@@ -39,6 +39,7 @@ export default async function BrandingPage() {
           { label: 'Name', tip: 'agency.settings.branding.displayName' },
           { label: 'Logo', tip: 'agency.settings.branding.logo' },
           { label: 'Colours', tip: 'agency.settings.branding.colours' },
+          { label: 'Header colour', tip: 'agency.settings.branding.header' },
           { label: 'Sender', tip: 'agency.settings.branding.sender' },
           { label: 'Assistant', tip: 'agency.settings.branding.assistant' },
         ]}

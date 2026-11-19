@@ -332,6 +332,12 @@ export const AGENCY_COPY = {
         body: "Primary and secondary colour take a six-digit hex code such as #47A8E7. A value that is not a valid code falls back to the default. The amber accent is fixed and can't be changed.",
         guideAnchor: 'how-to-use-it',
       },
+      // source: packages/email/src/branding.ts:bandColor, passesBandFloor, nearestBandShade; apps/web/src/components/agency/branding-editor.tsx (Automatic, Use shade)
+      header: {
+        title: 'Header colour',
+        body: "The dark colour behind the title on client pages, on dark buttons, in the assistant's chat bubbles, on sign-in pages and on the report cover. Leave it on Automatic and it is worked out from your colours. Pick your own and white text must stay easy to read on it; if it is not, use the nearest shade offered.",
+        guideAnchor: 'how-to-use-it',
+      },
       // source: packages/email/src/branding.ts:resolveBranding (fromName falls back to displayName; signOff 300 characters); branding-editor.tsx (no sending address field)
       sender: {
         title: 'Email sender',

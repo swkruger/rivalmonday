@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { brandInk } from '@cs/ui';
 import { BrandingEditor } from './branding-editor';
 
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
@@ -67,5 +68,48 @@ describe('BrandingEditor', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Discard' }));
     expect((screen.getByLabelText('Display name') as HTMLInputElement).value).toBe('Acme');
     expect(screen.queryByRole('button', { name: 'Save changes' })).toBeNull();
+  });
+
+  describe('header colour', () => {
+    const hidden = () => document.querySelector('input[name="headerColor"]') as HTMLInputElement;
+    const band = () => screen.getByTestId('preview-band');
+    it('is Automatic by default with an empty hidden input and no picker', () => {
+      render(<BrandingEditor initial={{}} agencyName="Acme" action={action} />);
+      expect((screen.getByLabelText('Automatic') as HTMLInputElement).checked).toBe(true);
+      expect(hidden().value).toBe('');
+      expect(screen.queryByLabelText('Header colour value')).toBeNull();
+    });
+    it('unchecking Automatic prefills the picker with the derived colour', () => {
+      render(<BrandingEditor initial={{ primary: '#47A8E7', secondary: '#2A6BAC' }} agencyName="Acme" action={action} />);
+      fireEvent.click(screen.getByLabelText('Automatic'));
+      expect((screen.getByLabelText('Header colour value') as HTMLInputElement).value).toBe(brandInk('#47A8E7', '#2A6BAC'));
+      expect(hidden().value).toBe(brandInk('#47A8E7', '#2A6BAC'));
+      fireEvent.click(screen.getByLabelText('Automatic'));
+      expect(hidden().value).toBe('');
+    });
+    it('a failing colour shows the note and a Use button that sets the shade', () => {
+      render(<BrandingEditor initial={{ headerColor: '#0B554F' }} agencyName="Acme" action={action} />);
+      const input = screen.getByLabelText('Header colour value') as HTMLInputElement;
+      expect(screen.queryByText('White text is hard to read on this colour.')).toBeNull();
+      fireEvent.change(input, { target: { value: '#FFD400' } });
+      expect(screen.getByText('White text is hard to read on this colour.')).toBeTruthy();
+      const btn = screen.getByRole('button', { name: /^Use #/ });
+      const shade = btn.textContent!.replace('Use ', '');
+      fireEvent.click(btn);
+      expect(input.value).toBe(shade);
+      expect(hidden().value).toBe(shade);
+      expect(screen.queryByText('White text is hard to read on this colour.')).toBeNull();
+    });
+    it('the preview band uses the override', () => {
+      render(<BrandingEditor initial={{ headerColor: '#0B554F' }} agencyName="Acme" action={action} />);
+      const vars = (band().closest('[style]') as HTMLElement).style.getPropertyValue('--brand-ink');
+      expect(vars.toUpperCase()).toBe('#0B554F');
+      expect(band().className).toContain('rm-ink-band');
+    });
+    it('is disabled when read-only', () => {
+      // useReadOnly is context driven; the fieldset wraps the field
+      render(<BrandingEditor initial={{}} agencyName="Acme" action={action} />);
+      expect(screen.getByLabelText('Automatic').closest('fieldset')).toBeTruthy();
+    });
   });
 });

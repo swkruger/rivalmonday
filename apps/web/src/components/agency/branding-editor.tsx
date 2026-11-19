@@ -1,15 +1,16 @@
 'use client';
 import type { AgencyBranding } from '@cs/db';
 import { resolveBranding } from '@cs/email/branding';
-import { Band, Button, Frame, Input, Label, SaveBar, Section, fileInputClass, readableTextOn, themeVars } from '@cs/ui';
+import { Band, Breadcrumb, BreadcrumbItem, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator, Button, Frame, Input, Label, SaveBar, Section, Segmented, brandInk, fileInputClass, nearestBandShade, passesBandFloor, readableTextOn, themeVars } from '@cs/ui';
 import { useActionState, useId, useRef, useState } from 'react';
+import { userBubbleClass } from '@/components/ask/bubble-classes';
 import { WriteGuard, useReadOnly } from '@/components/read-only';
 import type { FormResult } from '@/server/forms';
 import { ErrorNote } from '@/components/form-error';
 
 const HEX = /^#[0-9a-fA-F]{6}$/;
 
-function ColorField({ label, value, onChange, note }: { label: string; value: string; onChange: (v: string) => void; note?: string }) {
+function ColorField({ label, value, onChange, note, children }: { label: string; value: string; onChange: (v: string) => void; note?: string; children?: React.ReactNode }) {
   const picked = HEX.test(value) ? value : '#000000';
   const id = useId();
   const noteId = `${id}-note`;
@@ -27,6 +28,7 @@ function ColorField({ label, value, onChange, note }: { label: string; value: st
         <Input id={id} value={value} onChange={(e) => onChange(e.target.value)} placeholder="#47A8E7" className="w-32" aria-describedby={note ? noteId : undefined} />
       </div>
       {note && <p id={noteId} className="text-sm text-muted-ink">{note}</p>}
+      {children}
     </div>
   );
 }
@@ -52,6 +54,7 @@ export function BrandingEditor({ initial, agencyName, action, submitLabel = 'Sav
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [draft, setDraft] = useState<AgencyBranding>(initial);
   const [saved, setSaved] = useState<AgencyBranding>(initial);
+  const [range, setRange] = useState('week');
   const dirty = JSON.stringify(draft) !== JSON.stringify(saved);
   const readOnly = useReadOnly();
   // Review Focus 5: the preview never reads raw form state directly — `resolveBranding` + `themeVars` validate every
@@ -61,6 +64,19 @@ export function BrandingEditor({ initial, agencyName, action, submitLabel = 'Sav
   const logoSrc = previewLogo(resolved.logoUrl, draft.logoUrl);
   const set = (k: keyof AgencyBranding) => (v: string) => setDraft((d) => ({ ...d, [k]: v }));
   draftRef.current = draft;
+  const autoHeader = draft.headerColor === undefined;
+  const headerValue = draft.headerColor ?? '';
+  const headerFails = HEX.test(headerValue) && !passesBandFloor(headerValue);
+  const headerShade = headerFails ? nearestBandShade(headerValue) : '';
+  const toggleAutomatic = (auto: boolean) =>
+    setDraft((d) => {
+      if (auto) {
+        const { headerColor: _drop, ...rest } = d;
+        return rest;
+      }
+      const r = resolveBranding(agencyName, d);
+      return { ...d, headerColor: brandInk(r.primary, r.secondary) };
+    });
   const wizard = footer !== undefined; // the onboarding step keeps its own "Save and continue" button; the settings page gets the SaveBar
 
   async function upload(file: File) {
@@ -122,6 +138,23 @@ export function BrandingEditor({ initial, agencyName, action, submitLabel = 'Sav
           <ColorField label="Primary colour" value={draft.primary ?? ''} onChange={set('primary')} />
           <ColorField label="Secondary colour" value={draft.secondary ?? ''} onChange={set('secondary')} />
           <div className="flex flex-col gap-2 sm:col-span-2">
+            <Label htmlFor="headerAuto" className="font-semibold">Header colour</Label>
+            <label className="flex items-center gap-2 text-sm">
+              <input id="headerAuto" type="checkbox" checked={autoHeader} onChange={(e) => toggleAutomatic(e.target.checked)} className="h-4 w-4" />
+              Automatic
+            </label>
+            {!autoHeader && (
+              <ColorField label="Header colour value" value={headerValue} onChange={set('headerColor')} note={headerFails ? 'White text is hard to read on this colour.' : undefined}>
+                {headerFails && (
+                  <Button type="button" variant="outline" className="self-start" onClick={() => set('headerColor')(headerShade)}>
+                    Use {headerShade}
+                  </Button>
+                )}
+              </ColorField>
+            )}
+            <p className="text-sm text-muted-ink">Used for the title band on client pages, dark buttons, the assistant&apos;s chat bubbles, sign-in pages and the report cover.</p>
+          </div>
+          <div className="flex flex-col gap-2 sm:col-span-2">
             <Label htmlFor="fromName">Email from-name</Label>
             <Input id="fromName" name="fromName" value={draft.fromName ?? ''} onChange={(e) => set('fromName')(e.target.value)} placeholder={agencyName} />
           </div>
@@ -138,6 +171,7 @@ export function BrandingEditor({ initial, agencyName, action, submitLabel = 'Sav
         </fieldset>
         <input type="hidden" name="primary" value={draft.primary ?? ''} />
         <input type="hidden" name="secondary" value={draft.secondary ?? ''} />
+        <input type="hidden" name="headerColor" value={autoHeader ? '' : headerValue} />
         <p className="text-sm text-muted-ink">The amber accent is part of the product and can&apos;t be changed.</p>
         {wizard ? (
           <WriteGuard>
@@ -162,7 +196,30 @@ export function BrandingEditor({ initial, agencyName, action, submitLabel = 'Sav
 
       <Frame style={vars} className="sticky top-[calc(var(--rm-shell-top,0px)+1rem)] flex flex-col gap-3">
         <h2 className="text-base font-semibold">Live preview</h2>
-        <p className="text-xs font-semibold text-muted-ink">Dashboard</p>
+        <p className="text-xs font-semibold text-muted-ink">Client page</p>
+        <div data-testid="preview-client-page" className="overflow-hidden rounded-md border border-line bg-surface">
+          <div data-testid="preview-band" className="rm-ink-band flex flex-col gap-1 px-3 py-3">
+            <Breadcrumb>
+              <BreadcrumbList className="text-11">
+                <BreadcrumbItem>Clients</BreadcrumbItem>
+                <BreadcrumbSeparator />
+                <BreadcrumbItem><BreadcrumbPage>Cool Breeze</BreadcrumbPage></BreadcrumbItem>
+              </BreadcrumbList>
+            </Breadcrumb>
+            <p className="text-base font-semibold tracking-[-0.02em]">Overview</p>
+          </div>
+          <div className="flex flex-col gap-2 p-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <Button type="button" variant="ink">Approve</Button>
+              <Button type="button">View brief</Button>
+            </div>
+            <div className="flex flex-col">
+              <div className={userBubbleClass}>What changed this week?</div>
+            </div>
+            <Segmented aria-label="Preview range" value={range} onValueChange={setRange} items={[{ value: 'week', label: 'Week' }, { value: 'month', label: 'Month' }]} className="self-start" />
+          </div>
+        </div>
+        <p className="mt-1 text-xs font-semibold text-muted-ink">Dashboard</p>
         <div className="overflow-hidden rounded-md border border-line">
           <div className="flex h-[200px]">
             <div className="flex w-24 flex-col gap-1.5 border-r border-line bg-surface p-2 text-11">
