@@ -87,7 +87,6 @@ Source key: **brand** = decided in brand.md / CLAUDE.md · **existing** = alread
 | `color.action.danger` | #DC2626 | brand | White text 4.83 · only inside confirmation dialogs |
 | `color.action.dangerHover` | #B91C1C | existing | White text 6.47 |
 | `color.action.ink` (`--ink`) | #0B2540 | brand (app-style) | `ink` button fill, white label (D-28) |
-| `color.action.inkHover` (`--ink-hover`) | #2D435B | new (app-style) | Ink 86 % + white; white on it 10:1 |
 | `color.action.successStrong` (`--success-strong`) | #15803D | new (app-style) | `done` button fill; white 5.0:1 (`--success` #16A34A is only 3.3:1) |
 | `color.action.successStrongHover` (`--success-strong-hover`) | #166534 | new (app-style) | White 7.1:1 |
 
@@ -134,7 +133,6 @@ Validation (dataviz skill, `validate_palette.js --mode light --pairs all`): **yo
 | white | action.danger | 4.83 | Destructive button |
 | white | brand.secondary | 5.53 | Checkbox, switch, OD-1 alternative |
 | ink | action.primary | 5.93 | Primary button label (OD-1) |
-| white | action.inkHover | 10.0 | `ink` button hover |
 | white | action.successStrong | 5.0 | `done` button |
 | white | action.successStrongHover | 7.1 | `done` hover |
 | on-ink-muted | ink | 9.0 | Secondary text in the title band |

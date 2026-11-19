@@ -4,7 +4,7 @@ export function Timeline() {
     <svg role="img" aria-label="Your first two weeks: add a client today, a starting point within 48 hours, then a brief every Monday" width="400" viewBox="0 0 560 460" fontFamily="Inter, sans-serif" className="max-w-full">
       <line className="stroke-line" x1="80" y1="70" x2="80" y2="390" strokeWidth="2" strokeDasharray="4 6" />
       <circle className="fill-primary" cx="80" cy="70" r="16" />
-      <text className="fill-ink" x="80" y="77" textAnchor="middle" fontSize="18" fontWeight="600">1</text>
+      <text className="fill-primary-foreground" x="80" y="77" textAnchor="middle" fontSize="18" fontWeight="600">1</text>
       <rect className="fill-surface stroke-line" x="120" y="40" width="380" height="64" rx="8" />
       <rect className="fill-muted-surface" x="136" y="56" width="32" height="32" rx="6" />
       <text className="fill-ink" x="182" y="68" fontSize="18" fontWeight="600">Cool Breeze Heating &amp; Air</text>

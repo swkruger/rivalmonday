@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { brandInk, brandInkHover, contrastRatio, mixHex, readableTextOn, themeVars } from './theme';
+import { CHART_RIVAL_FALLBACKS, brandInk, brandInkHover, contrastRatio, mixHex, readableTextOn, themeVars } from './theme';
 
 const RM_P = '#47A8E7';
 const RM_S = '#2A6BAC';
@@ -61,7 +61,7 @@ describe('mixHex', () => {
 describe('themeVars', () => {
   it('uses the brand constants for the default primary', () => {
     expect(themeVars({ primary: '#47A8E7', secondary: '#2A6BAC' })).toEqual({
-      '--primary': '#47A8E7', '--secondary': '#2A6BAC', '--primary-foreground': '#0B2540', '--secondary-foreground': '#FFFFFF', '--primary-soft': '#E3F2FC', '--primary-soft-text': '#1F6FA8', '--primary-hover': '#56afe9', '--primary-active': '#64b6eb', '--primary-band-ring': '#47A8E7', '--brand-ink': '#0B2540', '--brand-ink-hover': '#2D435B',
+      '--primary': '#47A8E7', '--secondary': '#2A6BAC', '--primary-foreground': '#0B2540', '--secondary-foreground': '#FFFFFF', '--primary-soft': '#E3F2FC', '--primary-soft-text': '#1F6FA8', '--primary-hover': '#56afe9', '--primary-active': '#64b6eb', '--primary-band-ring': '#47A8E7', '--brand-ink': '#0B2540', '--brand-ink-hover': '#2D435B', '--switch-on': '#2A6BAC',
     });
   });
 
@@ -98,6 +98,36 @@ describe('themeVars', () => {
   it('never emits a non-hex value (Review Focus 5)', () => {
     const v = themeVars({ primary: 'red;}body{display:none', secondary: 'url(x)' });
     expect(Object.values(v).every((x) => /^#[0-9a-fA-F]{6}$/.test(x))).toBe(true);
+  });
+});
+
+describe('themeVars header colour, switch and rival chart slots', () => {
+  it('headerColor drives --brand-ink', () => {
+    expect(themeVars({ primary: '#47A8E7', secondary: '#2A6BAC', headerColor: '#0b554f' })['--brand-ink']).toBe('#0b554f');
+  });
+  it('a failing hand-built headerColor falls back to the automatic ink', () => {
+    expect(themeVars({ primary: '#47A8E7', secondary: '#2A6BAC', headerColor: '#FFD400' })['--brand-ink']).toBe('#0B2540');
+  });
+  it('default theme emits no rival keys', () => {
+    const v = themeVars({ primary: '#47A8E7', secondary: '#2A6BAC' });
+    expect('--chart-rival-1' in v || '--chart-rival-2' in v).toBe(false);
+  });
+  it('orange secondary swaps rival 1 only, green secondary swaps rival 2 only', () => {
+    const o = themeVars({ primary: '#47A8E7', secondary: '#E8602C' });
+    expect(CHART_RIVAL_FALLBACKS).toContain(o['--chart-rival-1']);
+    expect('--chart-rival-2' in o).toBe(false);
+    const g = themeVars({ primary: '#47A8E7', secondary: '#12905F' });
+    expect(CHART_RIVAL_FALLBACKS).toContain(g['--chart-rival-2']);
+    expect('--chart-rival-1' in g).toBe(false);
+  });
+  it('--switch-on is the secondary when white is >= 3:1 on it, else the brand ink', () => {
+    expect(themeVars({ primary: '#47A8E7', secondary: '#0F766E' })['--switch-on']).toBe('#0F766E');
+    const y = themeVars({ primary: '#47A8E7', secondary: '#FFD400' });
+    expect(y['--switch-on']).toBe(y['--brand-ink']);
+  });
+  it('--ink-hover is gone from styles.css', () => {
+    const css = readFileSync(fileURLToPath(new URL('./styles.css', import.meta.url)), 'utf8');
+    expect(css).not.toMatch(/--ink-hover|--color-ink-hover/);
   });
 });
 

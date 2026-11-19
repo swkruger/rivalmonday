@@ -22,7 +22,6 @@ const PAIRS: Array<[string, string, string, number]> = [
   ['ink on action.primary', INK, '#47A8E7', 4.5],
   ['line-strong on surface (UI)', '#8796AB', '#FFFFFF', 3.0],
   ['focus on surface (UI)', '#2A6BAC', '#FFFFFF', 3.0],
-  ['white on ink-hover', '#FFFFFF', '#2D435B', 4.5],
   ['white on success-strong', '#FFFFFF', '#15803D', 4.5],
   ['white on success-strong-hover', '#FFFFFF', '#166534', 4.5],
   ['on-ink-muted on ink', '#B7C7DA', INK, 4.5],

@@ -29,7 +29,7 @@ export function readableTextOn(bg: string): '#FFFFFF' | '#0B2540' {
 }
 
 const HEX = /^#[0-9a-fA-F]{6}$/;
-const safeHex = (v: string, fallback: string) => (/^#[0-9a-fA-F]{6}$/.test(v) ? v : fallback);
+const safeHex = (v: string, fallback: string) => (HEX.test(v) ? v : fallback);
 
 /** Linear mix: t = 0 → a, t = 1 → b. Inputs must be #rrggbb. */
 export function mixHex(a: string, b: string, t: number): string {
@@ -83,7 +83,7 @@ export function brandInk(primary: string, secondary: string): string {
 
 /** The title-band colour: the agency's own header colour when set, else the deep shade of its brand colours. */
 export function bandColor(b: Pick<Branding, 'primary' | 'secondary'> & { headerColor?: string | null }): string {
-  return b.headerColor ?? brandInk(b.primary, b.secondary);
+  return b.headerColor && passesBandFloor(b.headerColor) ? b.headerColor : brandInk(b.primary, b.secondary);
 }
 
 export interface Branding {

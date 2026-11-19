@@ -2,9 +2,9 @@ import { ChartPlot, PLOT } from '@/components/charts/plot';
 import { formatMoney } from '@/lib/format';
 import type { CostMonth } from './types';
 
-/** Chart roles: secondary for API-metered spend, `--chart-rival-2` (not amber: that is Friday's) for manual costs. dataviz validator vs secondary: normal dE 18.1, worst CVD dE 7.6 (tritan; legend and surface outline carry identity), 3.88:1 on white. */
+/** Chart roles: secondary for API-metered spend, fixed `--chart-manual` (never swapped; not amber: that is Friday's) for manual costs. dataviz validator vs secondary: normal dE 18.1, worst CVD dE 7.6 (tritan; legend and surface outline carry identity), 3.88:1 on white. */
 export const API_COLOR = 'var(--secondary)';
-export const MANUAL_COLOR = 'var(--chart-rival-2)';
+export const MANUAL_COLOR = 'var(--chart-manual)';
 /** A surface-coloured hairline separates the stacked segments. */
 const MANUAL_EDGE = 'var(--surface)';
 

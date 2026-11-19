@@ -30,6 +30,10 @@ describe('band colour', () => {
     expect(bandColor({ primary: '#0F766E', secondary: '#2A6BAC', headerColor: '#0b554f' })).toBe('#0b554f');
     expect(bandColor({ primary: '#0F766E', secondary: '#2A6BAC' })).toBe(brandInk('#0F766E', '#2A6BAC'));
   });
+  it('bandColor ignores a hand-built headerColor that fails the floor', () => {
+    expect(bandColor({ primary: '#0F766E', secondary: '#2A6BAC', headerColor: '#FFD400' })).toBe(brandInk('#0F766E', '#2A6BAC'));
+    expect(bandColor({ primary: '#0F766E', secondary: '#2A6BAC', headerColor: 'red;}' })).toBe(brandInk('#0F766E', '#2A6BAC'));
+  });
   it('resolveBranding keeps only a passing headerColor', () => {
     expect(resolveBranding('A', { headerColor: '#FFD400' }).headerColor).toBeNull();
     expect(resolveBranding('A', { headerColor: 'red' } as never).headerColor).toBeNull();

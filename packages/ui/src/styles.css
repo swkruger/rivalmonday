@@ -43,6 +43,8 @@
   --warning-text: #92400E;
   --chart-rival-1: #E05A2B;
   --chart-rival-2: #14936A;
+  --chart-manual: #14936A;
+  --switch-on: var(--secondary);
   --chart-context: #A3B1C2;
   --chart-peer-band: #EEF2F6;
   --chart-grid: #EDF1F5;
@@ -52,7 +54,6 @@
   --shadow-raised-value: 0 1px 2px rgba(11,37,64,.06), 0 6px 20px rgba(11,37,64,.06);
   /* app-style stage A (docs/superpowers/specs/2026-11-04-app-style-design.md § 2). --primary-band-ring is per agency (themeVars). */
   --chrome: #FBFCFE;
-  --ink-hover: #2D435B;
   /* Per agency (themeVars brandInk); RM defaults here. */
   --brand-ink: #0B2540;
   --brand-ink-hover: #2D435B;
@@ -140,6 +141,8 @@
   --color-warning-text: var(--warning-text);
   --color-chart-rival-1: var(--chart-rival-1);
   --color-chart-rival-2: var(--chart-rival-2);
+  --color-chart-manual: var(--chart-manual);
+  --color-switch-on: var(--switch-on);
   --color-chart-context: var(--chart-context);
   --color-chart-peer-band: var(--chart-peer-band);
   --color-chart-grid: var(--chart-grid);
@@ -154,7 +157,6 @@
   --shadow-dialog: var(--shadow-dialog-value);
   --shadow-raised: var(--shadow-raised-value);
   --color-chrome: var(--chrome);
-  --color-ink-hover: var(--ink-hover);
   --color-brand-ink: var(--brand-ink);
   --color-brand-ink-hover: var(--brand-ink-hover);
   --color-success-strong: var(--success-strong);
