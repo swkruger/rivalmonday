@@ -154,6 +154,7 @@ Gate itself done (launch-gate, 2026-11-04: `profile-gate.sh --seed` exit 0, 71/7
 - [ ] Domains: concurrency test for the `host_slug` advisory lock / operator slug refusal; verify jobs + sweep skip archived agencies (`archived_at IS NULL` in `listDomainsToVerify`/`expireStaleDomains`); per-agency cap/limiter on web domain writes; platform-side domain removal for archived agencies and purge releasing the Vercel hostname + Postmark domain (purge only skips today); web fallback test with `webEnv` returning `hostEnv` and no `NEUTRAL_DOMAIN` stub — *from 13a1*
 - [ ] Delivery: `clientOriginFor` computed per message in worker paths (precompute); mixed-membership inbox edge goes to `/inbox`; theme `hostForLogo` swallows errors; outbox test rows without an audience fall back to agency; the `pool_new` guard test can't fail; import placement in swept tests — *from 13a1*
 - [ ] Web: `/start` with a malformed slug skips the host check (`submitIntake` refuses anyway); agency-contact `/l` on its own agency host goes to platform sign-in — *from 13a1*
+- [ ] 13a3a minors: test summary bars use `bandColor`; chart swap tests assert ΔE >= 20; failing-shade test asserts the shade passes; E2E auth-strip colour; `branding-themes` clears `headerColor` between themes; friendlier refusal than `headerColor must ...`; clearing the hex box returns to Automatic - *13a3a, next touch*
 
 ## Phase 13b follow-ups (local rankings)
 - [ ] Soon: Stadia one-image probe (confirm `STATIC_MAP_WORLD_PX=512`, @2x size, max size; add a fixture) before enabling the key in prod; `SINGLE_SHOT` 3 h expiry on a long Sunday fan-out (pre-existing); `request_rank_scan` stale sweep covers all tenants and, with no DataForSEO-configured signal in `ToolDeps`, an unconfigured worker leaves a manual row `running` until the 3 h sweep — *phase-13b*
@@ -219,14 +220,13 @@ Gate itself done (launch-gate, 2026-11-04: `profile-gate.sh --seed` exit 0, 71/7
 - [ ] Test hygiene minors: rival-grid test pins properties not bytes; loose avatar/className selectors; redundant h1 assertion; `ids` helper filters 'founder' — *site-story*
 
 ## Design system v1 implementation (owner mandate 2026-10-23)
-- [ ] 16f carried minors: `ResponsivePopover` one-frame flash when crossing 768 open; `friday-dock-context` own 1280 matchMedia (use `useMediaQuery`); `sheet.tsx` duplicate `overflow-y-auto`; bottom-sheet Close 28 px; HelpTip inside a Dialog < 768 opens a sheet (no usage yet); Field `htmlFor` leaves help text without `aria-describedby`; stacked-row test lacks a rated item; support-banner/banner tests assert class strings; onboarding Timeline preview `fill-ink` on agency `--primary` (13a) — *phase-16 (16f)*
+- [ ] 16f carried minors: `ResponsivePopover` one-frame flash when crossing 768 open; `friday-dock-context` own 1280 matchMedia (use `useMediaQuery`); `sheet.tsx` duplicate `overflow-y-auto`; bottom-sheet Close 28 px; HelpTip inside a Dialog < 768 opens a sheet (no usage yet); Field `htmlFor` leaves help text without `aria-describedby`; stacked-row test lacks a rated item; support-banner/banner tests assert class strings — *phase-16 (16f)*
 - [ ] Extend `@cs/ui` `ConfirmDialog` (controlled open, inline error, children) and fold the page-local `ActionDialog` (platform agency page) into it — *phase-15c3 (R11)*
 - [ ] 15c-3b: move `billing/plan-move-parts.tsx` to `platform/_components/`; web hard-codes `['ask','mcp']` instead of `PLAN_FEATURES` — *phase-15c3b*
-- [ ] 13a: brand-aware chart check (`--you` = agency secondary may clash with rival orange #E05A2B); neutral chart-series alias for the platform costs chart (manual series borrows `--chart-rival-2`); checked Switch `bg-secondary` + white thumb (~1.4:1 on #FFD400) — *phase-16*
 - [ ] Platform (operator) pages adopt the `ink` primary (still default `Button`); `ConfirmDialog` confirm button gets the ink tier on agency pages — *app-style*
 - [ ] Lead cards: one ink Accept per card vs outline (owner's call; ties to "≤ 1 primary per view" ruling above) — *app-style*
 - [ ] M5: data attributes for the Friday bubble / segmented tab classes (styled by class composition only) — *app-style*
-- [ ] 13a: comprehensive branding per the 13a spec addendum 2026-11-05 (header-colour override, editor preview of band/buttons/bubble, dark logo, emails/PDF/auth strip); `--ink-hover` now unused (remove or reuse) — *brand-band*
+- [ ] 13a3b (spec `2026-11-19-phase-13a3-branding-design.md` § 13a3b): dark-surface logo (optional second upload; band, email header, PDF cover; fallback agency name in white) and the brief/alert email header band in `bandColor` - *13a3*
 
 ## Polish (small UI/UX fixes, any time)
 - [ ] Guest views: the sidebar's bottom edge sits below the viewport until the guest banner scrolls away (sticky top bar + scrolling banner) — *stage3-fixes*
