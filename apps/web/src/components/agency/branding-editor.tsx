@@ -10,17 +10,17 @@ import { ErrorNote } from '@/components/form-error';
 
 const HEX = /^#[0-9a-fA-F]{6}$/;
 
-function ColorField({ label, value, onChange, note, children }: { label: string; value: string; onChange: (v: string) => void; note?: string; children?: React.ReactNode }) {
+function ColorField({ label, value, onChange, note, children, hideLabel, pickerLabel }: { label: string; value: string; onChange: (v: string) => void; note?: string; children?: React.ReactNode; hideLabel?: boolean; pickerLabel?: string }) {
   const picked = HEX.test(value) ? value : '#000000';
   const id = useId();
   const noteId = `${id}-note`;
   return (
     <div className="flex flex-col gap-2">
-      <Label htmlFor={id}>{label}</Label>
+      <Label htmlFor={id} className={hideLabel ? 'sr-only' : undefined}>{label}</Label>
       <div className="flex items-center gap-2">
         <input
           type="color"
-          aria-label={`${label} colour picker`}
+          aria-label={pickerLabel ?? `${label} colour picker`}
           value={picked}
           onChange={(e) => onChange(e.target.value)}
           className="h-9 w-9 shrink-0 cursor-pointer rounded-md border border-input bg-transparent p-0.5"
@@ -64,7 +64,9 @@ export function BrandingEditor({ initial, agencyName, action, submitLabel = 'Sav
   const logoSrc = previewLogo(resolved.logoUrl, draft.logoUrl);
   const set = (k: keyof AgencyBranding) => (v: string) => setDraft((d) => ({ ...d, [k]: v }));
   draftRef.current = draft;
-  const autoHeader = draft.headerColor === undefined;
+  const headerGroupId = useId();
+  const headerAutoId = useId();
+  const autoHeader = draft.headerColor == null;
   const headerValue = draft.headerColor ?? '';
   const headerFails = HEX.test(headerValue) && !passesBandFloor(headerValue);
   const headerShade = headerFails ? nearestBandShade(headerValue) : '';
@@ -137,14 +139,14 @@ export function BrandingEditor({ initial, agencyName, action, submitLabel = 'Sav
           </div>
           <ColorField label="Primary colour" value={draft.primary ?? ''} onChange={set('primary')} />
           <ColorField label="Secondary colour" value={draft.secondary ?? ''} onChange={set('secondary')} />
-          <div className="flex flex-col gap-2 sm:col-span-2">
-            <Label htmlFor="headerAuto" className="font-semibold">Header colour</Label>
-            <label className="flex items-center gap-2 text-sm">
-              <input id="headerAuto" type="checkbox" checked={autoHeader} onChange={(e) => toggleAutomatic(e.target.checked)} className="h-4 w-4" />
+          <div role="group" aria-labelledby={headerGroupId} className="flex flex-col gap-2 sm:col-span-2">
+            <p id={headerGroupId} className="text-13 leading-[18px] font-semibold text-ink">Header colour</p>
+            <label htmlFor={headerAutoId} className="flex items-center gap-2 text-sm">
+              <input id={headerAutoId} type="checkbox" checked={autoHeader} onChange={(e) => toggleAutomatic(e.target.checked)} className="h-4 w-4" />
               Automatic
             </label>
             {!autoHeader && (
-              <ColorField label="Header colour value" value={headerValue} onChange={set('headerColor')} note={headerFails ? 'White text is hard to read on this colour.' : undefined}>
+              <ColorField label="Header colour" hideLabel pickerLabel="Header colour picker" value={headerValue} onChange={set('headerColor')} note={headerFails ? 'White text is hard to read on this colour.' : undefined}>
                 {headerFails && (
                   <Button type="button" variant="outline" className="self-start" onClick={() => set('headerColor')(headerShade)}>
                     Use {headerShade}

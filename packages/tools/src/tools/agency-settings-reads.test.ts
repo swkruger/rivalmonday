@@ -57,6 +57,17 @@ describe('agency settings read tools (7a2 Task 7)', () => {
     expect(JSON.stringify([team, branding, rec])).not.toMatch(/admin@|new@|briefs@|owner@/);
   });
 
+  it('get_agency_branding keeps the stored header colour in stored and resolved (13a3a)', async () => {
+    await dbs.owner.update(agency).set({ branding: { displayName: 'Peak', fromEmail: 'briefs@peak.co', headerColor: '#0b554f' } }).where(eq(agency.id, IDS.agencyA));
+    try {
+      const b = (await registry.invoke(admin, 'get_agency_branding', {})) as { stored: { headerColor?: string }; resolved: { headerColor: string | null } };
+      expect(b.stored.headerColor).toBe('#0b554f');
+      expect(b.resolved.headerColor).toBe('#0b554f');
+    } finally {
+      await dbs.owner.update(agency).set({ branding: { displayName: 'Peak', fromEmail: 'briefs@peak.co' } }).where(eq(agency.id, IDS.agencyA));
+    }
+  });
+
   it('get_team sentAt = expiresAt − 14 d (B3)', async () => {
     const team = (await registry.invoke(admin, 'get_team', {})) as { invitations: { expiresAt: Date; sentAt: string }[] };
     const [i] = team.invitations;

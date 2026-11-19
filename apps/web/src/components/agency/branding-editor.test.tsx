@@ -2,6 +2,7 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { brandInk } from '@cs/ui';
+import { ReadOnlyProvider } from '@/components/read-only';
 import { BrandingEditor } from './branding-editor';
 
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
@@ -77,19 +78,19 @@ describe('BrandingEditor', () => {
       render(<BrandingEditor initial={{}} agencyName="Acme" action={action} />);
       expect((screen.getByLabelText('Automatic') as HTMLInputElement).checked).toBe(true);
       expect(hidden().value).toBe('');
-      expect(screen.queryByLabelText('Header colour value')).toBeNull();
+      expect(screen.queryByRole('textbox', { name: 'Header colour' })).toBeNull();
     });
     it('unchecking Automatic prefills the picker with the derived colour', () => {
       render(<BrandingEditor initial={{ primary: '#47A8E7', secondary: '#2A6BAC' }} agencyName="Acme" action={action} />);
       fireEvent.click(screen.getByLabelText('Automatic'));
-      expect((screen.getByLabelText('Header colour value') as HTMLInputElement).value).toBe(brandInk('#47A8E7', '#2A6BAC'));
+      expect((screen.getByRole('textbox', { name: 'Header colour' }) as HTMLInputElement).value).toBe(brandInk('#47A8E7', '#2A6BAC'));
       expect(hidden().value).toBe(brandInk('#47A8E7', '#2A6BAC'));
       fireEvent.click(screen.getByLabelText('Automatic'));
       expect(hidden().value).toBe('');
     });
     it('a failing colour shows the note and a Use button that sets the shade', () => {
       render(<BrandingEditor initial={{ headerColor: '#0B554F' }} agencyName="Acme" action={action} />);
-      const input = screen.getByLabelText('Header colour value') as HTMLInputElement;
+      const input = screen.getByRole('textbox', { name: 'Header colour' }) as HTMLInputElement;
       expect(screen.queryByText('White text is hard to read on this colour.')).toBeNull();
       fireEvent.change(input, { target: { value: '#FFD400' } });
       expect(screen.getByText('White text is hard to read on this colour.')).toBeTruthy();
@@ -106,10 +107,22 @@ describe('BrandingEditor', () => {
       expect(vars.toUpperCase()).toBe('#0B554F');
       expect(band().className).toContain('rm-ink-band');
     });
+    it('a stored header colour opens in manual mode with the hidden input set', () => {
+      render(<BrandingEditor initial={{ headerColor: '#0b554f' }} agencyName="Acme" action={action} />);
+      expect((screen.getByLabelText('Automatic') as HTMLInputElement).checked).toBe(false);
+      expect((screen.getByRole('textbox', { name: 'Header colour' }) as HTMLInputElement).value).toBe('#0b554f');
+      expect(screen.getByLabelText('Header colour picker')).toBeTruthy();
+      expect(hidden().value).toBe('#0b554f');
+    });
     it('is disabled when read-only', () => {
-      // useReadOnly is context driven; the fieldset wraps the field
-      render(<BrandingEditor initial={{}} agencyName="Acme" action={action} />);
-      expect(screen.getByLabelText('Automatic').closest('fieldset')).toBeTruthy();
+      render(
+        <ReadOnlyProvider readOnly>
+          <BrandingEditor initial={{ headerColor: '#FFD400' }} agencyName="Acme" action={action} />
+        </ReadOnlyProvider>,
+      );
+      expect(screen.getByLabelText('Automatic').matches(':disabled')).toBe(true);
+      expect(screen.getByRole('textbox', { name: 'Header colour' }).matches(':disabled')).toBe(true);
+      expect(screen.getByRole('button', { name: /^Use #/ }).matches(':disabled')).toBe(true);
     });
   });
 });

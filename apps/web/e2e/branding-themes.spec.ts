@@ -13,11 +13,12 @@ test.use({ storageState: ADMIN_STATE });
 
 type Stored = Record<string, string>;
 const AGENCY = 'E2E Agency';
-const THEMES: { name: string; patch: Stored }[] = [
+const THEMES: { name: string; patch: Stored; fixed?: string }[] = [
   { name: 'default', patch: {} },
   { name: 'teal', patch: { secondary: '#0F766E' } },
   { name: 'yellow', patch: { secondary: '#FFD400' } },
-  { name: 'override', patch: { headerColor: '#5c2baf' } },
+  // #5c2baf passes the band floor, so the band must be exactly it (hard-coded, not derived from the code under test)
+  { name: 'override', patch: { headerColor: '#5c2baf' }, fixed: 'rgb(92, 43, 175)' },
 ];
 const VIEWPORTS = [
   { name: 'desktop', width: 1440, height: 900 },
@@ -40,6 +41,7 @@ async function withDb<T>(fn: (db: ReturnType<typeof createDb>['db']) => Promise<
 
 let original: Stored | null = null;
 let clientId = '';
+let loaded = false;
 
 test.describe.serial('branding themes: client title band', () => {
   test.beforeAll(async ({ browser }, testInfo) => {
@@ -50,10 +52,12 @@ test.describe.serial('branding themes: client title band', () => {
       ))];
       original = rows[0]!.branding;
       clientId = rows[0]!.client_id;
+      loaded = true;
     });
   });
 
   test.afterAll(async () => {
+    if (!loaded) return;
     await withDb((db) => db.execute(sql`update agency set branding = ${original === null ? null : JSON.stringify(original)}::jsonb where name = ${AGENCY}`));
   });
 
@@ -61,7 +65,7 @@ test.describe.serial('branding themes: client title band', () => {
     test(`title band follows the ${theme.name} theme`, { tag: ['@whitelabel'] }, async ({ page }, testInfo) => {
       const stored = { ...(original ?? {}), ...theme.patch };
       await withDb((db) => db.execute(sql`update agency set branding = ${JSON.stringify(stored)}::jsonb where name = ${AGENCY}`));
-      const expected = rgb(bandColor(resolveBranding(AGENCY, stored)));
+      const expected = theme.fixed ?? rgb(bandColor(resolveBranding(AGENCY, stored)));
       for (const vp of VIEWPORTS) {
         await page.setViewportSize({ width: vp.width, height: vp.height });
         const res = await page.goto(`/c/${clientId}`);
