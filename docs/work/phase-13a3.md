@@ -1,13 +1,13 @@
 # phase-13a3 — Branding addendum: header colour, dark logo, editor preview, tokens everywhere
 
 **Kind:** planning   **Worktree:** ../CompetitorSpy-wt/phase-13a3   **Base:** main @ 35ca3d84
-**Plan/spec:** spec = 13a addendum 2026-11-05 (`specs/2026-10-17-phase-13a-white-label-design.md` line 121) + `specs/2026-11-05-brand-band-design.md`; plan not yet written.
+**Plan/spec:** spec `specs/2026-11-19-phase-13a3-branding-design.md`; plan 13a3a `plans/2026-11-19-phase-13a3a-header-colour.md` (13a3b plan after 13a3a merges).
 
 ## Status (overwrite)
-Worktree + brief created; no code. Waiting for owner answers to the open questions, then brainstorming, spec (only if new interfaces), lean plan.
+Spec + 13a3a plan written 2026-11-19; waiting for owner plan approval.
 
 ## Next (overwrite)
-Owner answers Open question 1 (split?) and 2-6; agent then runs `superpowers:brainstorming`, writes the lean plan.
+Owner approves the 13a3a plan; then SDD Task 0 (pre-flight).
 
 ## Interfaces this branch adds or changes
 Planned: `AgencyBranding` (`packages/db/src/schema/delivery.ts`, JSON) gains `headerColor?`, a dark-logo URL; `@cs/email` `Branding` gains `headerColor`, `logoDarkUrl`; `themeVars`; `updateAgencyBranding` (`packages/tools/src/settings.ts`). Expected no migration (JSON). Next free migration 0115 if one is needed.
@@ -16,7 +16,7 @@ Planned: `AgencyBranding` (`packages/db/src/schema/delivery.ts`, JSON) gains `he
 13a2 plan says it touches none of `branding-form.tsx`, `settings.ts`, `AgencyBranding`, theme tokens; 13a1/13a2 are merged. Re-check `git branch --no-merged main` at pre-flight.
 
 ## Decisions (owner-approved)
-None yet for this phase.
+2026-11-19 "as recommended": Q1 split 13a3a/13a3b; Q2 dark logo = optional second upload; Q3 one header colour for app/email/PDF; Q4 privacy + site URL in 13a3b; Q5 offer nearest passing shade; Q6 swap the clashing rival chart slot. Details: spec D1-D9.
 
 ## New backlog (target → item)
 None yet.
