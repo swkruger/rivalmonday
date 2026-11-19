@@ -41,6 +41,8 @@ export interface AgencyBranding {
   primary?: string;
   secondary?: string;
   accent?: string;
+  /** Optional title-band colour (#rrggbb); resolveBranding keeps it only when it passes the band contrast floor. */
+  headerColor?: string;
   fromName?: string;
   /** Phase 2 per-agency sending domains; MVP sends from EMAIL_FROM. */
   fromEmail?: string;

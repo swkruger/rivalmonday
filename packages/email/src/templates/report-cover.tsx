@@ -1,7 +1,7 @@
 /** @jsxRuntime automatic */
 /** @jsxImportSource react */
 import { Img } from '../rx';
-import { brandInk, type Branding } from '../branding';
+import { bandColor, type Branding } from '../branding';
 import { longDate } from './report/format';
 
 /**
@@ -16,7 +16,7 @@ export function ReportCover(p: { branding: Branding; clientName: string; deliver
         {b.logoUrl ? <Img src={b.logoUrl} alt={b.displayName} height="40" style={{ marginBottom: 12 }} /> : null}
         <div style={{ fontSize: 20, lineHeight: '28px', fontWeight: 700, color: b.ink }}>{b.displayName}</div>
       </div>
-      <div style={{ backgroundColor: brandInk(b.primary, b.secondary), color: '#FFFFFF', borderRadius: 12, padding: '40px 32px' }}>
+      <div style={{ backgroundColor: bandColor(b), color: '#FFFFFF', borderRadius: 12, padding: '40px 32px' }}>
         <div style={{ fontSize: 32, lineHeight: '40px', fontWeight: 800 }}>Weekly competitor report</div>
         <div style={{ fontSize: 22, lineHeight: '30px', fontWeight: 600, marginTop: 16 }}>{p.clientName}</div>
         <div style={{ fontSize: 16, lineHeight: '24px', marginTop: 8 }}>{`Week of ${longDate(p.deliveryDate)}`}</div>

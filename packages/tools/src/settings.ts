@@ -39,8 +39,8 @@ export function uniqueViolationConstraint(err: unknown): string | null {
 // ---- branding (global constraint: accent #F5A524 is never overridable — it is dropped here, not merely defaulted) ----
 const HEX = /^#[0-9a-fA-F]{6}$/;
 const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
-/** Keys this layer accepts and stores. `accent` is intentionally absent: `resolveBranding` always returns the fixed accent. */
-const LIMITS: Record<Exclude<keyof AgencyBranding, 'accent'>, number> = { displayName: 80, logoUrl: 500, primary: 7, secondary: 7, fromName: 80, fromEmail: 200, signOff: 300, assistantName: 30 };
+/** Keys this layer accepts and stores. `accent` is intentionally absent: `resolveBranding` always returns the fixed accent. `headerColor` is absent until the save path validates it (13a3a). */
+const LIMITS: Record<Exclude<keyof AgencyBranding, 'accent' | 'headerColor'>, number> = { displayName: 80, logoUrl: 500, primary: 7, secondary: 7, fromName: 80, fromEmail: 200, signOff: 300, assistantName: 30 };
 type StorableKey = keyof typeof LIMITS;
 
 function clean(input: AgencyBranding): AgencyBranding {
