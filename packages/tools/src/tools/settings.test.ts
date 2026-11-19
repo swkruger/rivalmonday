@@ -46,6 +46,18 @@ describe('settings writes are audited tools (m4)', () => {
     expect((await stored())!.assistantName).toBeUndefined();
   });
 
+  it('header colour: refuses a failing hex with the shade, stores a passing one, clears when omitted', async () => {
+    const stored = async () => (await dbs.owner.select().from(agency).where(eq(agency.id, IDS.agencyA)))[0]!.branding as Record<string, string>;
+    await expect(registry.invoke(admin, 'update_agency_branding', { headerColor: '#FFD400' })).rejects.toMatchObject({ code: 'invalid_input', message: expect.stringMatching(/headerColor must pass the contrast check; try #[0-9a-f]{6}/) });
+    await expect(registry.invoke(admin, 'update_agency_branding', { headerColor: 'teal' })).rejects.toMatchObject({ code: 'invalid_input', message: expect.stringContaining('headerColor must be a colour like #0B2540') });
+    await registry.invoke(admin, 'update_agency_branding', { displayName: 'Peak', headerColor: '#0b554f' });
+    expect((await stored()).headerColor).toBe('#0b554f');
+    await registry.invoke(admin, 'update_agency_branding', { displayName: 'Peak' });
+    expect(await stored()).not.toHaveProperty('headerColor');
+    await registry.invoke(admin, 'update_agency_branding', { displayName: 'Peak', headerColor: '' });
+    expect(await stored()).not.toHaveProperty('headerColor');
+  });
+
   it('saves branding (admins only) and audits the refusal too', async () => {
     await registry.invoke(admin, 'update_agency_branding', { displayName: 'Peak Digital', primary: '#112233' });
     expect((await dbs.owner.select().from(agency).where(eq(agency.id, IDS.agencyA)))[0]!.branding).toMatchObject({ displayName: 'Peak Digital', primary: '#112233' });

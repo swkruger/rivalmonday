@@ -27,6 +27,12 @@ describe('parseBrandingForm', () => {
   });
 });
 
+describe('parseBrandingForm headerColor', () => {
+  it('reads headerColor', () => {
+    expect(parseBrandingForm(fd({ displayName: 'Acme', headerColor: '#0b554f' }))).toEqual({ displayName: 'Acme', headerColor: '#0b554f' });
+  });
+});
+
 describe('parseBrandingForm assistantName', () => {
   it('keeps the assistant name so a branding save preserves it, and a blank field clears it', () => {
     expect(parseBrandingForm(fd({ displayName: 'Acme', assistantName: ' Robin ' }))).toEqual({ displayName: 'Acme', assistantName: 'Robin' });

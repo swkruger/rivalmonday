@@ -2,6 +2,7 @@ import { type AccessContext, canAccessClient, isAgencyRole, ToolError } from '@c
 import { hashInput } from '@cs/core/server';
 import { agency, type AgencyBranding, agencyWebhook, type AlertMode, auditLog, client, contact, type Db } from '@cs/db';
 import { type Branding, resolveBranding } from '@cs/email';
+import { nearestBandShade, passesBandFloor } from '@cs/email/branding';
 import { addAgencyWebhook, addContact, ALERT_MODES, loadBranding, postWebhook, updateClientDelivery, type WebhookPostResult, webhookUrlProblem } from '@cs/engine';
 import { and, asc, count, eq, gt, isNotNull, isNull, sql } from 'drizzle-orm';
 import { validTimezone } from './timezone';
@@ -39,8 +40,8 @@ export function uniqueViolationConstraint(err: unknown): string | null {
 // ---- branding (global constraint: accent #F5A524 is never overridable — it is dropped here, not merely defaulted) ----
 const HEX = /^#[0-9a-fA-F]{6}$/;
 const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
-/** Keys this layer accepts and stores. `accent` is intentionally absent: `resolveBranding` always returns the fixed accent. `headerColor` is absent until the save path validates it (13a3a). */
-const LIMITS: Record<Exclude<keyof AgencyBranding, 'accent' | 'headerColor'>, number> = { displayName: 80, logoUrl: 500, primary: 7, secondary: 7, fromName: 80, fromEmail: 200, signOff: 300, assistantName: 30 };
+/** Keys this layer accepts and stores. `accent` is intentionally absent: `resolveBranding` always returns the fixed accent. */
+const LIMITS: Record<Exclude<keyof AgencyBranding, 'accent'>, number> = { displayName: 80, logoUrl: 500, primary: 7, secondary: 7, headerColor: 7, fromName: 80, fromEmail: 200, signOff: 300, assistantName: 30 };
 type StorableKey = keyof typeof LIMITS;
 
 function clean(input: AgencyBranding): AgencyBranding {
@@ -62,6 +63,10 @@ export function brandingProblems(input: AgencyBranding, appUrl?: string): string
     if ((b[key]?.length ?? 0) > max) problems.push(`${key} is longer than ${max} characters`);
   }
   for (const key of ['primary', 'secondary'] as const) if (b[key] && !HEX.test(b[key]!)) problems.push(`${key} must be a colour like #47A8E7`);
+  if (b.headerColor) {
+    if (!HEX.test(b.headerColor)) problems.push('headerColor must be a colour like #0B2540');
+    else if (!passesBandFloor(b.headerColor)) problems.push(`headerColor must pass the contrast check; try ${nearestBandShade(b.headerColor)}`);
+  }
   if (b.logoUrl) {
     try {
       if (new URL(b.logoUrl).protocol !== 'https:' && !isOwnLogoUrl(b.logoUrl, appUrl)) problems.push('logoUrl must start with https://');
