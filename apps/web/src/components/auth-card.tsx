@@ -12,16 +12,19 @@ import { themeVars, Wordmark } from '@cs/ui';
 export function AuthCard({ branding, title, children }: { branding: Branding | null; title: string; children: React.ReactNode }) {
   const whiteLabel = branding !== null && branding.displayName !== 'Rival Monday';
   return (
-    <main data-slot="auth-column" className="min-h-screen bg-surface px-4 py-16" style={whiteLabel ? (themeVars(branding) as React.CSSProperties) : undefined}>
-      <div className="mx-auto flex w-full max-w-[400px] flex-col gap-4">
-        {branding?.logoUrl ? (
+    <main data-slot="auth-column" className="min-h-screen bg-surface" style={whiteLabel ? (themeVars(branding) as React.CSSProperties) : undefined}>
+      {whiteLabel ? <div data-slot="auth-strip" aria-hidden className="h-1.5 w-full bg-brand-ink" /> : null}
+      <div className="px-4 py-16">
+        <div className="mx-auto flex w-full max-w-[400px] flex-col gap-4">
+          {branding?.logoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={branding.logoUrl} alt={branding.displayName} className="h-10 w-auto self-start" />
           ) : branding ? (
             <Wordmark name={whiteLabel ? branding.displayName : undefined} />
           ) : null}
           <h1 className="text-2xl font-semibold text-ink">{title}</h1>
-        <div>{children}</div>
+          <div>{children}</div>
+        </div>
       </div>
     </main>
   );
